@@ -33,6 +33,43 @@ export function formatInputTime(value: string | Date): string {
   return `${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`;
 }
 
+export function toWheelTime(value: string) {
+  const [hoursText = '0', minutesText = '0'] = value.split(':');
+  const hours = Number(hoursText);
+  const minutes = Number(minutesText);
+  if (!Number.isFinite(hours) || !Number.isFinite(minutes)) return '7:00 AM';
+  const meridiem = hours >= 12 ? 'PM' : 'AM';
+  const hour12 = ((hours + 11) % 12) + 1;
+  return `${hour12}:${String(minutes).padStart(2, '0')} ${meridiem}`;
+}
+
+export function fromWheelTime(value: string) {
+  const match = /^(\d{1,2}):(\d{2})\s(AM|PM)$/.exec(value);
+  if (!match) return '07:00';
+  const hour12 = Number(match[1]);
+  const minutes = Number(match[2]);
+  const meridiem = match[3];
+  const hours24 = meridiem === 'PM' ? (hour12 % 12) + 12 : hour12 % 12;
+  return `${String(hours24).padStart(2, '0')}:${String(minutes).padStart(2, '0')}`;
+}
+
+export function parseWheelTimeValue(value: string | undefined) {
+  const match = /^(\d{1,2}):(\d{2})\s?(AM|PM)$/i.exec(value ?? '');
+  return {
+    hour: match?.[1] ?? '7',
+    minute: match?.[2] ?? '00',
+    meridiem: (match?.[3] ?? 'AM').toUpperCase(),
+  };
+}
+
+export function composeWheelTimeValue(hour: string, minute: string, meridiem: string) {
+  return `${hour}:${minute} ${meridiem}`;
+}
+
+export function formatWheelTimeRange(start: string, end: string) {
+  return `${toWheelTime(start)} - ${toWheelTime(end)}`;
+}
+
 export function formatDisplayTime(value: string | Date): string {
   const date = typeof value === 'string' ? new Date(value) : value;
   return date.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });

@@ -1,62 +1,74 @@
-import { useMemo, useState } from 'react';
 import { Alert } from 'react-native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
+import type { Task } from '../types/task';
 import type { RootStackParamList } from '../navigation/types';
 import { useTaskStore } from '../store/taskStore';
-import { formatDuration, formatInputTime, parseTimeInput } from '../utils/time';
-import { TaskFormView } from '../views/TaskFormView';
+import { addMinutes } from '../utils/time';
+import { TaskFormView, type TaskFormSubmit } from '../views/TaskFormView';
+import { buildMockTask } from '../dev-preview/mockData';
 
 type CreateProps = NativeStackScreenProps<RootStackParamList, 'CreateTask'>;
 type EditProps = NativeStackScreenProps<RootStackParamList, 'EditTask'>;
+type RouteProps = CreateProps | EditProps;
+type PreviewProps = {
+  scenarioId: 'task-create' | 'task-edit';
+  onCancel: () => void;
+};
 
-type Props = CreateProps | EditProps;
+type Props = RouteProps | PreviewProps;
 
-export function TaskFormScreen({ navigation, route }: Props) {
-  const editingId = route.name === 'EditTask' ? route.params.taskId : undefined;
+function isRouteProps(props: Props): props is RouteProps {
+  return 'navigation' in props;
+}
+
+function buildPreviewTask(scenarioId: PreviewProps['scenarioId']) {
+  if (scenarioId !== 'task-edit') return null;
+  const start = new Date();
+  return buildMockTask('Study React', start.toISOString(), addMinutes(start, 45), 'scheduled');
+}
+
+function toInitialTask(task: Task | null | undefined) {
+  if (!task) return undefined;
+  return {
+    title: task.title,
+    startTime: task.startTime,
+    endTime: task.endTime,
+    status: task.status,
+  };
+}
+
+export function TaskFormScreen(props: Props) {
+  const isRoute = isRouteProps(props);
+  const isPreview = !isRoute;
+  const editingId =
+    isRoute && props.route.name === 'EditTask' ? props.route.params.taskId : undefined;
   const { tasks, addTask, updateTask, deleteTask, error, clearError, loading } = useTaskStore();
   const existing = tasks.find((task) => task.id === editingId);
-
-  const defaultStart = new Date();
-  defaultStart.setMinutes(Math.ceil(defaultStart.getMinutes() / 5) * 5, 0, 0);
-  const defaultEnd = new Date(defaultStart);
-  defaultEnd.setMinutes(defaultEnd.getMinutes() + 45);
-
-  const [title, setTitle] = useState(existing?.title ?? '');
-  const [start, setStart] = useState(
-    existing ? formatInputTime(existing.startTime) : formatInputTime(defaultStart),
+  const initialTask = toInitialTask(
+    existing ?? (!isRoute ? buildPreviewTask(props.scenarioId) : null),
   );
-  const [end, setEnd] = useState(
-    existing ? formatInputTime(existing.endTime) : formatInputTime(defaultEnd),
-  );
-  const [status, setStatus] = useState(existing?.status ?? 'scheduled');
+  const mode = initialTask ? 'edit' : 'create';
+  const onCancel = isRoute ? () => props.navigation.goBack() : props.onCancel;
+  const onComplete = isRoute ? () => props.navigation.goBack() : props.onCancel;
 
-  const parsedStart = parseTimeInput(start, existing ? new Date(existing.startTime) : new Date());
-  const parsedEnd = parseTimeInput(end, existing ? new Date(existing.endTime) : new Date());
-  const duration =
-    parsedStart && parsedEnd
-      ? Math.round((new Date(parsedEnd).getTime() - new Date(parsedStart).getTime()) / 60000)
-      : 0;
-
-  const validation = useMemo(() => {
-    if (!title.trim()) return 'Title is required.';
-    if (!parsedStart || !parsedEnd) return 'Use 24-hour time like 09:30.';
-    if (new Date(parsedEnd).getTime() <= new Date(parsedStart).getTime())
-      return 'End time must be after start time.';
-    return null;
-  }, [title, parsedStart, parsedEnd]);
-
-  const save = async () => {
-    if (validation || !parsedStart || !parsedEnd) return;
-
-    if (editingId) {
-      await updateTask(editingId, { title, startTime: parsedStart, endTime: parsedEnd, status });
-    } else {
-      await addTask({ title, startTime: parsedStart, endTime: parsedEnd });
+  const save = async ({ title, startTime, endTime, status }: TaskFormSubmit) => {
+    if (isPreview) {
+      onComplete();
+      return;
     }
-    navigation.goBack();
+    if (editingId) {
+      await updateTask(editingId, { title, startTime, endTime, status });
+    } else {
+      await addTask({ title, startTime, endTime });
+    }
+    if (!useTaskStore.getState().error) onComplete();
   };
 
   const confirmDelete = () => {
+    if (isPreview) {
+      onComplete();
+      return;
+    }
     if (!editingId) return;
     Alert.alert('Delete this task?', "This can't be undone.", [
       { text: 'Keep', style: 'cancel' },
@@ -65,7 +77,7 @@ export function TaskFormScreen({ navigation, route }: Props) {
         style: 'destructive',
         onPress: async () => {
           await deleteTask(editingId);
-          navigation.goBack();
+          if (!useTaskStore.getState().error) onComplete();
         },
       },
     ]);
@@ -73,23 +85,14 @@ export function TaskFormScreen({ navigation, route }: Props) {
 
   return (
     <TaskFormView
-      mode={editingId ? 'edit' : 'create'}
-      title={title}
-      start={start}
-      end={end}
-      status={status}
-      durationLabel={formatDuration(duration)}
-      validation={validation}
-      loading={loading}
-      error={error}
-      onDismissError={clearError}
-      onChangeTitle={setTitle}
-      onChangeStart={setStart}
-      onChangeEnd={setEnd}
-      onChangeStatus={setStatus}
-      onCancel={() => navigation.goBack()}
+      mode={mode}
+      initialTask={initialTask}
+      loading={isPreview ? false : loading}
+      error={isPreview ? null : error}
+      onDismissError={isPreview ? undefined : clearError}
+      onCancel={onCancel}
       onSave={save}
-      onDelete={editingId ? confirmDelete : undefined}
+      onDelete={mode === 'edit' ? confirmDelete : undefined}
     />
   );
 }

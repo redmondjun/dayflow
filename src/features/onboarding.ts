@@ -1,4 +1,19 @@
-import type { OnboardingAnswer, OnboardingStep } from '../views/OnboardingView';
+export type OnboardingCommitmentAnswer = {
+  option: string;
+  startTime?: string;
+  endTime?: string;
+};
+
+export type OnboardingAnswer = string | OnboardingCommitmentAnswer;
+
+export type OnboardingStep = {
+  id: string;
+  question: string;
+  kind: 'text' | 'time' | 'options' | 'commitments';
+  helperLabel?: string;
+  options?: readonly string[];
+  selectionStyle?: 'default' | 'centered';
+};
 
 export const onboardingSteps: OnboardingStep[] = [
   {
