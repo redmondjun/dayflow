@@ -73,6 +73,12 @@ function formatEditTime(value: string) {
   return toWheelTime(value).toLowerCase();
 }
 
+function formatTaskTimeRange(task: Task) {
+  return `${formatDisplayTime(task.startTime).toLowerCase()} - ${formatDisplayTime(
+    task.endTime,
+  ).toLowerCase()}`;
+}
+
 function WheelColumn({
   options,
   selectedValue,
@@ -225,8 +231,8 @@ function EditTimelineRow({
   active?: boolean;
 }) {
   return (
-    <View className="min-h-[72px] flex-row items-start">
-      <View className="w-[52px] items-center pt-[3px]">
+    <View className="min-h-[72px] flex-row items-center">
+      <View className="w-[52px] items-center">
         <View
           className={`h-[13px] w-[13px] rounded-full ${
             active ? 'bg-ink' : 'border-[2px] border-warm bg-paper'
@@ -248,9 +254,7 @@ function EditTimelineRow({
         </Text>
       </View>
       {time ? (
-        <Text className={`pt-[22px] text-[12px] ${active ? 'font-bold text-ink' : 'text-warm'}`}>
-          {time}
-        </Text>
+        <Text className={`text-[12px] ${active ? 'font-bold text-ink' : 'text-warm'}`}>{time}</Text>
       ) : null}
     </View>
   );
@@ -395,11 +399,11 @@ export function TaskFormView({
               ) : null}
             </View>
             <View className="relative mt-6 min-h-[216px]">
-              <View className="absolute left-[25px] top-[9px] h-[152px] w-[1.5px] bg-warm2" />
+              <View className="absolute left-[25px] top-[36px] h-[144px] w-[1.5px] bg-warm2" />
               <EditTimelineRow
                 label="Previous"
                 title={previousTitle}
-                time={previousTask ? dayLabel : ''}
+                time={previousTask ? formatTaskTimeRange(previousTask) : ''}
               />
               <EditTimelineRow
                 label="Current"
@@ -410,7 +414,7 @@ export function TaskFormView({
               <EditTimelineRow
                 label="Next"
                 title={nextTitle}
-                time={nextTask ? `at ${formatDisplayTime(nextTask.startTime).toLowerCase()}` : ''}
+                time={nextTask ? formatDisplayTime(nextTask.startTime).toLowerCase() : ''}
               />
             </View>
           </View>
@@ -419,7 +423,7 @@ export function TaskFormView({
         <View className="absolute bottom-0 left-0 right-0 bg-paper px-6 pb-7 pt-3">
           <Button
             mode="contained"
-            buttonColor={colors.warm2}
+            buttonColor="rgba(35, 36, 34, 0.32)"
             textColor={colors.white}
             disabled={!canSave}
             loading={loading}

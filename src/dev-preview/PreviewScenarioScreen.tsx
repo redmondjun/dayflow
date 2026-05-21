@@ -134,8 +134,8 @@ function TaskFormPreview({ scenarioId, onBack }: { scenarioId: string; onBack: (
   const previewPreviousTask = existing
     ? buildMockTask(
         'Coffee & walk',
-        new Date(2026, 3, 28, 9, 30).toISOString(),
-        new Date(2026, 3, 28, 10, 15).toISOString(),
+        new Date(2026, 3, 28, 10, 30).toISOString(),
+        new Date(2026, 3, 28, 11, 0).toISOString(),
         'completed',
       )
     : undefined;
