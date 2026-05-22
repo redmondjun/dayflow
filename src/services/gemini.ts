@@ -1,39 +1,12 @@
 import type { WeeklyInsightSummary } from '../types/insight';
 import type { Task } from '../types/task';
+import type { AiGeneratedTask, AiWeeklyInsight } from './openai';
 
-const OPENAI_RESPONSES_URL = 'https://api.openai.com/v1/responses';
-const DEFAULT_MODEL = 'gpt-5-nano';
-
-export type AiGeneratedTask = {
-  title: string;
-  durationMinutes: number;
-};
-
-export type AiWeeklyInsight = Pick<WeeklyInsightSummary, 'patterns' | 'suggestions'>;
-
-const responseSchema = {
-  type: 'object',
-  additionalProperties: false,
-  required: ['tasks'],
-  properties: {
-    tasks: {
-      type: 'array',
-      items: {
-        type: 'object',
-        additionalProperties: false,
-        required: ['title', 'durationMinutes'],
-        properties: {
-          title: { type: 'string' },
-          durationMinutes: { type: 'integer' },
-        },
-      },
-    },
-  },
-};
+const GEMINI_MODEL = 'gemini-2.5-flash';
+const GEMINI_GENERATE_CONTENT_URL = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent`;
 
 const weeklyInsightSchema = {
   type: 'object',
-  additionalProperties: false,
   required: ['patterns', 'suggestions'],
   properties: {
     patterns: {
@@ -42,7 +15,6 @@ const weeklyInsightSchema = {
       maxItems: 3,
       items: {
         type: 'object',
-        additionalProperties: false,
         required: ['label', 'text'],
         properties: {
           label: { type: 'string' },
@@ -56,7 +28,6 @@ const weeklyInsightSchema = {
       maxItems: 3,
       items: {
         type: 'object',
-        additionalProperties: false,
         required: ['text', 'action'],
         properties: {
           text: { type: 'string' },
@@ -67,96 +38,108 @@ const weeklyInsightSchema = {
   },
 };
 
-export async function generateScheduleFromText(
+const scheduleSchema = {
+  type: 'object',
+  required: ['tasks'],
+  properties: {
+    tasks: {
+      type: 'array',
+      items: {
+        type: 'object',
+        required: ['title', 'durationMinutes'],
+        properties: {
+          title: { type: 'string' },
+          durationMinutes: { type: 'integer' },
+        },
+      },
+    },
+  },
+};
+
+export async function generateGeminiScheduleFromText(
   apiKey: string,
   taskTitles: string[],
   userProfile?: string | null,
 ): Promise<AiGeneratedTask[]> {
   const tasks = taskTitles.map((title) => title.trim()).filter(Boolean);
-  if (!apiKey.trim()) throw new Error('Add your OpenAI API key in Settings first.');
+  if (!apiKey.trim()) throw new Error('Add your Gemini API key in Settings first.');
   if (tasks.length === 0) throw new Error('Add at least one task first.');
 
-  const response = await postOpenAIResponse(apiKey, {
-    model: DEFAULT_MODEL,
-    input: [
-      {
-        role: 'system',
-        content:
-          'You are a scheduling assistant. Convert separate user tasks into a clear sequential schedule. Estimate realistic durations in minutes. Return structured data only.',
-      },
+  const response = await postGeminiGenerateContent(apiKey, {
+    systemInstruction: {
+      parts: [
+        {
+          text: 'You are a scheduling assistant. Convert separate user tasks into a clear sequential schedule. Estimate realistic durations in minutes. Return JSON only.',
+        },
+      ],
+    },
+    contents: [
       {
         role: 'user',
-        content: buildSchedulePrompt(tasks, userProfile),
+        parts: [{ text: buildSchedulePrompt(tasks, userProfile) }],
       },
     ],
-    text: {
-      format: {
-        type: 'json_schema',
-        name: 'dayflow_schedule',
-        strict: true,
-        schema: responseSchema,
-      },
+    generationConfig: {
+      responseMimeType: 'application/json',
+      responseSchema: scheduleSchema,
     },
   });
 
-  await throwIfOpenAIError(response);
+  await throwIfGeminiError(response);
   const data: unknown = await response.json();
-  const output = getResponseText(data);
-  if (!output) throw new Error('OpenAI returned an empty schedule response.');
+  const output = getGeminiResponseText(data);
+  if (!output) throw new Error('Gemini returned an empty schedule response.');
 
   let parsed: unknown;
   try {
     parsed = JSON.parse(output);
   } catch {
-    throw new Error('OpenAI returned invalid JSON.');
+    throw new Error('Gemini returned invalid JSON.');
   }
 
   return validateGeneratedTasks(parsed);
 }
 
-export async function generateWeeklyInsight(
+export async function generateGeminiWeeklyInsight(
   apiKey: string,
   tasks: Task[],
   summary: WeeklyInsightSummary,
   userProfile?: string | null,
 ): Promise<AiWeeklyInsight> {
   const recentTasks = tasks.slice(0, 80);
-  if (!apiKey.trim()) throw new Error('Add your OpenAI API key in Settings first.');
+  if (!apiKey.trim()) throw new Error('Add your Gemini API key in Settings first.');
   if (recentTasks.length === 0) throw new Error('Complete tasks to unlock weekly AI insights.');
 
-  const response = await postOpenAIResponse(apiKey, {
-    model: DEFAULT_MODEL,
-    input: [
-      {
-        role: 'system',
-        content:
-          'You are a productivity coach. Analyze weekly task history and return concise patterns and actionable suggestions. Return structured data only.',
-      },
+  const response = await postGeminiGenerateContent(apiKey, {
+    systemInstruction: {
+      parts: [
+        {
+          text: 'You are a productivity coach. Analyze weekly task history and return concise patterns and actionable suggestions. Return JSON only.',
+        },
+      ],
+    },
+    contents: [
       {
         role: 'user',
-        content: buildWeeklyInsightPrompt(recentTasks, summary, userProfile),
+        parts: [{ text: buildWeeklyInsightPrompt(recentTasks, summary, userProfile) }],
       },
     ],
-    text: {
-      format: {
-        type: 'json_schema',
-        name: 'dayflow_weekly_insight',
-        strict: true,
-        schema: weeklyInsightSchema,
-      },
+    generationConfig: {
+      responseMimeType: 'application/json',
+      responseSchema: weeklyInsightSchema,
     },
   });
 
-  await throwIfOpenAIError(response);
+  await throwIfGeminiError(response);
   const data: unknown = await response.json();
-  const output = getResponseText(data);
-  if (!output) throw new Error('OpenAI returned an empty weekly insight response.');
+  const output = getGeminiResponseText(data);
+  if (!output) throw new Error('Gemini returned an empty weekly insight response.');
 
   let parsed: unknown;
   try {
     parsed = JSON.parse(output);
   } catch {
-    throw new Error('OpenAI returned invalid JSON.');
+    throw new Error('Gemini returned invalid JSON.');
   }
 
   return validateWeeklyInsight(parsed);
@@ -201,58 +184,42 @@ ${taskLines}
 Return exactly 1-3 patterns and 1-3 suggestions. Pattern labels should be short. Suggestion actions should be short button-like phrases.`;
 }
 
-export async function validateOpenAIApiKey(apiKey: string): Promise<void> {
-  if (!apiKey.trim()) throw new Error('Enter an OpenAI API key first.');
-
-  const response = await postOpenAIResponse(apiKey, {
-    model: DEFAULT_MODEL,
-    input: 'Reply with OK.',
-  });
-
-  await throwIfOpenAIError(response);
-}
-
-async function postOpenAIResponse(apiKey: string, body: unknown): Promise<Response> {
+async function postGeminiGenerateContent(apiKey: string, body: unknown): Promise<Response> {
   try {
-    return await fetch(OPENAI_RESPONSES_URL, {
+    return await fetch(`${GEMINI_GENERATE_CONTENT_URL}?key=${encodeURIComponent(apiKey.trim())}`, {
       method: 'POST',
       headers: {
-        Authorization: `Bearer ${apiKey.trim()}`,
         'Content-Type': 'application/json',
       },
       body: JSON.stringify(body),
     });
   } catch {
-    throw new Error('Could not reach OpenAI. Check your internet connection and try again.');
+    throw new Error('Could not reach Gemini. Check your internet connection and try again.');
   }
 }
 
-async function throwIfOpenAIError(response: Response): Promise<void> {
+async function throwIfGeminiError(response: Response): Promise<void> {
   if (response.ok) return;
 
-  const detail = await readOpenAIErrorDetail(response);
+  const detail = await readGeminiErrorDetail(response);
 
-  if (response.status === 401) {
-    throw new Error('This API key is invalid, expired, or revoked.');
+  if (response.status === 400 || response.status === 401 || response.status === 403) {
+    throw new Error('This Gemini API key is invalid, expired, or not allowed.');
   }
   if (response.status === 429) {
-    throw new Error(
-      detail.toLowerCase().includes('quota')
-        ? 'Quota or billing issue. Check your OpenAI billing settings.'
-        : 'OpenAI rate limit reached. Try again in a moment.',
-    );
+    throw new Error('Gemini rate limit reached. Try again in a moment.');
   }
   if (response.status >= 500) {
-    throw new Error('OpenAI is temporarily unavailable. Try again soon.');
+    throw new Error('Gemini is temporarily unavailable. Try again soon.');
   }
 
-  throw new Error(detail || `OpenAI request failed with status ${response.status}.`);
+  throw new Error(detail || `Gemini request failed with status ${response.status}.`);
 }
 
-async function readOpenAIErrorDetail(response: Response): Promise<string> {
+async function readGeminiErrorDetail(response: Response): Promise<string> {
   try {
     const body: unknown = await response.json();
-    const message = getOpenAIErrorMessage(body);
+    const message = getGeminiErrorMessage(body);
     if (message) return message;
   } catch {
     return '';
@@ -261,33 +228,33 @@ async function readOpenAIErrorDetail(response: Response): Promise<string> {
   return '';
 }
 
-function getOpenAIErrorMessage(value: unknown): string | null {
+function getGeminiErrorMessage(value: unknown): string | null {
   if (!value || typeof value !== 'object' || !('error' in value)) return null;
   const error = value.error;
   if (!error || typeof error !== 'object' || !('message' in error)) return null;
   return typeof error.message === 'string' ? error.message : null;
 }
 
-function getResponseText(data: unknown): string | null {
-  if (!data || typeof data !== 'object') return null;
-  if ('output_text' in data && typeof data.output_text === 'string') return data.output_text;
-  if (!('output' in data) || !Array.isArray(data.output)) return null;
+function getGeminiResponseText(data: unknown): string | null {
+  if (!data || typeof data !== 'object' || !('candidates' in data)) return null;
+  if (!Array.isArray(data.candidates)) return null;
+  const firstCandidate = data.candidates[0];
+  if (!firstCandidate || typeof firstCandidate !== 'object' || !('content' in firstCandidate)) {
+    return null;
+  }
+  const content = firstCandidate.content;
+  if (!content || typeof content !== 'object' || !('parts' in content)) return null;
+  if (!Array.isArray(content.parts)) return null;
 
-  const texts = data.output.flatMap((item) => {
-    if (!item || typeof item !== 'object' || !('content' in item) || !Array.isArray(item.content)) {
-      return [];
-    }
+  const parts: unknown[] = content.parts;
+  const texts = parts
+    .map((part) => {
+      if (!part || typeof part !== 'object' || !('text' in part)) return null;
+      return typeof part.text === 'string' ? part.text : null;
+    })
+    .filter((text: string | null): text is string => Boolean(text));
 
-    const contents: unknown[] = item.content;
-    return contents.map(getContentText).filter((text): text is string => Boolean(text));
-  });
-
-  return texts?.join('\n') || null;
-}
-
-function getContentText(content: unknown): string | null {
-  if (!content || typeof content !== 'object' || !('text' in content)) return null;
-  return typeof content.text === 'string' ? content.text : null;
+  return texts.join('\n') || null;
 }
 
 function validateGeneratedTasks(value: unknown): AiGeneratedTask[] {

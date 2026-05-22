@@ -1,5 +1,5 @@
 import * as SecureStore from 'expo-secure-store';
-import type { OnboardingAnswer, OnboardingCommitmentAnswer } from '../views/OnboardingView';
+import type { OnboardingAnswer, OnboardingCommitmentAnswer } from '../features/onboarding';
 
 const ONBOARDING_PROFILE_KEY = 'dayflow.onboardingProfile';
 

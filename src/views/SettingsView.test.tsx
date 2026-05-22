@@ -1,95 +1,143 @@
 import React from 'react';
 import { describe, expect, it, jest } from '@jest/globals';
-import { render, screen, fireEvent } from '@testing-library/react-native';
-import { PaperProvider, TextInput } from 'react-native-paper';
-import { SettingsView } from './SettingsView';
+import { fireEvent, render, screen } from '@testing-library/react-native';
+import { Text } from 'react-native';
+import { PaperProvider } from 'react-native-paper';
+import { SettingsScreen } from '../screens/SettingsScreen';
 
-function renderSettingsView(
-  overrideProps: Partial<React.ComponentProps<typeof SettingsView>> = {},
+function mockEyeClosed() {
+  return <Text>eye-closed</Text>;
+}
+mockEyeClosed.displayName = 'EyeClosedMock';
+
+function mockEyeOpen() {
+  return <Text>eye-open</Text>;
+}
+mockEyeOpen.displayName = 'EyeOpenMock';
+
+function mockTrash() {
+  return <Text>trash</Text>;
+}
+mockTrash.displayName = 'TrashMock';
+
+jest.mock('../assets/icons/eye-closed.svg', () => {
+  return mockEyeClosed;
+});
+jest.mock('../assets/icons/eye-open.svg', () => {
+  return mockEyeOpen;
+});
+jest.mock('../assets/icons/trash.svg', () => {
+  return mockTrash;
+});
+
+const mockSettingsState = {
+  openAiApiKey: '',
+  savedOpenAiApiKey: null as string | null,
+  geminiApiKey: '',
+  savedGeminiApiKey: null as string | null,
+  aiFeaturesEnabled: true,
+  message: null as string | null,
+  validatingOpenAi: false,
+  savingGemini: false,
+  setOpenAiApiKey: jest.fn(),
+  setGeminiApiKey: jest.fn(),
+  setMessage: jest.fn(),
+  saveOpenAi: jest.fn(),
+  saveGemini: jest.fn(),
+  removeOpenAi: jest.fn(),
+  removeGemini: jest.fn(),
+  toggleAiFeatures: jest.fn(),
+};
+
+function mockBuildApiKeySections() {
+  return [
+    {
+      id: 'openai' as const,
+      provider: 'OpenAI',
+      placeholder: 'sk-proj-...',
+      value: mockSettingsState.openAiApiKey,
+      savedKey: mockSettingsState.savedOpenAiApiKey,
+      loading: mockSettingsState.validatingOpenAi,
+      onChange: mockSettingsState.setOpenAiApiKey,
+      onSave: mockSettingsState.saveOpenAi,
+      onRemove: mockSettingsState.removeOpenAi,
+    },
+    {
+      id: 'gemini' as const,
+      provider: 'Gemini',
+      placeholder: 'AIza...',
+      value: mockSettingsState.geminiApiKey,
+      savedKey: mockSettingsState.savedGeminiApiKey,
+      loading: mockSettingsState.savingGemini,
+      onChange: mockSettingsState.setGeminiApiKey,
+      onSave: mockSettingsState.saveGemini,
+      onRemove: mockSettingsState.removeGemini,
+    },
+  ];
+}
+
+jest.mock('../hooks/useSettingsState', () => ({
+  useSettingsState: () => ({
+    ...mockSettingsState,
+    apiKeySections: mockBuildApiKeySections(),
+  }),
+}));
+
+function renderSettingsScreen(
+  overrideProps: Partial<{
+    onCancel: () => void;
+    onOpenPreviewCatalog: () => void;
+  }> = {},
 ) {
-  const props: React.ComponentProps<typeof SettingsView> = {
-    apiKey: '',
-    saved: false,
-    hasUnsavedApiKeyChange: false,
-    message: null,
-    validating: false,
-    showPreviewCatalog: false,
-    onDismissMessage: jest.fn(),
-    onChangeApiKey: jest.fn(),
-    onCancel: jest.fn(),
-    onSave: jest.fn(),
-    onRemove: jest.fn(),
-    onEditOnboardingProfile: jest.fn(),
-    ...overrideProps,
-  };
-
   return render(
     <PaperProvider>
-      <SettingsView {...props} />
+      <SettingsScreen {...overrideProps} />
     </PaperProvider>,
   );
 }
 
-describe('SettingsView', () => {
-  it('shows a paste-friendly API key field by default', () => {
-    renderSettingsView({ apiKey: 'sk-live' });
+describe('SettingsScreen', () => {
+  it('renders the new AI settings sections', () => {
+    renderSettingsScreen();
 
-    expect(
-      screen.getByText('Paste your key here. Hide it only if you need privacy while entering it.'),
-    ).toBeOnTheScreen();
-    const input = screen.UNSAFE_getByType(TextInput);
-    expect(input.props.secureTextEntry).toBe(false);
-    expect(screen.getByText('Hide')).toBeOnTheScreen();
+    expect(screen.getByText('Settings')).toBeOnTheScreen();
+    expect(screen.getByText('OpenAI API Key')).toBeOnTheScreen();
+    expect(screen.getByText('Gemini API Key')).toBeOnTheScreen();
+    expect(screen.getByText('AI Features')).toBeOnTheScreen();
   });
 
-  it('toggles hide and show for the API key field', () => {
-    renderSettingsView({ apiKey: 'sk-live' });
+  it('shows empty-state copy when no keys are saved', () => {
+    renderSettingsScreen();
 
-    fireEvent.press(screen.getByText('Hide'));
-    expect(screen.UNSAFE_getByType(TextInput).props.secureTextEntry).toBe(true);
-    expect(screen.getByText('Show')).toBeOnTheScreen();
-
-    fireEvent.press(screen.getByText('Show'));
-    expect(screen.UNSAFE_getByType(TextInput).props.secureTextEntry).toBe(false);
+    expect(screen.getAllByText('No saved keys — add one above')).toHaveLength(2);
   });
 
-  it('shows validating status copy and disables actions while validating', () => {
-    renderSettingsView({ validating: true, saved: true });
+  it('reveals saved key sections when keys exist', () => {
+    mockSettingsState.savedOpenAiApiKey = 'sk-proj-1234567890abcdef';
+    mockSettingsState.savedGeminiApiKey = 'AIza1234567890abcdef';
 
-    expect(screen.getByText('Checking your API key...')).toBeOnTheScreen();
-    expect(
-      screen.getByText('DayFlow is verifying the key with OpenAI before saving it.'),
-    ).toBeOnTheScreen();
+    renderSettingsScreen();
 
-    const buttons = screen.UNSAFE_getAllByProps({ disabled: true });
-    expect(buttons.length).toBeGreaterThan(0);
+    expect(screen.getAllByText('Saved keys')).toHaveLength(2);
+
+    mockSettingsState.savedOpenAiApiKey = null;
+    mockSettingsState.savedGeminiApiKey = null;
   });
 
-  it('shows unsaved change copy when the key was edited after save', () => {
-    renderSettingsView({ saved: true, hasUnsavedApiKeyChange: true });
+  it('shows validating copy while checking the OpenAI key', () => {
+    mockSettingsState.validatingOpenAi = true;
 
-    expect(screen.getByText('You have unsaved API key changes.')).toBeOnTheScreen();
-    expect(
-      screen.getByText(
-        'Save this key to verify it. The previously verified key remains active until then.',
-      ),
-    ).toBeOnTheScreen();
+    renderSettingsScreen();
+
+    expect(screen.getByText('Checking your OpenAI API key...')).toBeOnTheScreen();
+
+    mockSettingsState.validatingOpenAi = false;
   });
 
-  it('shows enabled copy for a saved key', () => {
-    renderSettingsView({ saved: true });
+  it('calls the AI features toggle handler', () => {
+    renderSettingsScreen();
 
-    expect(screen.getByText('AI generation is enabled.')).toBeOnTheScreen();
-    expect(screen.getByText('Your API key was verified and is stored locally.')).toBeOnTheScreen();
-  });
-
-  it('opens onboarding profile editing from settings', () => {
-    const onEditOnboardingProfile = jest.fn();
-    renderSettingsView({ onEditOnboardingProfile });
-
-    expect(screen.getByText('Personalization')).toBeOnTheScreen();
-    fireEvent.press(screen.getByText('Edit Onboarding Profile'));
-
-    expect(onEditOnboardingProfile).toHaveBeenCalledTimes(1);
+    fireEvent(screen.getByRole('switch'), 'valueChange', false);
+    expect(mockSettingsState.toggleAiFeatures).toHaveBeenCalledWith(false);
   });
 });

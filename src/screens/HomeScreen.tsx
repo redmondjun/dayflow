@@ -1,53 +1,60 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
+import { View } from 'react-native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
+import { MainTabBar, type MainTabId } from '../components/MainTabBar';
 import type { RootStackParamList } from '../navigation/types';
-import { useTaskStore } from '../store/taskStore';
-import { formatDisplayDate } from '../utils/time';
+import { MyPageScreen } from '../screens/MyPageScreen';
+import { WeeklyInsightScreen } from '../screens/WeeklyInsightScreen';
 import { HomeScreenView } from '../views/HomeScreenView';
 
-type Props = NativeStackScreenProps<RootStackParamList, 'Home'>;
+type RouteProps = NativeStackScreenProps<RootStackParamList, 'Home'>;
+type PreviewProps = {
+  scenarioId: 'home-empty' | 'home-active' | 'home-completed';
+  onBack: () => void;
+};
 
-export function HomeScreen({ navigation }: Props) {
-  const [tick, setTick] = useState(Date.now());
-  const {
-    loading,
-    error,
-    clearError,
-    reloadTasks,
-    todayTasks,
-    currentTask,
-    upcomingTasks,
-    markCompleted,
-    markSkipped,
-  } = useTaskStore();
+type Props = RouteProps | PreviewProps;
 
-  useEffect(() => {
-    const id = setInterval(() => setTick(Date.now()), 30000);
-    return () => clearInterval(id);
-  }, []);
+function isRouteProps(props: Props): props is RouteProps {
+  return 'navigation' in props;
+}
 
-  const date = formatDisplayDate(new Date(tick));
-  const tasks = todayTasks();
-  const current = currentTask();
-  const next = upcomingTasks()[0];
+export function HomeScreen(props: Props) {
+  const isRoute = isRouteProps(props);
+  const [activeTab, setActiveTab] = useState<MainTabId>('main');
 
   return (
-    <HomeScreenView
-      weekday={date.weekday}
-      dayMonth={date.dayMonth}
-      tasks={tasks}
-      currentTask={current}
-      nextTask={next}
-      loading={loading}
-      error={error}
-      onDismissError={clearError}
-      onRefresh={reloadTasks}
-      onPressTask={(taskId) => navigation.navigate('EditTask', { taskId })}
-      onCompleteCurrent={current ? () => markCompleted(current.id) : undefined}
-      onSkipCurrent={current ? () => markSkipped(current.id) : undefined}
-      onCreateTask={() => navigation.navigate('CreateTask')}
-      onOpenAiSchedule={() => navigation.navigate('AISchedule')}
-      onOpenSettings={() => navigation.navigate('Settings')}
-    />
+    <View className="flex-1 bg-paper">
+      <View className="flex-1">
+        {activeTab === 'main' ? (
+          isRoute ? (
+            <HomeScreenView
+              onEditTask={(taskId) => props.navigation.navigate('EditTask', { taskId })}
+              onCreateTask={() => props.navigation.navigate('CreateTask')}
+              onOpenAiSchedule={() => props.navigation.navigate('AISchedule')}
+            />
+          ) : (
+            <HomeScreenView scenarioId={props.scenarioId} onBack={props.onBack} />
+          )
+        ) : activeTab === 'weekly' ? (
+          <WeeklyInsightScreen
+            onOptimizeTomorrow={
+              isRoute ? () => props.navigation.navigate('AISchedule') : props.onBack
+            }
+          />
+        ) : (
+          <MyPageScreen
+            onEditProfile={
+              isRoute ? () => props.navigation.navigate('Onboarding', { mode: 'edit' }) : undefined
+            }
+            onOpenSettings={isRoute ? () => props.navigation.navigate('Settings') : props.onBack}
+            onOpenPreviewCatalog={
+              isRoute && __DEV__ ? () => props.navigation.navigate('PreviewCatalog') : undefined
+            }
+          />
+        )}
+      </View>
+      {isRoute ? <MainTabBar activeTab={activeTab} onSelectTab={setActiveTab} /> : null}
+    </View>
   );
 }

@@ -12,6 +12,12 @@ function formatRange(end = new Date()): string {
   return `${monthDay(start)} - ${monthDay(end)}`;
 }
 
+function getPeakDayPart(label: string): 'morning' | 'afternoon' | 'evening' {
+  if (label === '8' || label === '10') return 'morning';
+  if (label === '12' || label === '2' || label === '4') return 'afternoon';
+  return 'evening';
+}
+
 export function buildWeeklyInsightSummary(tasks: Task[], now = new Date()): WeeklyInsightSummary {
   const weekStart = new Date(now);
   weekStart.setDate(now.getDate() - 7);
@@ -40,44 +46,55 @@ export function buildWeeklyInsightSummary(tasks: Task[], now = new Date()): Week
       ? `${peak.label} ${peak.label === '12' || Number(peak.label) < 8 ? 'PM' : 'AM'}`
       : 'N/A';
 
+  const hasData = completed + skipped > 0;
+
   return {
     dateRange: formatRange(now),
     headline:
-      peak.value > 0 ? 'You are most productive in the morning' : 'Build a week of task history',
-    basedOn: total ? 'Based on your last 7 days' : 'Complete tasks to unlock sharper patterns',
+      peak.value > 0
+        ? `You are most productive in the ${getPeakDayPart(peak.label)}`
+        : 'Build a week of task history',
+    basedOn: hasData ? 'Based on your last 7 days' : 'Complete tasks to unlock sharper patterns',
     completionPercent,
     skippedPercent,
     peakHourLabel,
     timeChart: buckets,
-    patterns: [
-      {
-        label: 'After 4 PM',
-        text:
-          skippedPercent > 20
-            ? 'Completion rate drops later in the day.'
-            : 'Later tasks are staying mostly on track.',
-      },
-      {
-        label: 'Long tasks',
-        text: 'Blocks over 90 minutes are worth splitting before scheduling.',
-      },
-      {
-        label: '9-11 AM',
-        text:
-          peak.value > 0
-            ? 'Highest output quality of the day.'
-            : 'Schedule focused work here to test the pattern.',
-      },
-    ],
-    suggestions: [
-      {
-        text: 'Reserve deep work for the morning, before other meetings.',
-        action: 'Apply to tomorrow',
-      },
-      { text: 'Split tasks over 90 minutes into two separate blocks.', action: 'Use this plan' },
-      { text: 'Move lower-priority tasks to the afternoon.', action: 'Try this week' },
-    ],
-    reflection: total
+    patterns: hasData
+      ? [
+          {
+            label: 'After 4 PM',
+            text:
+              skippedPercent > 20
+                ? 'Completion rate drops later in the day.'
+                : 'Later tasks are staying mostly on track.',
+          },
+          {
+            label: 'Long tasks',
+            text: 'Blocks over 90 minutes are worth splitting before scheduling.',
+          },
+          {
+            label: '9-11 AM',
+            text:
+              peak.value > 0
+                ? 'Highest output quality of the day.'
+                : 'Schedule focused work here to test the pattern.',
+          },
+        ]
+      : [],
+    suggestions: hasData
+      ? [
+          {
+            text: 'Reserve deep work for the morning, before other meetings.',
+            action: 'Apply to tomorrow',
+          },
+          {
+            text: 'Split tasks over 90 minutes into two separate blocks.',
+            action: 'Use this plan',
+          },
+          { text: 'Move lower-priority tasks to the afternoon.', action: 'Try this week' },
+        ]
+      : [],
+    reflection: hasData
       ? 'Your schedule is improving compared to last week.'
       : 'A weekly pattern will appear here soon.',
   };
