@@ -1,69 +1,147 @@
+import { useEffect, useState } from 'react';
 import { RefreshControl, ScrollView, Text, View } from 'react-native';
 import { Button, Snackbar } from 'react-native-paper';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { CurrentTaskCard } from '../components/CurrentTaskCard';
 import { TaskTimelineRow } from '../components/TaskTimelineRow';
+import { makeActiveDayTasks, makeCompletedHeavyTasks } from '../dev-preview/mockData';
+import { useTaskStore } from '../store/taskStore';
 import { colors } from '../theme/colors';
 import type { Task } from '../types/task';
+import { formatDisplayDate, getCurrentTask, getUpcomingTasks } from '../utils/time';
 
-type Props = {
-  weekday: string;
-  dayMonth: string;
-  tasks: Task[];
-  currentTask?: Task;
-  nextTask?: Task;
-  loading: boolean;
-  error: string | null;
-  onDismissError: () => void;
-  onRefresh: () => void;
-  onPressTask: (taskId: string) => void;
-  onCompleteCurrent?: () => void;
-  onSkipCurrent?: () => void;
+type RouteProps = {
+  onEditTask?: (taskId: string) => void;
   onCreateTask: () => void;
   onOpenAiSchedule: () => void;
-  onOpenSettings: () => void;
+  onOpenSettings?: () => void;
 };
 
-export function HomeScreenView({
-  weekday,
-  dayMonth,
-  tasks,
-  currentTask,
-  nextTask,
-  loading,
-  error,
-  onDismissError,
-  onRefresh,
-  onPressTask,
-  onCompleteCurrent,
-  onSkipCurrent,
-  onCreateTask,
-  onOpenAiSchedule,
-  onOpenSettings,
-}: Props) {
+type PreviewProps = {
+  scenarioId: 'home-empty' | 'home-active' | 'home-completed';
+  onBack: () => void;
+};
+
+type Props = RouteProps | PreviewProps;
+
+function isPreviewProps(props: Props): props is PreviewProps {
+  return 'scenarioId' in props;
+}
+
+function buildPreviewTasks(scenarioId: PreviewProps['scenarioId']): Task[] {
+  const previewTaskMap: Record<PreviewProps['scenarioId'], Task[]> = {
+    'home-empty': [],
+    'home-active': makeActiveDayTasks(),
+    'home-completed': makeCompletedHeavyTasks(),
+  };
+  return previewTaskMap[scenarioId];
+}
+
+function updatePreviewTaskStatus(
+  setPreviewTasks: React.Dispatch<React.SetStateAction<Task[]>>,
+  taskId: string,
+  status: Task['status'],
+) {
+  setPreviewTasks((tasks) =>
+    tasks.map((task) => (task.id === taskId ? { ...task, status } : task)),
+  );
+}
+
+export function HomeScreenView(props: Props) {
+  const isPreview = isPreviewProps(props);
+  const previewScenarioId = isPreview ? props.scenarioId : null;
+  const [tick, setTick] = useState(Date.now());
+  const [previewTasks, setPreviewTasks] = useState<Task[]>(
+    previewScenarioId ? buildPreviewTasks(previewScenarioId) : [],
+  );
+  const {
+    loading,
+    error,
+    clearError,
+    reloadTasks,
+    todayTasks,
+    currentTask,
+    upcomingTasks,
+    markCompleted,
+    markSkipped,
+  } = useTaskStore();
+
+  useEffect(() => {
+    const id = setInterval(() => setTick(Date.now()), 30000);
+    return () => clearInterval(id);
+  }, []);
+
+  useEffect(() => {
+    if (previewScenarioId) {
+      setPreviewTasks(buildPreviewTasks(previewScenarioId));
+    }
+  }, [previewScenarioId]);
+
+  const date = formatDisplayDate(new Date(tick));
+  const tasks = isPreview ? previewTasks : todayTasks();
+  const current = isPreview ? getCurrentTask(tasks) : currentTask();
+  const next = isPreview ? getUpcomingTasks(tasks)[0] : upcomingTasks()[0];
+  const routeOnEditTask = 'onEditTask' in props ? props.onEditTask : undefined;
+  const mode = isPreview
+    ? {
+        onHeaderPress: props.onBack,
+        refreshControl: undefined,
+        onCurrentComplete: current
+          ? () => updatePreviewTaskStatus(setPreviewTasks, current.id, 'completed')
+          : undefined,
+        onCurrentSkip: current
+          ? () => updatePreviewTaskStatus(setPreviewTasks, current.id, 'skipped')
+          : undefined,
+        onTaskPress: undefined,
+        onPrimaryAction: props.onBack,
+        onSecondaryAction: props.onBack,
+        showError: false,
+      }
+    : {
+        onHeaderPress: props.onOpenSettings,
+        refreshControl: (
+          <RefreshControl refreshing={loading} onRefresh={reloadTasks} tintColor={colors.ink} />
+        ),
+        onCurrentComplete: current ? () => markCompleted(current.id) : undefined,
+        onCurrentSkip: current ? () => markSkipped(current.id) : undefined,
+        onTaskPress: routeOnEditTask,
+        onPrimaryAction: props.onCreateTask,
+        onSecondaryAction: props.onOpenAiSchedule,
+        showError: true,
+      };
+  const {
+    onCurrentComplete,
+    onCurrentSkip,
+    onHeaderPress,
+    onPrimaryAction,
+    onSecondaryAction,
+    onTaskPress,
+    refreshControl,
+    showError,
+  } = mode;
+
   return (
     <SafeAreaView className="flex-1 bg-paper" edges={['top']}>
-      <ScrollView
-        contentContainerClassName="pb-28 pt-3"
-        refreshControl={
-          <RefreshControl refreshing={loading} onRefresh={onRefresh} tintColor={colors.ink} />
-        }
-      >
+      <ScrollView contentContainerClassName="pb-28 pt-3" refreshControl={refreshControl}>
         <View className="flex-row items-start justify-between gap-4 px-4 pb-7">
           <View>
-            <Text className="text-[11px] font-normal uppercase text-warm">{weekday}</Text>
-            <Text className="mt-1.5 text-4xl font-bold tracking-[-1.4px] text-ink">{dayMonth}</Text>
+            <Text className="text-[11px] font-normal uppercase text-warm">{date.weekday}</Text>
+            <Text className="mt-1.5 text-4xl font-bold tracking-[-1.4px] text-ink">
+              {date.dayMonth}
+            </Text>
           </View>
-          <Button mode="text" compact onPress={onOpenSettings} textColor={colors.warm}>
-            Settings
-          </Button>
+          {onHeaderPress ? (
+            <Button mode="text" compact onPress={onHeaderPress} textColor={colors.warm}>
+              Settings
+            </Button>
+          ) : null}
         </View>
 
         <CurrentTaskCard
-          task={currentTask}
-          nextTask={nextTask}
-          onComplete={onCompleteCurrent}
-          onSkip={onSkipCurrent}
+          task={current}
+          nextTask={next}
+          onComplete={onCurrentComplete}
+          onSkip={onCurrentSkip}
         />
 
         <View className="mt-7 flex-row items-baseline justify-between px-4 pb-1.5">
@@ -83,10 +161,10 @@ export function HomeScreenView({
             <TaskTimelineRow
               key={task.id}
               task={task}
-              isCurrent={task.id === currentTask?.id}
+              isCurrent={task.id === current?.id}
               isFirst={index === 0}
               isLast={index === tasks.length - 1}
-              onPress={() => onPressTask(task.id)}
+              onPress={onTaskPress ? () => onTaskPress(task.id) : undefined}
             />
           ))
         )}
@@ -105,7 +183,7 @@ export function HomeScreenView({
           mode="contained"
           buttonColor={colors.ink}
           textColor={colors.white}
-          onPress={onCreateTask}
+          onPress={onPrimaryAction}
           style={{ borderRadius: 999 }}
         >
           Create Task
@@ -114,16 +192,18 @@ export function HomeScreenView({
           mode="contained"
           buttonColor={colors.accent}
           textColor={colors.ink}
-          onPress={onOpenAiSchedule}
+          onPress={onSecondaryAction}
           style={{ borderRadius: 999 }}
         >
           Generate Schedule with AI
         </Button>
       </View>
 
-      <Snackbar visible={Boolean(error)} onDismiss={onDismissError} duration={4000}>
-        {error}
-      </Snackbar>
+      {showError ? (
+        <Snackbar visible={Boolean(error)} onDismiss={clearError} duration={4000}>
+          {error}
+        </Snackbar>
+      ) : null}
     </SafeAreaView>
   );
 }

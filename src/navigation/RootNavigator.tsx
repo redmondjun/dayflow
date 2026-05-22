@@ -1,3 +1,5 @@
+import { useEffect, useState } from 'react';
+import { View } from 'react-native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import type { RootStackParamList } from './types';
 import { PreviewCatalogScreen } from '../dev-preview/PreviewCatalogScreen';
@@ -8,12 +10,34 @@ import { OnboardingScreen } from '../screens/OnboardingScreen';
 import { SettingsScreen } from '../screens/SettingsScreen';
 import { TaskFormScreen } from '../screens/TaskFormScreen';
 import { WeeklyInsightScreen } from '../screens/WeeklyInsightScreen';
+import { hasCompletedOnboarding } from '../services/onboardingProfile';
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
 
 export function RootNavigator() {
+  const [initialRouteName, setInitialRouteName] = useState<keyof RootStackParamList | null>(null);
+
+  useEffect(() => {
+    let mounted = true;
+
+    hasCompletedOnboarding()
+      .then((completed) => {
+        if (mounted) setInitialRouteName(completed ? 'Home' : 'Onboarding');
+      })
+      .catch(() => {
+        if (mounted) setInitialRouteName('Onboarding');
+      });
+
+    return () => {
+      mounted = false;
+    };
+  }, []);
+
+  if (!initialRouteName) return <View className="flex-1 bg-paper" />;
+
   return (
     <Stack.Navigator
+      initialRouteName={initialRouteName}
       screenOptions={{
         headerShown: false,
         contentStyle: { backgroundColor: '#FAF8F4' },

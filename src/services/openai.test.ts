@@ -58,6 +58,28 @@ describe('openai service', () => {
     expect(body.input[1].content).toContain('2. Gym');
   });
 
+  it('includes onboarding profile context when generating a schedule', async () => {
+    fetchMock.mockResolvedValueOnce(
+      createMockResponse({
+        ok: true,
+        status: 200,
+        jsonValue: {
+          output_text: JSON.stringify({
+            tasks: [{ title: 'Study React', durationMinutes: 45 }],
+          }),
+        },
+      }),
+    );
+
+    await generateScheduleFromText('sk-live', ['Study React'], '- Wake-up time: 7:00 AM');
+
+    const request = fetchMock.mock.calls[0]?.[1] as RequestInit | undefined;
+    const body = JSON.parse(String(request?.body));
+    expect(body.input[1].content).toContain('Create a personalized schedule');
+    expect(body.input[1].content).toContain('- Wake-up time: 7:00 AM');
+    expect(body.input[1].content).toContain('1. Study React');
+  });
+
   it('maps 401 to the invalid key message', async () => {
     fetchMock.mockResolvedValueOnce(
       createMockResponse({

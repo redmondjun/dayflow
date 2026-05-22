@@ -29,6 +29,7 @@ const responseSchema = {
 export async function generateScheduleFromText(
   apiKey: string,
   taskTitles: string[],
+  userProfile?: string | null,
 ): Promise<AiGeneratedTask[]> {
   const tasks = taskTitles.map((title) => title.trim()).filter(Boolean);
   if (!apiKey.trim()) throw new Error('Add your OpenAI API key in Settings first.');
@@ -44,9 +45,7 @@ export async function generateScheduleFromText(
       },
       {
         role: 'user',
-        content: `Create a schedule from these separate tasks:\n${tasks
-          .map((task, index) => `${index + 1}. ${task}`)
-          .join('\n')}`,
+        content: buildSchedulePrompt(tasks, userProfile),
       },
     ],
     text: {
@@ -72,6 +71,15 @@ export async function generateScheduleFromText(
   }
 
   return validateGeneratedTasks(parsed);
+}
+
+function buildSchedulePrompt(tasks: string[], userProfile?: string | null): string {
+  const taskList = tasks.map((task, index) => `${index + 1}. ${task}`).join('\n');
+  const profile = userProfile?.trim();
+
+  if (!profile) return `Create a schedule from these separate tasks:\n${taskList}`;
+
+  return `Create a personalized schedule using this user profile:\n${profile}\n\nSeparate tasks:\n${taskList}`;
 }
 
 export async function validateOpenAIApiKey(apiKey: string): Promise<void> {

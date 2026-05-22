@@ -5,7 +5,7 @@ export type RootStackParamList = {
   CreateTask: undefined;
   EditTask: { taskId: string };
   AISchedule: undefined;
-  Onboarding: undefined;
+  Onboarding: { mode?: 'setup' | 'edit' } | undefined;
   WeeklyInsight: undefined;
   Settings: undefined;
   PreviewCatalog: undefined;

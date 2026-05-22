@@ -1,83 +1,124 @@
-import { useMemo, useState } from 'react';
 import { Alert } from 'react-native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
+import { buildMockTask } from '../dev-preview/mockData';
 import type { RootStackParamList } from '../navigation/types';
 import { useTaskStore } from '../store/taskStore';
-import {
-  formatDuration,
-  formatInputTime,
-  isSameLocalDay,
-  parseTimeInput,
-  sortByStartTime,
-} from '../utils/time';
-import { TaskFormView } from '../views/TaskFormView';
+import type { Task } from '../types/task';
+import { isSameLocalDay, sortByStartTime } from '../utils/time';
+import { TaskFormView, type TaskFormSubmit } from '../views/TaskFormView';
 
 type CreateProps = NativeStackScreenProps<RootStackParamList, 'CreateTask'>;
 type EditProps = NativeStackScreenProps<RootStackParamList, 'EditTask'>;
+type RouteProps = CreateProps | EditProps;
+type PreviewProps = {
+  scenarioId: 'task-create' | 'task-edit';
+  onCancel: () => void;
+};
 
-type Props = CreateProps | EditProps;
+type Props = RouteProps | PreviewProps;
 
-export function TaskFormScreen({ navigation, route }: Props) {
-  const editingId = route.name === 'EditTask' ? route.params.taskId : undefined;
+function isRouteProps(props: Props): props is RouteProps {
+  return 'navigation' in props;
+}
+
+function buildPreviewTask(scenarioId: PreviewProps['scenarioId']) {
+  if (scenarioId !== 'task-edit') return null;
+  return buildMockTask(
+    'Design review',
+    new Date(2026, 3, 28, 11, 30).toISOString(),
+    new Date(2026, 3, 28, 12, 45).toISOString(),
+    'scheduled',
+  );
+}
+
+function buildPreviewPreviousTask(existing: Task | null) {
+  if (!existing) return undefined;
+  return buildMockTask(
+    'Coffee & walk',
+    new Date(2026, 3, 28, 10, 30).toISOString(),
+    new Date(2026, 3, 28, 11, 0).toISOString(),
+    'completed',
+  );
+}
+
+function buildPreviewNextTask(existing: Task | null) {
+  if (!existing) return undefined;
+  return buildMockTask(
+    'Lunch',
+    new Date(2026, 3, 28, 13, 0).toISOString(),
+    new Date(2026, 3, 28, 13, 45).toISOString(),
+    'scheduled',
+  );
+}
+
+function toInitialTask(task: Task | null | undefined) {
+  if (!task) return undefined;
+  return {
+    title: task.title,
+    startTime: task.startTime,
+    endTime: task.endTime,
+    status: task.status,
+  };
+}
+
+function getAdjacentTasks(tasks: Task[], existing: Task | null | undefined) {
+  if (!existing) return { previousTask: undefined, nextTask: undefined };
+
+  const dayTasks = sortByStartTime(
+    tasks.filter((task) => isSameLocalDay(new Date(task.startTime), new Date(existing.startTime))),
+  );
+  const editingIndex = dayTasks.findIndex((task) => task.id === existing.id);
+
+  return {
+    previousTask: editingIndex > 0 ? dayTasks[editingIndex - 1] : undefined,
+    nextTask: editingIndex >= 0 ? dayTasks[editingIndex + 1] : undefined,
+  };
+}
+
+function getDayLabel(task: Task | null | undefined) {
+  if (!task) return undefined;
+  return new Date(task.startTime)
+    .toLocaleDateString([], { weekday: 'short', month: 'short', day: 'numeric' })
+    .replace(',', ' ·');
+}
+
+export function TaskFormScreen(props: Props) {
+  const isRoute = isRouteProps(props);
+  const isPreview = !isRoute;
+  const editingId =
+    isRoute && props.route.name === 'EditTask' ? props.route.params.taskId : undefined;
   const { tasks, addTask, updateTask, deleteTask, error, clearError, loading } = useTaskStore();
-  const existing = tasks.find((task) => task.id === editingId);
-  const dayTasks = existing
-    ? sortByStartTime(
-        tasks.filter((task) =>
-          isSameLocalDay(new Date(task.startTime), new Date(existing.startTime)),
-        ),
-      )
-    : [];
-  const editingIndex = existing ? dayTasks.findIndex((task) => task.id === existing.id) : -1;
-  const previousTask = editingIndex > 0 ? dayTasks[editingIndex - 1] : undefined;
-  const nextTask = editingIndex >= 0 ? dayTasks[editingIndex + 1] : undefined;
-  const dayLabel = existing
-    ? new Date(existing.startTime)
-        .toLocaleDateString([], { weekday: 'short', month: 'short', day: 'numeric' })
-        .replace(',', ' ·')
-    : undefined;
+  const previewTask = isPreview ? buildPreviewTask(props.scenarioId) : null;
+  const existing = tasks.find((task) => task.id === editingId) ?? previewTask;
+  const initialTask = toInitialTask(existing);
+  const mode = initialTask ? 'edit' : 'create';
+  const onCancel = isRoute ? () => props.navigation.goBack() : props.onCancel;
+  const onComplete = isRoute ? () => props.navigation.goBack() : props.onCancel;
+  const actualAdjacentTasks = getAdjacentTasks(tasks, existing);
+  const previousTask = isPreview
+    ? buildPreviewPreviousTask(previewTask)
+    : actualAdjacentTasks.previousTask;
+  const nextTask = isPreview ? buildPreviewNextTask(previewTask) : actualAdjacentTasks.nextTask;
+  const dayLabel = isPreview && previewTask ? 'Tue · Apr 28' : getDayLabel(existing);
 
-  const defaultStart = new Date();
-  defaultStart.setMinutes(Math.ceil(defaultStart.getMinutes() / 5) * 5, 0, 0);
-  const defaultEnd = new Date(defaultStart);
-  defaultEnd.setMinutes(defaultEnd.getMinutes() + 45);
-
-  const [title, setTitle] = useState(existing?.title ?? '');
-  const [start, setStart] = useState(
-    existing ? formatInputTime(existing.startTime) : formatInputTime(defaultStart),
-  );
-  const [end, setEnd] = useState(
-    existing ? formatInputTime(existing.endTime) : formatInputTime(defaultEnd),
-  );
-  const [status, setStatus] = useState(existing?.status ?? 'scheduled');
-
-  const parsedStart = parseTimeInput(start, existing ? new Date(existing.startTime) : new Date());
-  const parsedEnd = parseTimeInput(end, existing ? new Date(existing.endTime) : new Date());
-  const duration =
-    parsedStart && parsedEnd
-      ? Math.round((new Date(parsedEnd).getTime() - new Date(parsedStart).getTime()) / 60000)
-      : 0;
-
-  const validation = useMemo(() => {
-    if (!title.trim()) return 'Title is required.';
-    if (!parsedStart || !parsedEnd) return 'Use 24-hour time like 09:30.';
-    if (new Date(parsedEnd).getTime() <= new Date(parsedStart).getTime())
-      return 'End time must be after start time.';
-    return null;
-  }, [title, parsedStart, parsedEnd]);
-
-  const save = async () => {
-    if (validation || !parsedStart || !parsedEnd) return;
-
-    if (editingId) {
-      await updateTask(editingId, { title, startTime: parsedStart, endTime: parsedEnd, status });
-    } else {
-      await addTask({ title, startTime: parsedStart, endTime: parsedEnd });
+  const save = async ({ title, startTime, endTime, status }: TaskFormSubmit) => {
+    if (isPreview) {
+      onComplete();
+      return;
     }
-    navigation.goBack();
+    if (editingId) {
+      await updateTask(editingId, { title, startTime, endTime, status });
+    } else {
+      await addTask({ title, startTime, endTime });
+    }
+    if (!useTaskStore.getState().error) onComplete();
   };
 
   const confirmDelete = () => {
+    if (isPreview) {
+      onComplete();
+      return;
+    }
     if (!editingId) return;
     Alert.alert('Delete this task?', "This can't be undone.", [
       { text: 'Keep', style: 'cancel' },
@@ -86,7 +127,7 @@ export function TaskFormScreen({ navigation, route }: Props) {
         style: 'destructive',
         onPress: async () => {
           await deleteTask(editingId);
-          navigation.goBack();
+          if (!useTaskStore.getState().error) onComplete();
         },
       },
     ]);
@@ -94,26 +135,17 @@ export function TaskFormScreen({ navigation, route }: Props) {
 
   return (
     <TaskFormView
-      mode={editingId ? 'edit' : 'create'}
-      title={title}
-      start={start}
-      end={end}
-      status={status}
-      durationLabel={formatDuration(duration)}
+      mode={mode}
+      initialTask={initialTask}
       dayLabel={dayLabel}
       previousTask={previousTask}
       nextTask={nextTask}
-      validation={validation}
-      loading={loading}
-      error={error}
-      onDismissError={clearError}
-      onChangeTitle={setTitle}
-      onChangeStart={setStart}
-      onChangeEnd={setEnd}
-      onChangeStatus={setStatus}
-      onCancel={() => navigation.goBack()}
+      loading={isPreview ? false : loading}
+      error={isPreview ? null : error}
+      onDismissError={isPreview ? undefined : clearError}
+      onCancel={onCancel}
       onSave={save}
-      onDelete={editingId ? confirmDelete : undefined}
+      onDelete={mode === 'edit' ? confirmDelete : undefined}
     />
   );
 }
