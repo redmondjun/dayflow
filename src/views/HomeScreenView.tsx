@@ -5,6 +5,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { CurrentTaskCard } from '../components/CurrentTaskCard';
 import { TaskTimelineRow } from '../components/TaskTimelineRow';
 import { makeActiveDayTasks, makeCompletedHeavyTasks } from '../dev-preview/mockData';
+import { getDemoAdjustedTasks, useDevDemoState } from '../services/devDemo';
 import { useTaskStore } from '../store/taskStore';
 import { colors } from '../theme/colors';
 import type { Task } from '../types/task';
@@ -50,6 +51,7 @@ export function HomeScreenView(props: Props) {
   const isPreview = isPreviewProps(props);
   const previewScenarioId = isPreview ? props.scenarioId : null;
   const [tick, setTick] = useState(Date.now());
+  const { nowOverride } = useDevDemoState();
   const [previewTasks, setPreviewTasks] = useState<Task[]>(
     previewScenarioId ? buildPreviewTasks(previewScenarioId) : [],
   );
@@ -76,10 +78,11 @@ export function HomeScreenView(props: Props) {
     }
   }, [previewScenarioId]);
 
-  const date = formatDisplayDate(new Date(tick));
-  const tasks = isPreview ? previewTasks : todayTasks();
-  const current = isPreview ? getCurrentTask(tasks) : currentTask();
-  const next = isPreview ? getUpcomingTasks(tasks)[0] : upcomingTasks()[0];
+  const effectiveNow = !isPreview && __DEV__ && nowOverride ? new Date(nowOverride) : new Date(tick);
+  const date = formatDisplayDate(effectiveNow);
+  const tasks = isPreview ? previewTasks : getDemoAdjustedTasks(todayTasks(effectiveNow), effectiveNow);
+  const current = isPreview ? getCurrentTask(tasks, effectiveNow) : currentTask(effectiveNow);
+  const next = isPreview ? getUpcomingTasks(tasks, effectiveNow)[0] : upcomingTasks(effectiveNow)[0];
   const routeOnEditTask = 'onEditTask' in props ? props.onEditTask : undefined;
   const mode = isPreview
     ? {
@@ -139,6 +142,7 @@ export function HomeScreenView(props: Props) {
           nextTask={next}
           onComplete={onCurrentComplete}
           onSkip={onCurrentSkip}
+          now={effectiveNow}
         />
 
         <View className="mt-7 flex-row items-baseline justify-between px-4 pb-1.5">

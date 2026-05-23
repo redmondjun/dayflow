@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, jest } from '@jest/globals';
 import * as SecureStore from 'expo-secure-store';
 import {
+  clearOnboardingProfile,
   formatOnboardingProfileForPrompt,
   getOnboardingProfile,
   hasCompletedOnboarding,
@@ -8,15 +9,18 @@ import {
 } from './onboardingProfile';
 
 jest.mock('expo-secure-store', () => ({
+  deleteItemAsync: jest.fn(),
   getItemAsync: jest.fn(),
   setItemAsync: jest.fn(),
 }));
 
 describe('onboardingProfile service', () => {
   const getItemAsyncMock = jest.mocked(SecureStore.getItemAsync);
+  const deleteItemAsyncMock = jest.mocked(SecureStore.deleteItemAsync);
   const setItemAsyncMock = jest.mocked(SecureStore.setItemAsync);
 
   beforeEach(() => {
+    deleteItemAsyncMock.mockReset();
     getItemAsyncMock.mockReset();
     setItemAsyncMock.mockReset();
   });
@@ -43,6 +47,12 @@ describe('onboardingProfile service', () => {
 
     await expect(hasCompletedOnboarding()).resolves.toBe(false);
     await expect(getOnboardingProfile()).resolves.toBeNull();
+  });
+
+  it('clears the onboarding profile', async () => {
+    await clearOnboardingProfile();
+
+    expect(deleteItemAsyncMock).toHaveBeenCalledWith('dayflow.onboardingProfile');
   });
 
   it('keeps an explicitly saved 8:00 AM work-start time', async () => {

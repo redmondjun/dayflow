@@ -22,6 +22,10 @@ export async function saveOnboardingProfile(profile: OnboardingProfile): Promise
   await SecureStore.setItemAsync(ONBOARDING_PROFILE_KEY, JSON.stringify(profile));
 }
 
+export async function clearOnboardingProfile(): Promise<void> {
+  await SecureStore.deleteItemAsync(ONBOARDING_PROFILE_KEY);
+}
+
 export async function hasCompletedOnboarding(): Promise<boolean> {
   return (await getOnboardingProfile()) !== null;
 }

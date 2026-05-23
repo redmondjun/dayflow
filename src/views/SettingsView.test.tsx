@@ -1,5 +1,5 @@
 import React from 'react';
-import { describe, expect, it, jest } from '@jest/globals';
+import { afterEach, beforeEach, describe, expect, it, jest } from '@jest/globals';
 import { fireEvent, render, screen } from '@testing-library/react-native';
 import { Text } from 'react-native';
 import { PaperProvider } from 'react-native-paper';
@@ -36,17 +36,28 @@ const mockSettingsState = {
   geminiApiKey: '',
   savedGeminiApiKey: null as string | null,
   aiFeaturesEnabled: true,
+  clearOnboarding: jest.fn(async () => true),
+  demoDate: '2026-05-22',
+  demoTime: '09:30',
+  demoNowOverride: null as string | null,
   message: null as string | null,
+  resetDemoTime: jest.fn(),
   validatingOpenAi: false,
   savingGemini: false,
   setOpenAiApiKey: jest.fn(),
   setGeminiApiKey: jest.fn(),
   setMessage: jest.fn(),
+  setDemoDate: jest.fn(),
+  setDemoTime: jest.fn(),
   saveOpenAi: jest.fn(),
   saveGemini: jest.fn(),
+  saveDemoTime: jest.fn(),
   removeOpenAi: jest.fn(),
   removeGemini: jest.fn(),
+  resetDemoState: jest.fn(),
   toggleAiFeatures: jest.fn(),
+  toggleWeeklyPreview: jest.fn(),
+  weeklyPreviewEnabled: false,
 };
 
 function mockBuildApiKeySections() {
@@ -97,6 +108,14 @@ function renderSettingsScreen(
 }
 
 describe('SettingsScreen', () => {
+  beforeEach(() => {
+    Reflect.set(globalThis, '__DEV__', false);
+  });
+
+  afterEach(() => {
+    Reflect.set(globalThis, '__DEV__', false);
+  });
+
   it('renders the new AI settings sections', () => {
     renderSettingsScreen();
 
@@ -139,5 +158,27 @@ describe('SettingsScreen', () => {
 
     fireEvent(screen.getByRole('switch'), 'valueChange', false);
     expect(mockSettingsState.toggleAiFeatures).toHaveBeenCalledWith(false);
+  });
+
+  it('shows developer demo controls only in dev mode', () => {
+    Reflect.set(globalThis, '__DEV__', true);
+
+    renderSettingsScreen({
+      onOpenPreviewCatalog: jest.fn(),
+    });
+
+    expect(screen.getByText('Developer')).toBeOnTheScreen();
+    expect(screen.getByText('Demo time')).toBeOnTheScreen();
+    expect(screen.getByText('Weekly demo data')).toBeOnTheScreen();
+    expect(screen.getByText('Reset Onboarding')).toBeOnTheScreen();
+  });
+
+  it('hides developer demo controls outside dev mode', () => {
+    Reflect.set(globalThis, '__DEV__', false);
+
+    renderSettingsScreen();
+
+    expect(screen.queryByText('Developer')).not.toBeOnTheScreen();
+    expect(screen.queryByText('Demo time')).not.toBeOnTheScreen();
   });
 });

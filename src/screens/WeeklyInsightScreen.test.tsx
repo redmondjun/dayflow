@@ -1,5 +1,5 @@
 import React from 'react';
-import { beforeEach, describe, expect, it, jest } from '@jest/globals';
+import { afterEach, beforeEach, describe, expect, it, jest } from '@jest/globals';
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react-native';
 import { PaperProvider } from 'react-native-paper';
 import type { WeeklyInsightSummary } from '../types/insight';
@@ -16,6 +16,7 @@ import { generateWeeklyInsight } from '../services/openai';
 import { useTaskStore } from '../store/taskStore';
 import { buildWeeklyInsightSummary } from '../utils/weeklyInsight';
 import { WeeklyInsightPreviewScreen } from '../dev-preview/WeeklyInsightPreviewScreen';
+import { useDevDemoState } from '../services/devDemo';
 import { WeeklyInsightScreen } from './WeeklyInsightScreen';
 
 const mockAiSettingsListeners = new Set<() => void>();
@@ -45,6 +46,11 @@ jest.mock('../services/gemini', () => ({
 
 jest.mock('../store/taskStore', () => ({
   useTaskStore: jest.fn(),
+}));
+
+jest.mock('../services/devDemo', () => ({
+  getDemoAdjustedTasks: jest.fn((tasks) => tasks),
+  useDevDemoState: jest.fn(() => ({ nowOverride: null, weeklyPreviewEnabled: false })),
 }));
 
 jest.mock('../utils/weeklyInsight', () => ({
@@ -162,8 +168,10 @@ describe('WeeklyInsightScreen', () => {
   const getOnboardingProfileMock = jest.mocked(getOnboardingProfile);
   const generateGeminiWeeklyInsightMock = jest.mocked(generateGeminiWeeklyInsight);
   const generateWeeklyInsightMock = jest.mocked(generateWeeklyInsight);
+  const useDevDemoStateMock = jest.mocked(useDevDemoState);
 
   beforeEach(() => {
+    Reflect.set(globalThis, '__DEV__', false);
     buildWeeklyInsightSummaryMock.mockReset();
     buildWeeklyInsightSummaryMock.mockReturnValue(summary);
     mockAiSettingsListeners.clear();
@@ -177,11 +185,17 @@ describe('WeeklyInsightScreen', () => {
     getOnboardingProfileMock.mockResolvedValue(null);
     generateGeminiWeeklyInsightMock.mockReset();
     generateWeeklyInsightMock.mockReset();
+    useDevDemoStateMock.mockReset();
+    useDevDemoStateMock.mockReturnValue({ nowOverride: null, weeklyPreviewEnabled: false });
     subscribeAiSettingsChangesMock.mockClear();
     useTaskStoreMock.mockImplementation((selector: unknown) => {
       if (typeof selector !== 'function') return { tasks: [] };
       return selector({ tasks: [] });
     });
+  });
+
+  afterEach(() => {
+    Reflect.set(globalThis, '__DEV__', false);
   });
 
   it('renders weekly insight metrics without AI sections by default', () => {
@@ -419,6 +433,21 @@ describe('WeeklyInsightScreen', () => {
 
     await waitFor(() => expect(generateWeeklyInsightMock).toHaveBeenCalled());
     expect(screen.getByText('Home Tab AI')).toBeOnTheScreen();
-    expect(buildWeeklyInsightSummaryMock).toHaveBeenCalledWith(completedTasks);
+    expect(buildWeeklyInsightSummaryMock).toHaveBeenCalledWith(completedTasks, expect.any(Date));
+  });
+
+  it('uses weekly preview data from the real screen when dev preview is enabled', async () => {
+    Reflect.set(globalThis, '__DEV__', true);
+    useDevDemoStateMock.mockReturnValue({
+      nowOverride: null,
+      weeklyPreviewEnabled: true,
+    });
+
+    renderWeeklyInsightScreen();
+
+    expect(screen.getByText('Apr 21 - Apr 28')).toBeOnTheScreen();
+    expect(screen.getByText('You are most productive in the morning')).toBeOnTheScreen();
+    expect(generateWeeklyInsightMock).not.toHaveBeenCalled();
+    expect(generateGeminiWeeklyInsightMock).not.toHaveBeenCalled();
   });
 });

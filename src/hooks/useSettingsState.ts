@@ -9,6 +9,13 @@ import {
   saveGeminiApiKey,
   saveOpenAIApiKey,
 } from '../services/apiKey';
+import {
+  clearDemoNowOverride,
+  setDemoNowOverride,
+  setWeeklyPreviewEnabled,
+  useDevDemoState,
+} from '../services/devDemo';
+import { clearOnboardingProfile } from '../services/onboardingProfile';
 import { validateOpenAIApiKey } from '../services/openai';
 
 type SaveKeyParams = {
@@ -45,6 +52,7 @@ type ApiKeySectionState = {
 };
 
 export function useSettingsState() {
+  const { nowOverride, weeklyPreviewEnabled } = useDevDemoState();
   const [openAiApiKey, setOpenAiApiKey] = useState('');
   const [savedOpenAiApiKey, setSavedOpenAiApiKey] = useState<string | null>(null);
   const [geminiApiKey, setGeminiApiKey] = useState('');
@@ -53,6 +61,8 @@ export function useSettingsState() {
   const [message, setMessage] = useState<string | null>(null);
   const [validatingOpenAi, setValidatingOpenAi] = useState(false);
   const [savingGemini, setSavingGemini] = useState(false);
+  const [demoDate, setDemoDate] = useState('');
+  const [demoTime, setDemoTime] = useState('');
 
   useEffect(() => {
     Promise.all([getOpenAIApiKey(), getGeminiApiKey(), getAiFeaturesEnabled()])
@@ -65,6 +75,13 @@ export function useSettingsState() {
       })
       .catch(() => setMessage('Could not load saved settings.'));
   }, []);
+
+  useEffect(() => {
+    if (!__DEV__) return;
+    const source = nowOverride ? new Date(nowOverride) : new Date();
+    setDemoDate(formatDateInput(source));
+    setDemoTime(formatTimeInput(source));
+  }, [nowOverride]);
 
   const saveKey = async ({
     value,
@@ -185,6 +202,44 @@ export function useSettingsState() {
     }
   };
 
+  const saveDemoTime = () => {
+    if (!__DEV__) return false;
+    const parsed = parseDemoDateTime(demoDate, demoTime);
+    if (!parsed) {
+      setMessage('Enter a valid demo date and time.');
+      return false;
+    }
+    setDemoNowOverride(parsed.toISOString());
+    setMessage(`Demo time set to ${formatDisplayLabel(parsed)}.`);
+    return true;
+  };
+
+  const resetDemoTime = () => {
+    if (!__DEV__) return;
+    clearDemoNowOverride();
+    const now = new Date();
+    setDemoDate(formatDateInput(now));
+    setDemoTime(formatTimeInput(now));
+    setMessage('Demo time reset to live time.');
+  };
+
+  const toggleWeeklyPreview = (value: boolean) => {
+    if (!__DEV__) return;
+    setWeeklyPreviewEnabled(value);
+    setMessage(value ? 'Weekly demo preview enabled.' : 'Weekly demo preview disabled.');
+  };
+
+  const clearOnboarding = async () => {
+    try {
+      await clearOnboardingProfile();
+      setMessage('Onboarding profile cleared.');
+      return true;
+    } catch {
+      setMessage('Could not clear onboarding profile.');
+      return false;
+    }
+  };
+
   const apiKeySections: ApiKeySectionState[] = [
     {
       id: 'openai',
@@ -217,16 +272,80 @@ export function useSettingsState() {
     geminiApiKey,
     savedGeminiApiKey,
     aiFeaturesEnabled,
+    clearOnboarding,
     message,
+    demoDate,
+    demoTime,
+    demoNowOverride: nowOverride,
+    weeklyPreviewEnabled,
     validatingOpenAi,
     savingGemini,
     setOpenAiApiKey,
     setGeminiApiKey,
     setMessage,
+    setDemoDate,
+    setDemoTime,
     saveOpenAi,
     saveGemini,
+    saveDemoTime,
     removeOpenAi,
     removeGemini,
+    resetDemoTime,
     toggleAiFeatures,
+    toggleWeeklyPreview,
   };
+}
+
+function formatDateInput(value: Date): string {
+  const year = value.getFullYear();
+  const month = String(value.getMonth() + 1).padStart(2, '0');
+  const day = String(value.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+}
+
+function formatTimeInput(value: Date): string {
+  const hours = String(value.getHours()).padStart(2, '0');
+  const minutes = String(value.getMinutes()).padStart(2, '0');
+  return `${hours}:${minutes}`;
+}
+
+function parseDemoDateTime(dateValue: string, timeValue: string): Date | null {
+  const dateMatch = /^(\d{4})-(\d{2})-(\d{2})$/.exec(dateValue.trim());
+  const timeMatch = /^(\d{2}):(\d{2})$/.exec(timeValue.trim());
+  if (!dateMatch || !timeMatch) return null;
+
+  const year = Number(dateMatch[1]);
+  const month = Number(dateMatch[2]) - 1;
+  const day = Number(dateMatch[3]);
+  const hours = Number(timeMatch[1]);
+  const minutes = Number(timeMatch[2]);
+  if (
+    Number.isNaN(year) ||
+    Number.isNaN(month) ||
+    Number.isNaN(day) ||
+    Number.isNaN(hours) ||
+    Number.isNaN(minutes) ||
+    month < 0 ||
+    month > 11 ||
+    day < 1 ||
+    day > 31 ||
+    hours < 0 ||
+    hours > 23 ||
+    minutes < 0 ||
+    minutes > 59
+  ) {
+    return null;
+  }
+
+  const parsed = new Date(year, month, day, hours, minutes, 0, 0);
+  return Number.isNaN(parsed.getTime()) ? null : parsed;
+}
+
+function formatDisplayLabel(value: Date): string {
+  return value.toLocaleString([], {
+    month: 'short',
+    day: 'numeric',
+    hour: 'numeric',
+    minute: '2-digit',
+  });
 }

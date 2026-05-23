@@ -12,11 +12,13 @@ import {
   formatOnboardingProfileForPrompt,
   getOnboardingProfile,
 } from '../services/onboardingProfile';
+import { getDemoAdjustedTasks, useDevDemoState } from '../services/devDemo';
 import { generateWeeklyInsight, type AiWeeklyInsight } from '../services/openai';
 import { useTaskStore } from '../store/taskStore';
 import type { Task } from '../types/task';
 import { buildWeeklyInsightSummary } from '../utils/weeklyInsight';
 import { WeeklyInsightView } from '../views/WeeklyInsightView';
+import { weeklyInsightPreviewSummary } from '../dev-preview/mockData';
 
 type RouteProps = NativeStackScreenProps<RootStackParamList, 'WeeklyInsight'>;
 type EmbeddedProps = {
@@ -29,8 +31,7 @@ function isRouteProps(props: Props): props is RouteProps {
   return 'navigation' in props;
 }
 
-function hasRecentCompletedOrSkippedTasks(tasks: Task[]): boolean {
-  const now = new Date();
+function hasRecentCompletedOrSkippedTasks(tasks: Task[], now: Date): boolean {
   const weekStart = new Date(now);
   weekStart.setDate(now.getDate() - 7);
 
@@ -46,7 +47,19 @@ function hasRecentCompletedOrSkippedTasks(tasks: Task[]): boolean {
 
 export function WeeklyInsightScreen(props: Props) {
   const tasks = useTaskStore((state) => state.tasks);
-  const baseSummary = useMemo(() => buildWeeklyInsightSummary(tasks), [tasks]);
+  const { nowOverride, weeklyPreviewEnabled } = useDevDemoState();
+  const effectiveNow = useMemo(
+    () => (__DEV__ && nowOverride ? new Date(nowOverride) : new Date()),
+    [nowOverride],
+  );
+  const effectiveTasks = useMemo(() => getDemoAdjustedTasks(tasks, effectiveNow), [effectiveNow, tasks]);
+  const baseSummary = useMemo(
+    () =>
+      __DEV__ && weeklyPreviewEnabled
+        ? weeklyInsightPreviewSummary
+        : buildWeeklyInsightSummary(effectiveTasks, effectiveNow),
+    [effectiveNow, effectiveTasks, weeklyPreviewEnabled],
+  );
   const [aiInsight, setAiInsight] = useState<AiWeeklyInsight | null>(null);
   const [aiSettingsVersion, setAiSettingsVersion] = useState(0);
   const loadingAiInsightRef = useRef(false);
@@ -77,6 +90,7 @@ export function WeeklyInsightScreen(props: Props) {
     setAiInsight(null);
 
     async function loadAiInsight() {
+      if (__DEV__ && weeklyPreviewEnabled) return;
       if (loadingAiInsightRef.current) return;
       loadingAiInsightRef.current = true;
       try {
@@ -85,7 +99,11 @@ export function WeeklyInsightScreen(props: Props) {
           getGeminiApiKey(),
           getAiFeaturesEnabled(),
         ]);
-        if (!mountedRef.current || !aiFeaturesEnabled || !hasRecentCompletedOrSkippedTasks(tasks)) {
+        if (
+          !mountedRef.current ||
+          !aiFeaturesEnabled ||
+          !hasRecentCompletedOrSkippedTasks(effectiveTasks, effectiveNow)
+        ) {
           return;
         }
         if (!openAiApiKey && !geminiApiKey) return;
@@ -95,10 +113,10 @@ export function WeeklyInsightScreen(props: Props) {
 
         const formattedProfile = formatOnboardingProfileForPrompt(profile);
         const insight = openAiApiKey
-          ? await generateWeeklyInsight(openAiApiKey, tasks, baseSummary, formattedProfile)
+          ? await generateWeeklyInsight(openAiApiKey, effectiveTasks, baseSummary, formattedProfile)
           : await generateGeminiWeeklyInsight(
               geminiApiKey ?? '',
-              tasks,
+              effectiveTasks,
               baseSummary,
               formattedProfile,
             );
@@ -111,7 +129,7 @@ export function WeeklyInsightScreen(props: Props) {
     }
 
     void loadAiInsight();
-  }, [aiSettingsVersion, baseSummary, tasks]);
+  }, [aiSettingsVersion, baseSummary, effectiveNow, effectiveTasks, weeklyPreviewEnabled]);
 
   return <WeeklyInsightView summary={summary} onOptimizeTomorrow={onOptimizeTomorrow} />;
 }
