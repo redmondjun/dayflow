@@ -1,3 +1,4 @@
+import { createContext, useContext } from 'react';
 import { Pressable, Text, TextInput as RNTextInput, View } from 'react-native';
 import { Button } from 'react-native-paper';
 import { TimeWheelPicker } from './TimeWheelPicker';
@@ -5,6 +6,48 @@ import { colors } from '../theme/colors';
 import type { TaskStatus } from '../types/task';
 
 const quickAdd = ['Morning walk', 'Read 30 min', 'Lunch break', 'Review notes', 'Planning'];
+
+type TaskFormSectionsContextValue = {
+  mode: 'create' | 'edit';
+  title: string;
+  status: TaskStatus;
+  validation: string | null;
+  durationLabel: string;
+  timeRangeLabel: string;
+  start: string;
+  end: string;
+  titleInputRef: React.RefObject<RNTextInput | null>;
+  onCancel: () => void;
+  onDelete?: () => void;
+  onChangeTitle: (value: string) => void;
+  onClearTitle: () => void;
+  onSelectQuickAdd: (value: string) => void;
+  onChangeStatus: (value: TaskStatus) => void;
+  onChangeStart: (value: string) => void;
+  onChangeEnd: (value: string) => void;
+};
+
+const TaskFormSectionsContext = createContext<TaskFormSectionsContextValue | null>(null);
+
+function useTaskFormSectionsContext() {
+  const value = useContext(TaskFormSectionsContext);
+  if (!value) {
+    throw new Error('Task form sections context is missing.');
+  }
+  return value;
+}
+
+export function TaskFormSectionsProvider({
+  value,
+  children,
+}: {
+  value: TaskFormSectionsContextValue;
+  children: React.ReactNode;
+}) {
+  return (
+    <TaskFormSectionsContext.Provider value={value}>{children}</TaskFormSectionsContext.Provider>
+  );
+}
 
 function StepDots() {
   return (
@@ -40,7 +83,9 @@ function QuickAddChip({
   );
 }
 
-export function TaskFormHeader({ onCancel }: { onCancel: () => void }) {
+export function TaskFormHeader() {
+  const { onCancel } = useTaskFormSectionsContext();
+
   return (
     <View className="px-6 pt-7">
       <View className="flex-row items-center justify-between">
@@ -58,31 +103,21 @@ export function TaskFormHeader({ onCancel }: { onCancel: () => void }) {
   );
 }
 
-export function TaskTimeFields({
-  mode,
-  title,
-  onChangeTitle,
-  titleInputRef,
-  timeRangeLabel,
-  start,
-  end,
-  onChangeStart,
-  onChangeEnd,
-  onDelete,
-  onClearTitle,
-}: {
-  mode: 'create' | 'edit';
-  title: string;
-  onChangeTitle: (value: string) => void;
-  titleInputRef: React.RefObject<RNTextInput | null>;
-  timeRangeLabel: string;
-  start: string;
-  end: string;
-  onChangeStart: (value: string) => void;
-  onChangeEnd: (value: string) => void;
-  onDelete?: () => void;
-  onClearTitle: () => void;
-}) {
+export function TaskTimeFields() {
+  const {
+    mode,
+    title,
+    onChangeTitle,
+    titleInputRef,
+    timeRangeLabel,
+    start,
+    end,
+    onChangeStart,
+    onChangeEnd,
+    onDelete,
+    onClearTitle,
+  } = useTaskFormSectionsContext();
+
   return (
     <View className="px-6 pt-10">
       <View className="overflow-hidden rounded-2xl border border-warm3 bg-paper">
@@ -130,13 +165,9 @@ export function TaskTimeFields({
   );
 }
 
-export function TaskDurationNotice({
-  validation,
-  durationLabel,
-}: {
-  validation: string | null;
-  durationLabel: string;
-}) {
+export function TaskDurationNotice() {
+  const { validation, durationLabel } = useTaskFormSectionsContext();
+
   return (
     <>
       <View className="flex-row items-center gap-[7px] px-6 pt-3">
@@ -155,13 +186,9 @@ export function TaskDurationNotice({
   );
 }
 
-export function TaskQuickAddSection({
-  title,
-  onSelect,
-}: {
-  title: string;
-  onSelect: (value: string) => void;
-}) {
+export function TaskQuickAddSection() {
+  const { title, onSelectQuickAdd } = useTaskFormSectionsContext();
+
   return (
     <View className="px-6 pt-10">
       <Text className="pb-[14px] text-[11px] font-medium uppercase tracking-[-0.11px] text-warm2">
@@ -173,7 +200,7 @@ export function TaskQuickAddSection({
             key={label}
             label={label}
             active={title.trim() !== label}
-            onPress={() => onSelect(label)}
+            onPress={() => onSelectQuickAdd(label)}
           />
         ))}
       </View>
@@ -181,13 +208,9 @@ export function TaskQuickAddSection({
   );
 }
 
-export function TaskStatusSection({
-  status,
-  onChangeStatus,
-}: {
-  status: TaskStatus;
-  onChangeStatus: (value: TaskStatus) => void;
-}) {
+export function TaskStatusSection() {
+  const { status, onChangeStatus } = useTaskFormSectionsContext();
+
   return (
     <View className="px-6 pt-8">
       <Text className="pb-3 text-[11px] font-medium uppercase tracking-[-0.11px] text-warm2">
