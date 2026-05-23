@@ -49,9 +49,6 @@ export function HomeScreen(props: Props) {
               isRoute ? () => props.navigation.navigate('Onboarding', { mode: 'edit' }) : undefined
             }
             onOpenSettings={isRoute ? () => props.navigation.navigate('Settings') : props.onBack}
-            onOpenPreviewCatalog={
-              isRoute && __DEV__ ? () => props.navigation.navigate('PreviewCatalog') : undefined
-            }
           />
         )}
       </View>

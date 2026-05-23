@@ -1,11 +1,8 @@
 import { Pressable, ScrollView, Text, View } from 'react-native';
-import { Button } from 'react-native-paper';
-import { colors } from '../theme/colors';
 
 type Props = {
   onEditProfile?: () => void;
   onOpenSettings: () => void;
-  onOpenPreviewCatalog?: () => void;
 };
 
 function MyPageRow({
@@ -33,7 +30,7 @@ function MyPageRow({
   );
 }
 
-export function MyPageScreen({ onEditProfile, onOpenSettings, onOpenPreviewCatalog }: Props) {
+export function MyPageScreen({ onEditProfile, onOpenSettings }: Props) {
   return (
     <View className="flex-1 bg-paper">
       <ScrollView contentContainerClassName="px-6 pb-12 pt-16">
@@ -54,22 +51,6 @@ export function MyPageScreen({ onEditProfile, onOpenSettings, onOpenPreviewCatal
             onPress={onOpenSettings}
           />
         </View>
-
-        {onOpenPreviewCatalog ? (
-          <View className="mt-8 border-t border-warm3 pt-6">
-            <Text className="text-xs font-semibold uppercase tracking-[2px] text-warm">
-              Developer
-            </Text>
-            <Button
-              mode="outlined"
-              onPress={onOpenPreviewCatalog}
-              textColor={colors.ink}
-              style={{ marginTop: 12, borderRadius: 999 }}
-            >
-              UI Preview
-            </Button>
-          </View>
-        ) : null}
       </ScrollView>
     </View>
   );

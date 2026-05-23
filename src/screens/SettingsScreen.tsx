@@ -14,6 +14,7 @@ type RouteProps = NativeStackScreenProps<RootStackParamList, 'Settings'>;
 type EmbeddedProps = {
   onCancel?: () => void;
   onOpenPreviewCatalog?: () => void;
+  hideDeveloperTools?: boolean;
 };
 
 type Props = RouteProps | EmbeddedProps;
@@ -140,10 +141,20 @@ export function SettingsScreen(props: Props) {
   const {
     aiFeaturesEnabled,
     apiKeySections,
+    clearOnboarding,
+    demoDate,
+    demoNowOverride,
+    demoTime,
     message,
+    resetDemoTime,
     setMessage,
+    setDemoDate,
+    setDemoTime,
+    saveDemoTime,
     toggleAiFeatures,
+    toggleWeeklyPreview,
     validatingOpenAi,
+    weeklyPreviewEnabled,
   } = useSettingsState();
   const onCancel = isRouteProps(props) ? () => props.navigation.goBack() : props.onCancel;
   const onOpenPreviewCatalog = isRouteProps(props)
@@ -151,6 +162,19 @@ export function SettingsScreen(props: Props) {
       ? () => props.navigation.navigate('PreviewCatalog')
       : undefined
     : props.onOpenPreviewCatalog;
+  const onOpenWeeklyInsight = isRouteProps(props)
+    ? () => props.navigation.navigate('WeeklyInsight')
+    : undefined;
+  const hideDeveloperTools = isRouteProps(props) ? false : Boolean(props.hideDeveloperTools);
+  const showDeveloperTools = __DEV__ && !hideDeveloperTools;
+  const onResetOnboarding = isRouteProps(props)
+    ? async () => {
+        const cleared = await clearOnboarding();
+        if (cleared) props.navigation.replace('Onboarding');
+      }
+    : async () => {
+        await clearOnboarding();
+      };
 
   return (
     <View className="flex-1 bg-paper">
@@ -199,19 +223,117 @@ export function SettingsScreen(props: Props) {
           <Text className="mt-4 text-sm text-warm">Checking your OpenAI API key...</Text>
         ) : null}
 
-        {onOpenPreviewCatalog ? (
+        {showDeveloperTools ? (
           <View className="mt-8 border-t border-warm3 pt-6">
             <Text className="text-xs font-semibold uppercase tracking-[2px] text-warm">
               Developer
             </Text>
+            <View className="mt-4 overflow-hidden rounded-2xl border border-warm3 bg-paper px-[18px] py-4">
+              <Text className="text-[15px] tracking-tight text-ink">Demo time</Text>
+              <Text className="mt-1 text-xs tracking-tight text-warm">
+                {demoNowOverride
+                  ? 'Override active for in-app schedule behavior'
+                  : 'Using live device time'}
+              </Text>
+              <View className="mt-4 flex-row gap-2">
+                <TextInput
+                  value={demoDate}
+                  onChangeText={setDemoDate}
+                  placeholder="YYYY-MM-DD"
+                  placeholderTextColor={colors.warm2}
+                  autoCapitalize="none"
+                  autoCorrect={false}
+                  testID="settings-demo-date-input"
+                  className="min-w-0 flex-1 rounded-[10px] border border-warm3 bg-warm3/35 px-3 py-2.5 text-[13px] text-ink"
+                />
+                <TextInput
+                  value={demoTime}
+                  onChangeText={setDemoTime}
+                  placeholder="HH:MM"
+                  placeholderTextColor={colors.warm2}
+                  autoCapitalize="none"
+                  autoCorrect={false}
+                  testID="settings-demo-time-input"
+                  className="w-24 rounded-[10px] border border-warm3 bg-warm3/35 px-3 py-2.5 text-[13px] text-ink"
+                />
+              </View>
+              <View className="mt-3 flex-row gap-2">
+                <Button
+                  mode="contained"
+                  onPress={saveDemoTime}
+                  buttonColor={colors.ink}
+                  textColor={colors.white}
+                  testID="settings-save-demo-time-button"
+                  style={{ flex: 1, borderRadius: 999 }}
+                >
+                  Set Demo Time
+                </Button>
+                <Button
+                  mode="outlined"
+                  onPress={resetDemoTime}
+                  textColor={colors.ink}
+                  testID="settings-reset-demo-time-button"
+                  style={{ flex: 1, borderRadius: 999 }}
+                >
+                  Reset
+                </Button>
+              </View>
+            </View>
+
+            <View className="mt-3 overflow-hidden rounded-2xl border border-warm3">
+              <View className="min-h-14 flex-row items-center justify-between px-[18px]">
+                <View className="flex-1 pr-3">
+                  <Text className="text-[15px] tracking-tight text-ink">Weekly demo data</Text>
+                  <Text className="mt-0.5 text-xs tracking-tight text-warm">
+                    {weeklyPreviewEnabled
+                      ? 'Weekly tab uses preview insight content'
+                      : 'Weekly tab uses live task history'}
+                  </Text>
+                </View>
+                <Switch
+                  value={weeklyPreviewEnabled}
+                  onValueChange={toggleWeeklyPreview}
+                  testID="settings-weekly-preview-switch"
+                  trackColor={{ false: 'rgba(120,120,128,0.22)', true: '#3EAF44' }}
+                  thumbColor={colors.white}
+                  ios_backgroundColor="rgba(120,120,128,0.22)"
+                />
+              </View>
+            </View>
+
+            {onOpenWeeklyInsight ? (
+              <Button
+                mode="outlined"
+                onPress={onOpenWeeklyInsight}
+                textColor={colors.ink}
+                testID="settings-open-weekly-preview-button"
+                style={{ marginTop: 12, borderRadius: 999 }}
+              >
+                Open Weekly Insight
+              </Button>
+            ) : null}
+
             <Button
               mode="outlined"
-              onPress={onOpenPreviewCatalog}
+              onPress={onResetOnboarding}
               textColor={colors.ink}
+              testID="settings-reset-onboarding-button"
               style={{ marginTop: 12, borderRadius: 999 }}
             >
-              UI Preview
+              Reset Onboarding
             </Button>
+
+            {onOpenPreviewCatalog ? (
+              <Button
+                mode="outlined"
+                onPress={onOpenPreviewCatalog}
+                testID="settings-open-preview-catalog-button"
+                textColor={colors.ink}
+                style={{ marginTop: 12, borderRadius: 999 }}
+              >
+                UI Preview
+              </Button>
+            ) : null}
           </View>
         ) : null}
       </ScrollView>

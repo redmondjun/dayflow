@@ -40,9 +40,9 @@ type TaskStore = {
   clearPreviewTasks: () => void;
   confirmPreviewTasks: () => Promise<void>;
   clearError: () => void;
-  todayTasks: () => Task[];
-  currentTask: () => Task | undefined;
-  upcomingTasks: () => Task[];
+  todayTasks: (now?: Date) => Task[];
+  currentTask: (now?: Date) => Task | undefined;
+  upcomingTasks: (now?: Date) => Task[];
 };
 
 async function refresh(set: (state: Partial<TaskStore>) => void): Promise<Task[]> {
@@ -192,7 +192,7 @@ export const useTaskStore = create<TaskStore>((set, get) => ({
 
   clearError: () => set({ error: null }),
 
-  todayTasks: () => getTodayTasks(get().tasks),
-  currentTask: () => getCurrentTask(get().todayTasks()),
-  upcomingTasks: () => getUpcomingTasks(get().todayTasks()),
+  todayTasks: (now) => getTodayTasks(get().tasks, now),
+  currentTask: (now) => getCurrentTask(get().todayTasks(now), now),
+  upcomingTasks: (now) => getUpcomingTasks(get().todayTasks(now), now),
 }));

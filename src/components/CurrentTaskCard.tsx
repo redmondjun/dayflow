@@ -14,9 +14,10 @@ type Props = {
   nextTask?: Task;
   onComplete?: () => void;
   onSkip?: () => void;
+  now?: Date;
 };
 
-export function CurrentTaskCard({ task, nextTask, onComplete, onSkip }: Props) {
+export function CurrentTaskCard({ task, nextTask, onComplete, onSkip, now }: Props) {
   if (!task) {
     return (
       <View className="mx-4 mt-3 rounded-[30px] bg-warm4 px-[26px] py-[26px]">
@@ -40,7 +41,7 @@ export function CurrentTaskCard({ task, nextTask, onComplete, onSkip }: Props) {
   }
 
   const total = durationBetween(task.startTime, task.endTime);
-  const remaining = getRemainingMinutes(task);
+  const remaining = getRemainingMinutes(task, now);
   const elapsed = Math.max(0, total - remaining);
   const progress = total > 0 ? Math.min(100, Math.max(0, (elapsed / total) * 100)) : 0;
 
