@@ -4,7 +4,6 @@ import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import type { RootStackParamList } from './types';
 import { PreviewCatalogScreen } from '../dev-preview/PreviewCatalogScreen';
 import { PreviewScenarioScreen } from '../dev-preview/PreviewScenarioScreen';
-import { AIScheduleScreen } from '../screens/AIScheduleScreen';
 import { HomeScreen } from '../screens/HomeScreen';
 import { OnboardingScreen } from '../screens/OnboardingScreen';
 import { SettingsScreen } from '../screens/SettingsScreen';
@@ -46,7 +45,6 @@ export function RootNavigator() {
       <Stack.Screen name="Home" component={HomeScreen} />
       <Stack.Screen name="CreateTask" component={TaskFormScreen} />
       <Stack.Screen name="EditTask" component={TaskFormScreen} />
-      <Stack.Screen name="AISchedule" component={AIScheduleScreen} />
       <Stack.Screen name="Onboarding" component={OnboardingScreen} />
       <Stack.Screen name="WeeklyInsight" component={WeeklyInsightScreen} />
       <Stack.Screen name="Settings" component={SettingsScreen} />

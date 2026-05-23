@@ -32,3 +32,11 @@ export type GeneratedTaskPreview = {
   startTime: string;
   endTime: string;
 };
+
+export type TaskInputRow = {
+  id: string;
+  title: string;
+  startTime: string;
+  endTime: string;
+  isDraft?: boolean;
+};

@@ -93,6 +93,7 @@ const emptySummary: WeeklyInsightSummary = {
 };
 
 const recentTaskStart = new Date();
+recentTaskStart.setDate(recentTaskStart.getDate() - 1);
 recentTaskStart.setHours(10, 0, 0, 0);
 const recentTaskEnd = new Date(recentTaskStart);
 recentTaskEnd.setHours(11, 0, 0, 0);
@@ -218,7 +219,7 @@ describe('WeeklyInsightScreen', () => {
 
     fireEvent.press(screen.getByText("Optimize tomorrow's schedule ->"));
 
-    expect(navigation.navigate).toHaveBeenCalledWith('AISchedule');
+    expect(navigation.navigate).toHaveBeenCalledWith('CreateTask', { aiEnabled: true });
   });
 
   it('hides patterns and suggestions when preview has no weekly data', () => {

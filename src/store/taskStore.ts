@@ -27,6 +27,7 @@ type TaskStore = {
   initialize: () => Promise<void>;
   reloadTasks: () => Promise<void>;
   addTask: (input: NewTaskInput) => Promise<void>;
+  addTasks: (inputs: NewTaskInput[]) => Promise<void>;
   updateTask: (
     taskId: string,
     input: Partial<NewTaskInput> & { status?: TaskStatus },
@@ -108,6 +109,15 @@ export const useTaskStore = create<TaskStore>((set, get) => ({
     await runStoreAction(set, async () => {
       const task = await createTask(input);
       await scheduleTaskNotification(task);
+    });
+  },
+
+  addTasks: async (inputs) => {
+    await runStoreAction(set, async () => {
+      const tasks = await bulkCreateTasks(inputs);
+      for (const task of tasks) {
+        await scheduleTaskNotification(task);
+      }
     });
   },
 

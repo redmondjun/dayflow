@@ -4,6 +4,7 @@ import type { Task } from '../types/task';
 import type { RootStackParamList } from '../navigation/types';
 import { useTaskStore } from '../store/taskStore';
 import { addMinutes } from '../utils/time';
+import { AIScheduleScreen } from './AIScheduleScreen';
 import { TaskFormView, type TaskFormSubmit } from '../views/TaskFormView';
 import { buildMockTask } from '../dev-preview/mockData';
 
@@ -42,6 +43,8 @@ export function TaskFormScreen(props: Props) {
   const isPreview = !isRoute;
   const editingId =
     isRoute && props.route.name === 'EditTask' ? props.route.params.taskId : undefined;
+  const createAiEnabled =
+    isRoute && props.route.name === 'CreateTask' ? Boolean(props.route.params?.aiEnabled) : false;
   const { tasks, addTask, updateTask, deleteTask, error, clearError, loading } = useTaskStore();
   const existing = tasks.find((task) => task.id === editingId);
   const initialTask = toInitialTask(
@@ -50,6 +53,17 @@ export function TaskFormScreen(props: Props) {
   const mode = initialTask ? 'edit' : 'create';
   const onCancel = isRoute ? () => props.navigation.goBack() : props.onCancel;
   const onComplete = isRoute ? () => props.navigation.goBack() : props.onCancel;
+
+  if (!editingId && (!isPreview || props.scenarioId === 'task-create')) {
+    return (
+      <AIScheduleScreen
+        onCancel={onCancel}
+        onOpenSettings={isRoute ? () => props.navigation.navigate('Settings') : props.onCancel}
+        scenarioId={isPreview ? 'ai-empty-list' : undefined}
+        initialAiEnabled={createAiEnabled}
+      />
+    );
+  }
 
   const save = async ({ title, startTime, endTime, status }: TaskFormSubmit) => {
     if (isPreview) {

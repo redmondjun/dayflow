@@ -1,11 +1,11 @@
 import { createContext, useContext } from 'react';
 import { Pressable, Text, TextInput as RNTextInput, View } from 'react-native';
 import { Button } from 'react-native-paper';
+import { PlannerHeader, QuickAddChip } from './LightScreenPrimitives';
 import { TimeWheelPicker } from './TimeWheelPicker';
 import { colors } from '../theme/colors';
+import { plannerQuickAdd } from '../features/taskPlanning';
 import type { TaskStatus } from '../types/task';
-
-const quickAdd = ['Morning walk', 'Read 30 min', 'Lunch break', 'Review notes', 'Planning'];
 
 type TaskFormSectionsContextValue = {
   mode: 'create' | 'edit';
@@ -51,57 +51,19 @@ export function TaskFormSectionsProvider({
   );
 }
 
-function StepDots() {
-  return (
-    <View className="flex-row items-center gap-[5px]">
-      <View className="h-[3px] w-[22px] rounded-full bg-ink" />
-      <View className="h-[3px] w-[6px] rounded-full bg-ink2" />
-      <View className="h-[3px] w-[6px] rounded-full bg-ink2" />
-      <View className="h-[3px] w-[6px] rounded-full bg-ink2" />
-    </View>
-  );
-}
-
-function QuickAddChip({
-  label,
-  active,
-  onPress,
-}: {
-  label: string;
-  active: boolean;
-  onPress: () => void;
-}) {
-  return (
-    <Pressable
-      onPress={onPress}
-      className={`rounded-full px-[14px] py-[7px] ${
-        active ? 'border border-warm3 bg-paper' : 'bg-[rgba(35,36,34,0.05)]'
-      }`}
-    >
-      <Text className={`text-[13px] tracking-[-0.13px] ${active ? 'text-warm' : 'text-warm2'}`}>
-        {active ? `+  ${label}` : label}
-      </Text>
-    </Pressable>
-  );
-}
-
 export function TaskFormHeader() {
   const { onCancel } = useTaskFormSectionsContext();
 
   return (
-    <View className="px-6 pt-7">
-      <View className="flex-row items-center justify-between">
-        <StepDots />
+    <PlannerHeader
+      title="Plan your day"
+      subtitle="Add your tasks and set a time for each."
+      action={
         <Button mode="text" compact textColor={colors.warm} onPress={onCancel}>
           Close
         </Button>
-      </View>
-
-      <Text className="pt-4 text-[34px] font-bold tracking-[-1.36px] text-ink">Plan your day</Text>
-      <Text className="pt-2 text-[15px] tracking-[-0.15px] text-warm">
-        Add your tasks and set a time for each.
-      </Text>
-    </View>
+      }
+    />
   );
 }
 
@@ -207,11 +169,11 @@ export function TaskQuickAddSection() {
         Quick add
       </Text>
       <View className="flex-row flex-wrap gap-2">
-        {quickAdd.map((label) => (
+        {plannerQuickAdd.map((label) => (
           <QuickAddChip
             key={label}
             label={label}
-            active={title.trim() !== label}
+            emphasized={title.trim() !== label}
             onPress={() => onSelectQuickAdd(label)}
           />
         ))}
