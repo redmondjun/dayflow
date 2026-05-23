@@ -6,6 +6,7 @@ import { HomeScreen } from '../screens/HomeScreen';
 import { SettingsScreen } from '../screens/SettingsScreen';
 import { OnboardingPreviewScreen } from './OnboardingPreviewScreen';
 import { previewScenarios } from './scenarios';
+import { TaskEditPreviewScreen } from './TaskEditPreviewScreen';
 import { TaskFormPreviewScreen } from './TaskFormPreviewScreen';
 import { WeeklyInsightPreviewScreen } from './WeeklyInsightPreviewScreen';
 
@@ -36,13 +37,12 @@ export function PreviewScenarioScreen({ navigation, route }: Props) {
     return <OnboardingPreviewScreen onExit={onBack} />;
   }
 
+  if (scenario.id === 'task-edit') {
+    return <TaskEditPreviewScreen onCancel={onBack} />;
+  }
+
   if (scenario.id.startsWith('task-')) {
-    return (
-      <TaskFormPreviewScreen
-        scenarioId={scenario.id as 'task-create' | 'task-edit'}
-        onCancel={onBack}
-      />
-    );
+    return <TaskFormPreviewScreen scenarioId={scenario.id as 'task-create'} onCancel={onBack} />;
   }
 
   if (scenario.id.startsWith('ai-')) {

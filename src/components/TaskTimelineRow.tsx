@@ -10,14 +10,15 @@ type Props = {
   isFirst: boolean;
   isLast: boolean;
   onPress?: () => void;
+  testID?: string;
 };
 
-export function TaskTimelineRow({ task, isCurrent, isFirst, isLast, onPress }: Props) {
+export function TaskTimelineRow({ task, isCurrent, isFirst, isLast, onPress, testID }: Props) {
   const status = isCurrent ? 'current' : task.status;
   const muted = task.status === 'completed' || task.status === 'skipped';
 
   return (
-    <Pressable onPress={onPress} className="min-h-16 flex-row">
+    <Pressable onPress={onPress} className="min-h-16 flex-row" testID={testID}>
       <View className="w-14 items-center">
         <View
           style={{

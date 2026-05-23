@@ -2,8 +2,10 @@ import { useEffect, useRef } from 'react';
 import { Animated, Pressable, ScrollView, View } from 'react-native';
 import { composeWheelTimeValue, parseWheelTimeValue } from '../utils/time';
 
-const wheelItemHeight = 34;
-const wheelHeight = 182;
+const defaultWheelItemHeight = 34;
+const defaultWheelHeight = 182;
+const defaultWheelHighlightHeight = 36;
+const defaultWheelTextSize = 24;
 const hourOptions = Array.from({ length: 12 }, (_, index) => String(index + 1));
 const minuteOptions = Array.from({ length: 12 }, (_, index) => String(index * 5).padStart(2, '0'));
 const meridiemOptions = ['AM', 'PM'];
@@ -15,6 +17,9 @@ function WheelColumn({
   onInteractionStart,
   onInteractionEnd,
   width,
+  itemHeight,
+  height,
+  textSize,
   align = 'center',
   testID,
 }: {
@@ -24,6 +29,9 @@ function WheelColumn({
   onInteractionStart?: () => void;
   onInteractionEnd?: () => void;
   width: number;
+  itemHeight: number;
+  height: number;
+  textSize: number;
   align?: 'left' | 'center' | 'right';
   testID?: string;
 }) {
@@ -31,12 +39,12 @@ function WheelColumn({
   const momentumScrollingRef = useRef(false);
   const fallbackSelectionTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const selectedIndex = Math.max(0, options.indexOf(selectedValue));
-  const scrollY = useRef(new Animated.Value(selectedIndex * wheelItemHeight)).current;
+  const scrollY = useRef(new Animated.Value(selectedIndex * itemHeight)).current;
 
   const applyScrollSelection = (offsetY: number | undefined) => {
     if (typeof offsetY !== 'number' || !Number.isFinite(offsetY)) return;
 
-    const nextIndex = Math.round(offsetY / wheelItemHeight);
+    const nextIndex = Math.round(offsetY / itemHeight);
     const optionIndex = Math.max(0, Math.min(options.length - 1, nextIndex));
     const nextValue = options[optionIndex];
     if (nextValue) onChange(nextValue);
@@ -57,12 +65,12 @@ function WheelColumn({
   };
 
   useEffect(() => {
-    scrollY.setValue(selectedIndex * wheelItemHeight);
+    scrollY.setValue(selectedIndex * itemHeight);
     scrollRef.current?.scrollTo({
-      y: selectedIndex * wheelItemHeight,
+      y: selectedIndex * itemHeight,
       animated: false,
     });
-  }, [scrollY, selectedIndex]);
+  }, [scrollY, selectedIndex, itemHeight]);
 
   useEffect(
     () => () => {
@@ -72,20 +80,20 @@ function WheelColumn({
   );
 
   return (
-    <View style={{ width, height: wheelHeight }}>
+    <View style={{ width, height }}>
       <Animated.ScrollView
         ref={scrollRef}
         testID={testID}
         style={{ flex: 1 }}
         nestedScrollEnabled
         showsVerticalScrollIndicator={false}
-        snapToInterval={wheelItemHeight}
+        snapToInterval={itemHeight}
         decelerationRate="normal"
         bounces={false}
         overScrollMode="never"
         scrollEventThrottle={16}
         contentContainerStyle={{
-          paddingVertical: (wheelHeight - wheelItemHeight) / 2,
+          paddingVertical: (height - itemHeight) / 2,
           paddingHorizontal: 10,
         }}
         onScroll={Animated.event([{ nativeEvent: { contentOffset: { y: scrollY } } }], {
@@ -118,15 +126,15 @@ function WheelColumn({
         }}
       >
         {options.map((item, index) => {
-          const itemOffset = index * wheelItemHeight;
+          const itemOffset = index * itemHeight;
           const inputRange = [
-            itemOffset - wheelItemHeight * 3,
-            itemOffset - wheelItemHeight * 2,
-            itemOffset - wheelItemHeight,
+            itemOffset - itemHeight * 3,
+            itemOffset - itemHeight * 2,
+            itemOffset - itemHeight,
             itemOffset,
-            itemOffset + wheelItemHeight,
-            itemOffset + wheelItemHeight * 2,
-            itemOffset + wheelItemHeight * 3,
+            itemOffset + itemHeight,
+            itemOffset + itemHeight * 2,
+            itemOffset + itemHeight * 3,
           ];
           const animatedOpacity = scrollY.interpolate({
             inputRange,
@@ -144,7 +152,7 @@ function WheelColumn({
             <Pressable
               key={`${item}-${index}`}
               onPress={() => onChange(item)}
-              style={{ height: wheelItemHeight, width: '100%', paddingHorizontal: 12 }}
+              style={{ height: itemHeight, width: '100%', paddingHorizontal: 12 }}
               className={`${alignClass} justify-center`}
               hitSlop={{ top: 6, bottom: 6, left: 16, right: 16 }}
               testID={`onboarding-wheel-option-${item}`}
@@ -152,7 +160,7 @@ function WheelColumn({
               <Animated.Text
                 className="font-medium text-ink"
                 style={{
-                  fontSize: 24,
+                  fontSize: textSize,
                   opacity: animatedOpacity,
                   transform: [{ scale: animatedScale }],
                 }}
@@ -172,6 +180,10 @@ type Props = {
   onChange: (value: string) => void;
   containerClassName?: string;
   width?: number;
+  wheelHeight?: number;
+  wheelItemHeight?: number;
+  highlightHeight?: number;
+  textSize?: number;
   onInteractionStart?: () => void;
   onInteractionEnd?: () => void;
 };
@@ -181,6 +193,10 @@ export function TimeWheelPicker({
   onChange,
   containerClassName = '',
   width,
+  wheelHeight = defaultWheelHeight,
+  wheelItemHeight = defaultWheelItemHeight,
+  highlightHeight = defaultWheelHighlightHeight,
+  textSize = defaultWheelTextSize,
   onInteractionStart,
   onInteractionEnd,
 }: Props) {
@@ -211,7 +227,7 @@ export function TimeWheelPicker({
     >
       <View
         className="absolute left-0 right-0 rounded-[10px] bg-[rgba(35,36,34,0.04)]"
-        style={{ top: (wheelHeight - 36) / 2, height: 36 }}
+        style={{ top: (wheelHeight - highlightHeight) / 2, height: highlightHeight }}
       />
       <View
         className="absolute left-0 right-0 flex-row items-center justify-center"
@@ -222,6 +238,9 @@ export function TimeWheelPicker({
           selectedValue={parsed.hour}
           onInteractionStart={onInteractionStart}
           onInteractionEnd={onInteractionEnd}
+          itemHeight={wheelItemHeight}
+          height={wheelHeight}
+          textSize={textSize}
           width={104}
           align="right"
           testID="onboarding-hour-wheel"
@@ -232,6 +251,9 @@ export function TimeWheelPicker({
           selectedValue={parsed.minute}
           onInteractionStart={onInteractionStart}
           onInteractionEnd={onInteractionEnd}
+          itemHeight={wheelItemHeight}
+          height={wheelHeight}
+          textSize={textSize}
           width={96}
           testID="onboarding-minute-wheel"
           onChange={(minute) => updateTimePart('minute', minute)}
@@ -241,6 +263,9 @@ export function TimeWheelPicker({
           selectedValue={parsed.meridiem}
           onInteractionStart={onInteractionStart}
           onInteractionEnd={onInteractionEnd}
+          itemHeight={wheelItemHeight}
+          height={wheelHeight}
+          textSize={textSize}
           width={108}
           align="left"
           testID="onboarding-meridiem-wheel"

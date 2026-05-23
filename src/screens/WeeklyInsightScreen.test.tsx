@@ -92,10 +92,9 @@ const emptySummary: WeeklyInsightSummary = {
   reflection: 'A weekly pattern will appear here soon.',
 };
 
-const recentTaskStart = new Date();
-recentTaskStart.setHours(10, 0, 0, 0);
+const recentTaskStart = new Date(Date.now() - 2 * 60 * 60 * 1000);
 const recentTaskEnd = new Date(recentTaskStart);
-recentTaskEnd.setHours(11, 0, 0, 0);
+recentTaskEnd.setHours(recentTaskStart.getHours() + 1);
 
 const completedTask = {
   id: 'task-1',
