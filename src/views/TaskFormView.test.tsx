@@ -1,4 +1,5 @@
 import React from 'react';
+import { TextInput } from 'react-native';
 import { describe, expect, it, jest } from '@jest/globals';
 import { fireEvent, render, screen } from '@testing-library/react-native';
 import { PaperProvider } from 'react-native-paper';
@@ -132,5 +133,22 @@ describe('TaskFormView', () => {
         endTime: '2026-05-21T07:15:00.000Z',
       }),
     );
+  });
+
+  it('blurs the title input when the user starts dragging a time wheel', () => {
+    const blurSpy = jest.spyOn(TextInput.prototype, 'blur');
+
+    renderTaskFormView({
+      initialTask: {
+        title: 'Morning walk',
+        startTime: '2026-05-20T07:00:00-07:00',
+        endTime: '2026-05-20T07:45:00-07:00',
+        status: 'scheduled',
+      },
+    });
+
+    fireEvent(screen.getAllByTestId('onboarding-time-picker')[0], 'touchStart');
+
+    expect(blurSpy).toHaveBeenCalledTimes(1);
   });
 });
