@@ -6,6 +6,7 @@ import {
   TaskDurationNotice,
   TaskFormHeader,
   TaskQuickAddSection,
+  TaskFormSectionsProvider,
   TaskStatusSection,
   TaskTimeFields,
 } from '../components/TaskFormSections';
@@ -115,23 +116,33 @@ export function TaskFormView({
   return (
     <SafeAreaView className="flex-1 bg-paper" edges={['top', 'bottom']}>
       <ScrollView contentContainerClassName="pb-40 pt-4">
-        <TaskFormHeader onCancel={onCancel} />
-        <TaskTimeFields
-          mode={mode}
-          title={title}
-          onChangeTitle={setTitle}
-          titleInputRef={titleInputRef}
-          timeRangeLabel={formatWheelTimeRange(start, end)}
-          start={toWheelTime(start)}
-          end={toWheelTime(end)}
-          onChangeStart={(value) => setStart(fromWheelTime(value))}
-          onChangeEnd={(value) => setEnd(fromWheelTime(value))}
-          onDelete={onDelete}
-          onClearTitle={() => setTitle('')}
-        />
-        <TaskDurationNotice validation={validation} durationLabel={durationLabel} />
-        <TaskQuickAddSection title={title} onSelect={setTitle} />
-        {mode === 'edit' ? <TaskStatusSection status={status} onChangeStatus={setStatus} /> : null}
+        <TaskFormSectionsProvider
+          value={{
+            mode,
+            title,
+            status,
+            validation,
+            durationLabel,
+            timeRangeLabel: formatWheelTimeRange(start, end),
+            start: toWheelTime(start),
+            end: toWheelTime(end),
+            titleInputRef,
+            onCancel,
+            onDelete,
+            onChangeTitle: setTitle,
+            onClearTitle: () => setTitle(''),
+            onSelectQuickAdd: setTitle,
+            onChangeStatus: setStatus,
+            onChangeStart: (value) => setStart(fromWheelTime(value)),
+            onChangeEnd: (value) => setEnd(fromWheelTime(value)),
+          }}
+        >
+          <TaskFormHeader />
+          <TaskTimeFields />
+          <TaskDurationNotice />
+          <TaskQuickAddSection />
+          {mode === 'edit' ? <TaskStatusSection /> : null}
+        </TaskFormSectionsProvider>
       </ScrollView>
 
       <View className="absolute bottom-0 left-0 right-0 bg-paper px-4 pb-6 pt-3">
