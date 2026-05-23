@@ -1,6 +1,7 @@
 import { makeGeneratedPreviewTasks } from '../dev-preview/mockData';
-import type { GeneratedTaskPreview, NewTaskInput, TaskInputRow } from '../types/task';
+import type { GeneratedTaskPreview, NewTaskInput, Task, TaskInputRow } from '../types/task';
 import { addMinutes, formatInputTime, parseTimeInput } from '../utils/time';
+import { findNextAvailableSlot } from './taskPlanning/scheduling';
 
 export const plannerQuickAdd = [
   'Morning walk',
@@ -49,11 +50,13 @@ export function normalizeTaskInputRow(row: TaskInputRow): TaskInputRow {
 export function createTaskInputRow({
   title = '',
   startTime = getRoundedStartTime(),
+  endTime,
   durationMinutes = 60,
   isDraft = false,
 }: {
   title?: string;
   startTime?: string;
+  endTime?: string;
   durationMinutes?: number;
   isDraft?: boolean;
 } = {}): TaskInputRow {
@@ -61,9 +64,11 @@ export function createTaskInputRow({
     id: createRowId(),
     title,
     startTime,
-    endTime: formatInputTime(
-      addMinutes(parseTimeInput(startTime) ?? new Date().toISOString(), durationMinutes),
-    ),
+    endTime:
+      endTime ??
+      formatInputTime(
+        addMinutes(parseTimeInput(startTime) ?? new Date().toISOString(), durationMinutes),
+      ),
     isDraft,
   };
 }
@@ -75,7 +80,28 @@ export function createNextTaskInputRow(previous?: TaskInputRow, title = ''): Tas
   return createTaskInputRow({ title, startTime });
 }
 
-export function createDraftTaskInputRow(previous?: TaskInputRow, title = ''): TaskInputRow {
+export function createDraftTaskInputRow(
+  previous?: TaskInputRow,
+  title = '',
+  options?: {
+    manualScheduling?: boolean;
+    existingTasks?: Task[];
+    plannerRows?: TaskInputRow[];
+  },
+): TaskInputRow {
+  if (options?.manualScheduling) {
+    const slot = findNextAvailableSlot({
+      existingTasks: options.existingTasks ?? [],
+      plannerRows: options.plannerRows ?? (previous ? [previous] : []),
+    });
+    return createTaskInputRow({
+      title,
+      startTime: slot.startTime,
+      endTime: slot.endTime,
+      isDraft: true,
+    });
+  }
+
   const startTime = previous
     ? formatInputTime(addMinutes(parseTimeInput(previous.endTime) ?? new Date().toISOString(), 5))
     : getRoundedStartTime();

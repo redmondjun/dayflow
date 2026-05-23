@@ -14,6 +14,7 @@ type Props = {
   onOpenSettings: () => void;
   scenarioId?: string;
   initialAiEnabled?: boolean;
+  autoOpenDraft?: boolean;
 };
 
 export function AIScheduleScreen(props: Props) {
@@ -23,6 +24,7 @@ export function AIScheduleScreen(props: Props) {
     scenarioId: props.scenarioId,
     onComplete: props.onCancel,
     initialAiEnabled: props.initialAiEnabled,
+    autoOpenDraft: props.autoOpenDraft ?? !props.scenarioId,
   });
 
   if (schedule.previewTasks.length > 0) {
@@ -47,6 +49,7 @@ export function AIScheduleScreen(props: Props) {
     selectedTaskId: schedule.selectedTaskId,
     selectedTaskStart: schedule.selectedTaskStart,
     selectedTaskEnd: schedule.selectedTaskEnd,
+    selectedTimeValidation: schedule.selectedTimeValidation,
     canSubmit: schedule.canSubmit,
     generating: schedule.generating,
     loading: schedule.loading,

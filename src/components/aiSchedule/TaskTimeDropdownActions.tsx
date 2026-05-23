@@ -5,9 +5,10 @@ import { colors } from '../../theme/colors';
 type Props = {
   onCancel: () => void;
   onAdd: () => void;
+  addDisabled?: boolean;
 };
 
-export function TaskTimeDropdownActions({ onCancel, onAdd }: Props) {
+export function TaskTimeDropdownActions({ onCancel, onAdd, addDisabled = false }: Props) {
   return (
     <View className="mt-3 flex-row gap-3">
       <Button
@@ -25,6 +26,7 @@ export function TaskTimeDropdownActions({ onCancel, onAdd }: Props) {
         testID="ai-schedule-time-add"
         mode="contained"
         onPress={onAdd}
+        disabled={addDisabled}
         buttonColor={colors.ink}
         textColor={colors.white}
         style={{ flex: 1, borderRadius: 999 }}

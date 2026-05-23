@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useIsFocused } from '@react-navigation/native';
 import { createTaskPlanningPreviewStore } from '../features/taskPlanning/previewStore';
 import {
@@ -19,12 +19,14 @@ import { useTaskStore } from '../store/taskStore';
 import type { GeneratedTaskPreview, NewTaskInput, TaskInputRow } from '../types/task';
 import { makeSequentialPreview } from '../utils/scheduling';
 import { parseTimeInput } from '../utils/time';
+import { validateManualTaskTimes } from '../features/taskPlanning/scheduling';
 
 type UseAIScheduleStateArgs = {
   isPreview: boolean;
   scenarioId?: string;
   onComplete: () => void;
   initialAiEnabled?: boolean;
+  autoOpenDraft?: boolean;
 };
 
 function getLiveCreateState() {
@@ -43,6 +45,7 @@ export function useAIScheduleState({
   scenarioId,
   onComplete,
   initialAiEnabled,
+  autoOpenDraft = false,
 }: UseAIScheduleStateArgs) {
   const isFocused = useIsFocused();
   const initialState = isPreview ? getTaskPlanningPreviewSeed(scenarioId) : getLiveCreateState();
@@ -51,11 +54,6 @@ export function useAIScheduleState({
   const [generating, setGenerating] = useState(false);
   const [localError, setLocalError] = useState<string | null>(initialState.localError);
   const [localPreviewTasks, setLocalPreviewTasks] = useState(initialState.previewTasks);
-
-  const { setTaskRows, setSelectedTaskId, ...taskInput } = useTaskInputRows({
-    initialRows: initialState.taskRows,
-    initialSelectedTaskId: initialState.selectedTaskId,
-  });
 
   const {
     previewTasks: storePreviewTasks,
@@ -68,6 +66,27 @@ export function useAIScheduleState({
     clearError,
     loading,
   } = useTaskStore();
+
+  const manualScheduling = !aiEnabled;
+  const getExistingTasks = useCallback(() => {
+    if (isPreview) return [];
+    return useTaskStore.getState().todayTasks();
+  }, [isPreview]);
+
+  const { setTaskRows, setSelectedTaskId, ...taskInput } = useTaskInputRows({
+    initialRows: initialState.taskRows,
+    initialSelectedTaskId: initialState.selectedTaskId,
+    manualScheduling,
+    getExistingTasks,
+  });
+
+  const didAutoOpenDraft = useRef(false);
+
+  useEffect(() => {
+    if (!autoOpenDraft || didAutoOpenDraft.current) return;
+    didAutoOpenDraft.current = true;
+    taskInput.addTaskRow();
+  }, [autoOpenDraft, taskInput.addTaskRow]);
 
   useEffect(() => {
     if (!isPreview || !scenarioId) return;
@@ -129,14 +148,26 @@ export function useAIScheduleState({
     }
 
     const inputs: NewTaskInput[] = [];
+    const existingTasks = getExistingTasks();
     for (const task of taskInput.titledRows) {
       const start = parseTimeInput(task.startTime);
       const end = parseTimeInput(task.endTime);
-      if (!start || !end || new Date(end).getTime() <= new Date(start).getTime()) {
-        setLocalError('Each task needs a valid start and end time.');
+      const validation = validateManualTaskTimes(task.startTime, task.endTime, new Date(), {
+        existingTasks,
+        plannerRows: taskInput.titledRows,
+        excludeRowId: task.id,
+      });
+      if (!start || !end || validation.error) {
+        setLocalError(validation.error ?? 'Each task needs a valid start and end time.');
         return;
       }
-      inputs.push({ title: task.title, startTime: start, endTime: end, aiGenerated: false });
+      inputs.push({
+        title: task.title,
+        startTime: start,
+        endTime: end,
+        aiGenerated: false,
+        status: validation.willMarkCompleted ? 'completed' : 'scheduled',
+      });
     }
 
     setLocalError(null);
@@ -222,6 +253,7 @@ export function useAIScheduleState({
     selectedTaskId: taskInput.selectedTaskId,
     selectedTaskStart: taskInput.selectedTaskStart,
     selectedTaskEnd: taskInput.selectedTaskEnd,
+    selectedTimeValidation: taskInput.selectedTimeValidation,
     onSelectTaskRow: taskInput.selectTaskRow,
     onChangeTaskTitle: taskInput.changeTaskTitle,
     onAddTaskRow: taskInput.addTaskRow,

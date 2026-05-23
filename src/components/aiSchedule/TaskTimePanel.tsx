@@ -14,6 +14,7 @@ export function TaskTimePanel({ onConfirmAdd }: Props) {
     aiEnabled,
     selectedTaskStart,
     selectedTaskEnd,
+    selectedTimeValidation,
     onToggleAiEnabled,
     onChangeSelectedStart,
     onChangeSelectedEnd,
@@ -21,6 +22,8 @@ export function TaskTimePanel({ onConfirmAdd }: Props) {
     onTimeInteractionStart,
     onTimeInteractionEnd,
   } = useAIScheduleTaskInput();
+
+  const hasTimeError = Boolean(!aiEnabled && selectedTimeValidation?.error);
 
   return (
     <View className="border-t border-warm3 px-5 py-[10px]">
@@ -68,10 +71,32 @@ export function TaskTimePanel({ onConfirmAdd }: Props) {
             onInteractionStart={onTimeInteractionStart}
             onInteractionEnd={onTimeInteractionEnd}
           />
+
+          {selectedTimeValidation?.error ? (
+            <Text
+              testID="ai-schedule-time-error"
+              className="mt-3 text-[12px] leading-[18px] tracking-[-0.12px] text-[#B42318]"
+            >
+              {selectedTimeValidation.error}
+            </Text>
+          ) : null}
+
+          {selectedTimeValidation?.pastNotice ? (
+            <Text
+              testID="ai-schedule-time-past-notice"
+              className="mt-3 text-[12px] leading-[18px] tracking-[-0.12px] text-warm"
+            >
+              {selectedTimeValidation.pastNotice}
+            </Text>
+          ) : null}
         </>
       )}
 
-      <TaskTimeDropdownActions onCancel={onCancelTaskTimeEdit} onAdd={onConfirmAdd} />
+      <TaskTimeDropdownActions
+        onCancel={onCancelTaskTimeEdit}
+        onAdd={onConfirmAdd}
+        addDisabled={hasTimeError}
+      />
     </View>
   );
 }

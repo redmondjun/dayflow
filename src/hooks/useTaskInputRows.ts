@@ -6,19 +6,44 @@ import {
   hasTaskRowTitle,
   normalizeTaskInputRow,
 } from '../features/taskPlanning';
-import type { TaskInputRow } from '../types/task';
+import {
+  validateManualTaskTimes,
+  type ManualTaskTimeValidation,
+} from '../features/taskPlanning/scheduling';
+import type { Task, TaskInputRow } from '../types/task';
 import { addMinutes, formatInputTime } from '../utils/time';
 
 type UseTaskInputRowsArgs = {
   initialRows: TaskInputRow[];
   initialSelectedTaskId: string | null;
+  manualScheduling?: boolean;
+  getExistingTasks?: () => Task[];
 };
 
 function normalizeRows(rows: TaskInputRow[]) {
   return rows.map(normalizeTaskInputRow);
 }
 
-export function useTaskInputRows({ initialRows, initialSelectedTaskId }: UseTaskInputRowsArgs) {
+function buildDraftRowOptions(
+  rows: TaskInputRow[],
+  manualScheduling: boolean,
+  getExistingTasks?: () => Task[],
+) {
+  if (!manualScheduling) return undefined;
+
+  return {
+    manualScheduling: true,
+    existingTasks: getExistingTasks?.() ?? [],
+    plannerRows: rows.filter((row) => !row.isDraft && hasTaskRowTitle(row)),
+  };
+}
+
+export function useTaskInputRows({
+  initialRows,
+  initialSelectedTaskId,
+  manualScheduling = false,
+  getExistingTasks,
+}: UseTaskInputRowsArgs) {
   const [taskRows, setTaskRowsState] = useState(() => normalizeRows(initialRows));
   const [selectedTaskId, setSelectedTaskId] = useState<string | null>(initialSelectedTaskId);
 
@@ -35,6 +60,14 @@ export function useTaskInputRows({ initialRows, initialSelectedTaskId }: UseTask
   const titledRows = useMemo(() => taskRows.filter(hasTaskRowTitle), [taskRows]);
   const selectedTaskStart = expandedTask?.startTime ?? getRoundedStartTime();
   const selectedTaskEnd = expandedTask?.endTime ?? formatInputTime(addMinutes(new Date(), 60));
+  const selectedTimeValidation: ManualTaskTimeValidation | null = useMemo(() => {
+    if (!manualScheduling || !expandedTask) return null;
+    return validateManualTaskTimes(expandedTask.startTime, expandedTask.endTime, new Date(), {
+      existingTasks: getExistingTasks?.() ?? [],
+      plannerRows: committedRows,
+      excludeRowId: expandedTask.id,
+    });
+  }, [committedRows, expandedTask, getExistingTasks, manualScheduling]);
 
   const updateTaskRow = (taskId: string, patch: Partial<TaskInputRow>) => {
     setTaskRows((rows) =>
@@ -84,6 +117,10 @@ export function useTaskInputRows({ initialRows, initialSelectedTaskId }: UseTask
   const confirmTaskTimeEdit = () => {
     if (!expandedTask) return false;
 
+    if (manualScheduling && selectedTimeValidation?.error) {
+      return false;
+    }
+
     if (!hasTaskRowTitle(expandedTask)) {
       return true;
     }
@@ -98,7 +135,11 @@ export function useTaskInputRows({ initialRows, initialSelectedTaskId }: UseTask
         row.id === expandedTask.id ? { ...row, isDraft: false } : row,
       );
       const withoutDraft = committed.filter((row) => !row.isDraft);
-      const nextDraft = createDraftTaskInputRow(withoutDraft.at(-1));
+      const nextDraft = createDraftTaskInputRow(
+        withoutDraft.at(-1),
+        '',
+        buildDraftRowOptions(withoutDraft, manualScheduling, getExistingTasks),
+      );
       setSelectedTaskId(nextDraft.id);
       return [...withoutDraft, nextDraft];
     });
@@ -112,7 +153,11 @@ export function useTaskInputRows({ initialRows, initialSelectedTaskId }: UseTask
     }
 
     setTaskRows((rows) => {
-      const next = createDraftTaskInputRow(rows.at(-1), title);
+      const next = createDraftTaskInputRow(
+        rows.at(-1),
+        title,
+        buildDraftRowOptions(rows, manualScheduling, getExistingTasks),
+      );
       setSelectedTaskId(next.id);
       return [...rows, next];
     });
@@ -149,6 +194,7 @@ export function useTaskInputRows({ initialRows, initialSelectedTaskId }: UseTask
     titledRows,
     selectedTaskStart,
     selectedTaskEnd,
+    selectedTimeValidation,
     selectTaskRow,
     changeTaskTitle: (taskId: string, title: string) =>
       updateTaskRow(taskId, { title: title ?? '' }),

@@ -52,6 +52,7 @@ export function TaskInputCard() {
               titleInputRef={isSelected ? titleInputRef : undefined}
               onPress={() => onSelectTaskRow(task.id)}
               onChangeTitle={(value) => onChangeTaskTitle(task.id, value)}
+              onRemove={isSelected ? onRemoveSelectedTaskRow : undefined}
             />
             {isSelected ? renderTimePanel() : null}
             {(index < committedRows.length - 1 || showAddTaskRow) && !isSelected ? (

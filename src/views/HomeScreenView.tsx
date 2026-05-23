@@ -183,7 +183,7 @@ export function HomeScreenView(props: Props) {
           onPress={onPrimaryAction}
           style={{ borderRadius: 999 }}
         >
-          Create Task
+          {tasks.length > 0 ? 'Add task' : 'Create Task'}
         </Button>
       </View>
 

@@ -1,4 +1,5 @@
 import { createContext, useContext } from 'react';
+import type { ManualTaskTimeValidation } from '../../features/taskPlanning/scheduling';
 import type { TaskInputRow } from '../../types/task';
 
 export type AIScheduleContextValue = {
@@ -11,6 +12,7 @@ export type AIScheduleContextValue = {
   selectedTaskId: string | null;
   selectedTaskStart: string;
   selectedTaskEnd: string;
+  selectedTimeValidation: ManualTaskTimeValidation | null;
   canSubmit: boolean;
   generating: boolean;
   loading: boolean;
@@ -56,6 +58,7 @@ export function useAIScheduleTaskInput() {
     selectedTaskId,
     selectedTaskStart,
     selectedTaskEnd,
+    selectedTimeValidation,
     onToggleAiEnabled,
     onSelectTaskRow,
     onChangeTaskTitle,
@@ -75,6 +78,7 @@ export function useAIScheduleTaskInput() {
     selectedTaskId,
     selectedTaskStart,
     selectedTaskEnd,
+    selectedTimeValidation,
     onToggleAiEnabled,
     onSelectTaskRow,
     onChangeTaskTitle,

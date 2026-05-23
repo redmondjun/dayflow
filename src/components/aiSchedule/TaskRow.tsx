@@ -1,4 +1,5 @@
 import { Pressable, Text, TextInput, View } from 'react-native';
+import { TaskRowRemoveButton } from './TaskRowRemoveButton';
 import { colors } from '../../theme/colors';
 import type { TaskInputRow } from '../../types/task';
 import { formatWheelTimeRange } from '../../utils/time';
@@ -9,9 +10,17 @@ type Props = {
   titleInputRef?: React.RefObject<TextInput | null>;
   onPress: () => void;
   onChangeTitle: (value: string) => void;
+  onRemove?: () => void;
 };
 
-export function TaskRow({ task, selected, titleInputRef, onPress, onChangeTitle }: Props) {
+export function TaskRow({
+  task,
+  selected,
+  titleInputRef,
+  onPress,
+  onChangeTitle,
+  onRemove,
+}: Props) {
   if (selected) {
     return (
       <View className="flex-row items-center gap-3 bg-warm4 px-[18px] py-4">
@@ -25,6 +34,13 @@ export function TaskRow({ task, selected, titleInputRef, onPress, onChangeTitle 
           placeholderTextColor={colors.warm}
           className="flex-1 text-[13px] tracking-[-0.13px] text-ink"
         />
+        {onRemove ? (
+          <TaskRowRemoveButton
+            testID={`ai-schedule-remove-row-${task.id}`}
+            onPress={onRemove}
+            size="lg"
+          />
+        ) : null}
       </View>
     );
   }

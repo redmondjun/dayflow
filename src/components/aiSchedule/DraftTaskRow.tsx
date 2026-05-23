@@ -1,5 +1,6 @@
 import { Pressable, Text, TextInput, View } from 'react-native';
 import { TaskRowRemoveButton } from './TaskRowRemoveButton';
+import { hasTaskRowTitle } from '../../features/taskPlanning';
 import { colors } from '../../theme/colors';
 import type { TaskInputRow } from '../../types/task';
 
@@ -54,7 +55,9 @@ export function DraftTaskRow({
         placeholderTextColor={colors.warm}
         className="flex-1 text-[13px] tracking-[-0.13px] text-ink"
       />
-      <TaskRowRemoveButton testID="ai-schedule-remove-row" onPress={onRemove} size="lg" />
+      {hasTaskRowTitle(task) ? (
+        <TaskRowRemoveButton testID="ai-schedule-remove-row" onPress={onRemove} size="lg" />
+      ) : null}
     </View>
   );
 }

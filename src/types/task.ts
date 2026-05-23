@@ -21,6 +21,7 @@ export type NewTaskInput = {
   startTime: string;
   endTime: string;
   aiGenerated?: boolean;
+  status?: TaskStatus;
   description?: string | null;
   category?: string | null;
 };
