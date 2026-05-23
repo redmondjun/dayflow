@@ -75,6 +75,43 @@ export function formatDisplayTime(value: string | Date): string {
   return date.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
 }
 
+const weekdayLabels = [
+  'Sunday',
+  'Monday',
+  'Tuesday',
+  'Wednesday',
+  'Thursday',
+  'Friday',
+  'Saturday',
+] as const;
+
+const shortMonthLabels = [
+  'Jan',
+  'Feb',
+  'Mar',
+  'Apr',
+  'May',
+  'Jun',
+  'Jul',
+  'Aug',
+  'Sep',
+  'Oct',
+  'Nov',
+  'Dec',
+] as const;
+
+export function formatSchedulePreviewDate(value = new Date()): string {
+  const date = typeof value === 'string' ? new Date(value) : value;
+  return `${weekdayLabels[date.getDay()]}, ${shortMonthLabels[date.getMonth()]} ${date.getDate()}`;
+}
+
+export function roundUpToFiveMinutes(date: Date): Date {
+  const next = new Date(date);
+  next.setSeconds(0, 0);
+  next.setMinutes(Math.ceil(next.getMinutes() / 5) * 5);
+  return next;
+}
+
 export function formatDisplayDate(value = new Date()): { weekday: string; dayMonth: string } {
   return {
     weekday: value.toLocaleDateString([], { weekday: 'long' }),

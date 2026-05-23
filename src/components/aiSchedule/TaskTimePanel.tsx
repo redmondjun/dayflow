@@ -1,4 +1,4 @@
-import { Switch, Text, View } from 'react-native';
+import { Switch, Text, useWindowDimensions, View } from 'react-native';
 import { TimeWheelPicker } from '../TimeWheelPicker';
 import { useAIScheduleTaskInput } from './context';
 import { TaskTimeDropdownActions } from './TaskTimeDropdownActions';
@@ -24,6 +24,8 @@ export function TaskTimePanel({ onConfirmAdd }: Props) {
   } = useAIScheduleTaskInput();
 
   const hasTimeError = Boolean(!aiEnabled && selectedTimeValidation?.error);
+  const { width: windowWidth } = useWindowDimensions();
+  const pickerWidth = Math.min(305, windowWidth - 88);
 
   return (
     <View className="border-t border-warm3 px-5 py-[10px]">
@@ -54,7 +56,7 @@ export function TaskTimePanel({ onConfirmAdd }: Props) {
           <TimeWheelPicker
             value={toWheelTime(selectedTaskStart)}
             onChange={(value) => onChangeSelectedStart(fromWheelTime(value))}
-            width={305}
+            width={pickerWidth}
             onInteractionStart={onTimeInteractionStart}
             onInteractionEnd={onTimeInteractionEnd}
           />
@@ -67,7 +69,7 @@ export function TaskTimePanel({ onConfirmAdd }: Props) {
           <TimeWheelPicker
             value={toWheelTime(selectedTaskEnd)}
             onChange={(value) => onChangeSelectedEnd(fromWheelTime(value))}
-            width={305}
+            width={pickerWidth}
             onInteractionStart={onTimeInteractionStart}
             onInteractionEnd={onTimeInteractionEnd}
           />

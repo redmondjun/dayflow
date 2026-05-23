@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { TextInput } from 'react-native';
+import { Keyboard } from 'react-native';
 import {
   AISchedulePlannerSection,
   AIScheduleProvider,
@@ -64,7 +64,7 @@ export function AIScheduleScreen(props: Props) {
     onCancelTaskTimeEdit: schedule.onCancelTaskTimeEdit,
     onConfirmTaskTimeEdit: schedule.onConfirmTaskTimeEdit,
     onTimeInteractionStart: () => {
-      TextInput.State.currentlyFocusedInput?.()?.blur();
+      Keyboard.dismiss();
       setIsTimePickerInteracting(true);
     },
     onTimeInteractionEnd: () => setIsTimePickerInteracting(false),

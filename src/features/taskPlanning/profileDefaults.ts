@@ -1,5 +1,10 @@
 import type { OnboardingProfile } from '../../services/onboardingProfile';
-import { fromWheelTime, parseTimeInput, formatInputTime } from '../../utils/time';
+import {
+  fromWheelTime,
+  parseTimeInput,
+  formatInputTime,
+  roundUpToFiveMinutes,
+} from '../../utils/time';
 
 export type TaskPlanningDefaults = {
   preferredStart: string;
@@ -8,13 +13,6 @@ export type TaskPlanningDefaults = {
 
 const FALLBACK_START = '09:00';
 const FALLBACK_DURATION_MINUTES = 60;
-
-function roundUpToFiveMinutes(date: Date): Date {
-  const next = new Date(date);
-  next.setSeconds(0, 0);
-  next.setMinutes(Math.ceil(next.getMinutes() / 5) * 5);
-  return next;
-}
 
 function parseProfileTime(value: unknown, now: Date): Date | null {
   if (typeof value !== 'string' || !value.trim()) return null;

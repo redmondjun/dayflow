@@ -1,5 +1,11 @@
 import type { Task, TaskInputRow } from '../../types/task';
-import { addMinutes, formatInputTime, getTodayTasks, parseTimeInput } from '../../utils/time';
+import {
+  addMinutes,
+  formatInputTime,
+  getTodayTasks,
+  parseTimeInput,
+  roundUpToFiveMinutes,
+} from '../../utils/time';
 
 function hasTaskRowTitle(row: TaskInputRow) {
   return Boolean(row.title?.trim());
@@ -15,13 +21,6 @@ type TimeInterval = {
   startMs: number;
   endMs: number;
 };
-
-function roundUpToFiveMinutes(date: Date): Date {
-  const next = new Date(date);
-  next.setSeconds(0, 0);
-  next.setMinutes(Math.ceil(next.getMinutes() / 5) * 5);
-  return next;
-}
 
 function toInterval(
   startTime: string,
@@ -111,7 +110,7 @@ export function findNextAvailableSlot({
   const roundedNow = roundUpToFiveMinutes(now);
   let candidateStart = roundedNow;
 
-  if (intervals.length === 0 && preferredStart) {
+  if (preferredStart) {
     const preferred = parseTimeInput(preferredStart, now);
     if (preferred) {
       const preferredDate = roundUpToFiveMinutes(new Date(preferred));

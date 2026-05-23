@@ -1,7 +1,6 @@
 import { useMemo, useState } from 'react';
 import {
   createDraftTaskInputRow,
-  createTaskInputRow,
   getRoundedStartTime,
   hasTaskRowTitle,
   normalizeTaskInputRow,
@@ -191,7 +190,7 @@ export function useTaskInputRows({
     setTaskRows((rows) => {
       if (rows.length === 1) {
         setSelectedTaskId(null);
-        return [createTaskInputRow()];
+        return [];
       }
 
       setSelectedTaskId(null);

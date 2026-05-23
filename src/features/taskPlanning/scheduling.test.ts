@@ -96,7 +96,22 @@ describe('findNextAvailableSlot', () => {
     expect(slot.endTime).toBe('15:15');
   });
 
-  it('does not use preferredStart when existing tasks exist', () => {
+  it('uses preferredStart as a floor even when other tasks exist later in the day', () => {
+    const now = new Date(2026, 4, 23, 6, 0, 0, 0);
+    const existingTasks = [makeLocalTask(14, 0, 15, 0)];
+
+    const slot = findNextAvailableSlot({
+      existingTasks,
+      now,
+      durationMinutes: 60,
+      preferredStart: '07:00',
+    });
+
+    expect(slot.startTime).toBe('07:00');
+    expect(slot.endTime).toBe('08:00');
+  });
+
+  it('respects preferredStart before an existing morning task', () => {
     const now = new Date(2026, 4, 23, 8, 0, 0, 0);
     const existingTasks = [makeLocalTask(9, 0, 10, 0)];
 
@@ -107,8 +122,8 @@ describe('findNextAvailableSlot', () => {
       preferredStart: '09:00',
     });
 
-    expect(slot.startTime).toBe('08:00');
-    expect(slot.endTime).toBe('09:00');
+    expect(slot.startTime).toBe('10:05');
+    expect(slot.endTime).toBe('11:05');
   });
 });
 
