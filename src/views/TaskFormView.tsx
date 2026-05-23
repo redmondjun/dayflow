@@ -69,6 +69,7 @@ export function TaskFormView({
     endTime ? formatInputTime(endTime) : formatInputTime(defaults.end),
   );
   const [status, setStatus] = useState<TaskStatus>(initialStatus ?? 'scheduled');
+  const [isTimePickerInteracting, setIsTimePickerInteracting] = useState(false);
   const titleInputRef = useRef<RNTextInput>(null);
   const startParseBaseDate = startTime ? new Date(startTime) : defaults.start;
   const endParseBaseDate = endTime ? new Date(endTime) : defaults.end;
@@ -115,7 +116,11 @@ export function TaskFormView({
 
   return (
     <SafeAreaView className="flex-1 bg-paper" edges={['top', 'bottom']}>
-      <ScrollView contentContainerClassName="pb-40 pt-4">
+      <ScrollView
+        contentContainerClassName="pb-40 pt-4"
+        keyboardShouldPersistTaps="handled"
+        scrollEnabled={!isTimePickerInteracting}
+      >
         <TaskFormSectionsProvider
           value={{
             mode,
@@ -135,6 +140,11 @@ export function TaskFormView({
             onChangeStatus: setStatus,
             onChangeStart: (value) => setStart(fromWheelTime(value)),
             onChangeEnd: (value) => setEnd(fromWheelTime(value)),
+            onTimeInteractionStart: () => {
+              titleInputRef.current?.blur();
+              setIsTimePickerInteracting(true);
+            },
+            onTimeInteractionEnd: () => setIsTimePickerInteracting(false),
           }}
         >
           <TaskFormHeader />
