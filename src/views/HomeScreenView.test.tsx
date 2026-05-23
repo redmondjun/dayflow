@@ -68,6 +68,7 @@ describe('HomeScreenView', () => {
     fireEvent.press(screen.getByTestId('task-timeline-row-task-1'));
 
     expect(screen.getByText('Edit Task')).toBeOnTheScreen();
+    expect(screen.queryByTestId('close-task-editor')).toBeNull();
     expect(screen.getAllByText('Design review').length).toBeGreaterThan(0);
 
     fireEvent.changeText(screen.getByTestId('task-editor-title-input'), 'Morning routine');

@@ -1,8 +1,9 @@
-import { useEffect, useMemo, useState } from 'react';
-import { Modal, Pressable, RefreshControl, ScrollView, Text, TextInput, View } from 'react-native';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { RefreshControl, ScrollView, Text, TextInput, View } from 'react-native';
 import { Button, Snackbar } from 'react-native-paper';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { CurrentTaskCard } from '../components/CurrentTaskCard';
+import { DraggableBottomSheet } from '../components/DraggableBottomSheet';
 import { TimeWheelPicker } from '../components/TimeWheelPicker';
 import { TaskTimelineRow } from '../components/TaskTimelineRow';
 import { makeActiveDayTasks, makeCompletedHeavyTasks } from '../dev-preview/mockData';
@@ -71,11 +72,13 @@ function updateTaskSchedule(task: Task, title: string, start: string, end: strin
 function TaskScheduleEditorSheet({
   task,
   saving,
+  onCloseStart,
   onClose,
   onSave,
 }: {
   task: Task;
   saving: boolean;
+  onCloseStart: () => void | boolean;
   onClose: () => void;
   onSave: (title: string, start: string, end: string) => Promise<void> | void;
 }) {
@@ -95,84 +98,80 @@ function TaskScheduleEditorSheet({
   const changed = trimmedTitle !== task.title || start !== initialStart || end !== initialEnd;
 
   return (
-    <Modal transparent animationType="slide" visible onRequestClose={onClose}>
-      <View className="flex-1 justify-end bg-[rgba(35,36,34,0.38)]">
-        <Pressable className="absolute inset-0" onPress={onClose} testID="task-edit-backdrop" />
-        <View className="rounded-t-[24px] bg-paper pb-6 pt-5">
+    <DraggableBottomSheet
+      visible
+      onClose={onClose}
+      onCloseStart={() => {
+        onCloseStart();
+        return !saving;
+      }}
+      backdropTestID="task-edit-backdrop"
+      dragZone={
+        <>
           <View className="mx-auto h-1 w-9 rounded-full bg-warm3" />
-          <View className="flex-row items-start justify-between px-5 pt-5">
-            <View className="min-w-0 flex-1 pr-5">
-              <Text className="text-[19px] font-bold tracking-[-0.4px] text-ink">Edit Task</Text>
-              <TextInput
-                value={title}
-                onChangeText={setTitle}
-                placeholder="Task name"
-                placeholderTextColor={colors.warm}
-                className="mt-6 text-[29px] font-bold tracking-[-1px] text-ink"
-                testID="task-editor-title-input"
-              />
-            </View>
-            <Pressable
-              accessibilityRole="button"
-              accessibilityLabel="Close task editor"
-              className="h-14 w-14 items-center justify-center rounded-full bg-warm3"
-              onPress={onClose}
-              testID="close-task-editor"
-            >
-              <Text className="text-[22px] font-bold text-warm">x</Text>
-            </Pressable>
-          </View>
-
-          <View className="mt-5 border-t border-warm3 px-9 pt-4">
-            <Text className="text-[11px] font-semibold uppercase tracking-[1.8px] text-warm">
-              Start
-            </Text>
-            <TimeWheelPicker
-              value={startWheel}
-              onChange={setStartWheel}
-              width={320}
-              wheelHeight={116}
-              wheelItemHeight={34}
-              highlightHeight={36}
-              textSize={24}
-            />
-          </View>
-
-          <View className="mt-1 border-t border-warm3 px-9 pt-4">
-            <Text className="text-[11px] font-semibold uppercase tracking-[1.8px] text-warm">
-              End
-            </Text>
-            <TimeWheelPicker
-              value={endWheel}
-              onChange={setEndWheel}
-              width={320}
-              wheelHeight={116}
-              wheelItemHeight={34}
-              highlightHeight={36}
-              textSize={24}
-            />
-          </View>
-
-          <View className="px-5 pt-6">
-            <Button
-              mode="contained"
-              disabled={saving}
-              loading={saving}
-              buttonColor="#232422"
-              textColor={colors.white}
-              onPress={() => {
-                if (isValid && changed) onSave(trimmedTitle, start, end);
-              }}
-              style={{ borderRadius: 999 }}
-              contentStyle={{ height: 52 }}
-              labelStyle={{ fontSize: 14, fontWeight: '700', letterSpacing: -0.15 }}
-            >
-              Add task
-            </Button>
-          </View>
-        </View>
+          <Text className="px-5 pt-5 text-[19px] font-bold tracking-[-0.4px] text-ink">
+            Edit Task
+          </Text>
+        </>
+      }
+    >
+      <View className="px-5 pb-2 pt-1">
+        <TextInput
+          value={title}
+          onChangeText={setTitle}
+          placeholder="Task name"
+          placeholderTextColor={colors.warm}
+          className="mt-6 text-[29px] font-bold tracking-[-1px] text-ink"
+          testID="task-editor-title-input"
+        />
       </View>
-    </Modal>
+
+      <View className="mt-5 border-t border-warm3 px-9 pt-4">
+        <Text className="text-[11px] font-semibold uppercase tracking-[1.8px] text-warm">
+          Start
+        </Text>
+        <TimeWheelPicker
+          value={startWheel}
+          onChange={setStartWheel}
+          width={320}
+          wheelHeight={116}
+          wheelItemHeight={34}
+          highlightHeight={36}
+          textSize={24}
+        />
+      </View>
+
+      <View className="mt-1 border-t border-warm3 px-9 pt-4">
+        <Text className="text-[11px] font-semibold uppercase tracking-[1.8px] text-warm">End</Text>
+        <TimeWheelPicker
+          value={endWheel}
+          onChange={setEndWheel}
+          width={320}
+          wheelHeight={116}
+          wheelItemHeight={34}
+          highlightHeight={36}
+          textSize={24}
+        />
+      </View>
+
+      <View className="px-5 pt-6">
+        <Button
+          mode="contained"
+          disabled={saving}
+          loading={saving}
+          buttonColor="#232422"
+          textColor={colors.white}
+          onPress={() => {
+            if (isValid && changed) onSave(trimmedTitle, start, end);
+          }}
+          style={{ borderRadius: 999 }}
+          contentStyle={{ height: 52 }}
+          labelStyle={{ fontSize: 14, fontWeight: '700', letterSpacing: -0.15 }}
+        >
+          Add task
+        </Button>
+      </View>
+    </DraggableBottomSheet>
   );
 }
 
@@ -183,8 +182,12 @@ export function HomeScreenView(props: Props) {
   const previewTasksOverride = isPreview ? props.previewTasks : undefined;
   const initialEditingTaskId = isPreview ? props.initialEditingTaskId : undefined;
   const [tick, setTick] = useState(() => (previewNow ?? new Date()).getTime());
-  const [editingTaskId, setEditingTaskId] = useState<string | null>(initialEditingTaskId ?? null);
+  const [editingTaskSnapshot, setEditingTaskSnapshot] = useState<Task | null>(null);
   const [savingTaskEdit, setSavingTaskEdit] = useState(false);
+  // Synchronous JS lock — set when sheet starts closing, prevents reopen
+  // regardless of which code path tries to open it (tap, programmatic, etc).
+  // Works even if pointerEvents blocking fails at the native layer.
+  const openLockUntilRef = useRef<number>(0);
   const [previewTasks, setPreviewTasks] = useState<Task[]>(
     previewScenarioId ? (previewTasksOverride ?? buildPreviewTasks(previewScenarioId)) : [],
   );
@@ -222,36 +225,58 @@ export function HomeScreenView(props: Props) {
   const tasks = isPreview ? previewTasks : todayTasks();
   const current = isPreview ? getCurrentTask(tasks, now) : currentTask();
   const next = isPreview ? getUpcomingTasks(tasks, now)[0] : upcomingTasks()[0];
-  const editingTask = editingTaskId ? tasks.find((task) => task.id === editingTaskId) : undefined;
 
-  const openTaskEditor = (taskId: string) => {
-    setEditingTaskId(taskId);
-  };
+  useEffect(() => {
+    if (initialEditingTaskId && !editingTaskSnapshot) {
+      const task = tasks.find((t) => t.id === initialEditingTaskId);
+      if (task) setEditingTaskSnapshot(task);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
-  const closeTaskEditor = () => {
-    if (savingTaskEdit) return;
-    setEditingTaskId(null);
-  };
+  const openTaskEditor = useCallback(
+    (taskId: string) => {
+      if (Date.now() < openLockUntilRef.current) return;
+      if (editingTaskSnapshot) return;
+      const task = tasks.find((t) => t.id === taskId);
+      if (!task) return;
+      setEditingTaskSnapshot(task);
+    },
+    [editingTaskSnapshot, tasks],
+  );
+
+  const beginCloseTaskEditor = useCallback(() => {
+    // Lock open-attempts for a window that covers: dismiss animation (~300ms) +
+    // touch-absorb delay in DraggableBottomSheet (1200ms) + safety buffer.
+    openLockUntilRef.current = Date.now() + 2000;
+  }, []);
+
+  const finishCloseTaskEditor = useCallback(() => {
+    setEditingTaskSnapshot(null);
+  }, []);
 
   const saveTaskSchedule = async (title: string, start: string, end: string) => {
-    if (!editingTask || savingTaskEdit) return;
+    if (!editingTaskSnapshot || savingTaskEdit) return;
     setSavingTaskEdit(true);
     try {
       if (isPreview) {
         setPreviewTasks((existingTasks) =>
           existingTasks.map((task) =>
-            task.id === editingTask.id ? updateTaskSchedule(task, title, start, end) : task,
+            task.id === editingTaskSnapshot.id ? updateTaskSchedule(task, title, start, end) : task,
           ),
         );
       } else {
-        await updateTask(editingTask.id, {
+        await updateTask(editingTaskSnapshot.id, {
           title,
           startTime:
-            parseTimeInput(start, new Date(editingTask.startTime)) ?? editingTask.startTime,
-          endTime: parseTimeInput(end, new Date(editingTask.endTime)) ?? editingTask.endTime,
+            parseTimeInput(start, new Date(editingTaskSnapshot.startTime)) ??
+            editingTaskSnapshot.startTime,
+          endTime:
+            parseTimeInput(end, new Date(editingTaskSnapshot.endTime)) ??
+            editingTaskSnapshot.endTime,
         });
       }
-      setEditingTaskId(null);
+      setEditingTaskSnapshot(null);
     } finally {
       setSavingTaskEdit(false);
     }
@@ -384,12 +409,13 @@ export function HomeScreenView(props: Props) {
         </Snackbar>
       ) : null}
 
-      {editingTask ? (
+      {editingTaskSnapshot ? (
         <TaskScheduleEditorSheet
-          key={editingTask.id}
-          task={editingTask}
+          key={editingTaskSnapshot.id}
+          task={editingTaskSnapshot}
           saving={savingTaskEdit}
-          onClose={closeTaskEditor}
+          onCloseStart={beginCloseTaskEditor}
+          onClose={finishCloseTaskEditor}
           onSave={saveTaskSchedule}
         />
       ) : null}
