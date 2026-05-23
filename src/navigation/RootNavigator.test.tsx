@@ -46,6 +46,12 @@ jest.mock('../screens/WeeklyInsightScreen', () => ({
 jest.mock('../screens/SettingsScreen', () => ({
   SettingsScreen: () => null,
 }));
+jest.mock('../dev-preview/PreviewCatalogScreen', () => ({
+  PreviewCatalogScreen: () => null,
+}));
+jest.mock('../dev-preview/PreviewScenarioScreen', () => ({
+  PreviewScenarioScreen: () => null,
+}));
 
 describe('RootNavigator', () => {
   const hasCompletedOnboardingMock = jest.mocked(hasCompletedOnboarding);
