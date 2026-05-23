@@ -4,6 +4,21 @@ const OPENAI_API_KEY = 'dayflow.openaiApiKey';
 const GEMINI_API_KEY = 'dayflow.geminiApiKey';
 const AI_FEATURES_ENABLED = 'dayflow.aiFeaturesEnabled';
 
+type AiSettingsListener = () => void;
+
+const aiSettingsListeners = new Set<AiSettingsListener>();
+
+function notifyAiSettingsChanged(): void {
+  aiSettingsListeners.forEach((listener) => listener());
+}
+
+export function subscribeAiSettingsChanges(listener: AiSettingsListener): () => void {
+  aiSettingsListeners.add(listener);
+  return () => {
+    aiSettingsListeners.delete(listener);
+  };
+}
+
 async function getStoredValue(key: string): Promise<string | null> {
   return SecureStore.getItemAsync(key);
 }
@@ -27,10 +42,12 @@ export async function getOpenAIApiKey(): Promise<string | null> {
 
 export async function saveOpenAIApiKey(value: string): Promise<void> {
   await saveStoredValue(OPENAI_API_KEY, value);
+  notifyAiSettingsChanged();
 }
 
 export async function deleteOpenAIApiKey(): Promise<void> {
   await deleteStoredValue(OPENAI_API_KEY);
+  notifyAiSettingsChanged();
 }
 
 export async function getGeminiApiKey(): Promise<string | null> {
@@ -39,10 +56,12 @@ export async function getGeminiApiKey(): Promise<string | null> {
 
 export async function saveGeminiApiKey(value: string): Promise<void> {
   await saveStoredValue(GEMINI_API_KEY, value);
+  notifyAiSettingsChanged();
 }
 
 export async function deleteGeminiApiKey(): Promise<void> {
   await deleteStoredValue(GEMINI_API_KEY);
+  notifyAiSettingsChanged();
 }
 
 export async function getAiFeaturesEnabled(): Promise<boolean> {
@@ -52,4 +71,5 @@ export async function getAiFeaturesEnabled(): Promise<boolean> {
 
 export async function saveAiFeaturesEnabled(value: boolean): Promise<void> {
   await SecureStore.setItemAsync(AI_FEATURES_ENABLED, value ? 'true' : 'false');
+  notifyAiSettingsChanged();
 }

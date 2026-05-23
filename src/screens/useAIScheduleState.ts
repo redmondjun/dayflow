@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react';
 import { useIsFocused } from '@react-navigation/native';
 import { makeGeneratedPreviewTasks } from '../dev-preview/mockData';
-import { getAiFeaturesEnabled, getOpenAIApiKey } from '../services/apiKey';
+import { getGeminiApiKey, getOpenAIApiKey } from '../services/apiKey';
+import { generateGeminiScheduleFromText } from '../services/gemini';
 import {
   formatOnboardingProfileForPrompt,
   getOnboardingProfile,
@@ -25,12 +26,13 @@ type UseAIScheduleStateArgs = {
 
 type PreviewSeed = {
   apiKey: string | null;
-  aiFeaturesEnabled: boolean;
   localError: string | null;
   taskRows: TaskInputRow[];
   startTime: string;
   previewTasks: GeneratedTaskPreview[];
 };
+
+const missingApiKeyMessage = 'Add an OpenAI or Gemini API key in Settings first.';
 
 function createTaskInputRow(title = ''): TaskInputRow {
   return {
@@ -48,7 +50,6 @@ function getRoundedStartTime(): string {
 const previewSeedFactories: Record<string, () => PreviewSeed> = {
   default: () => ({
     apiKey: null,
-    aiFeaturesEnabled: true,
     localError: null,
     taskRows: [createTaskInputRow()],
     startTime: getRoundedStartTime(),
@@ -56,8 +57,7 @@ const previewSeedFactories: Record<string, () => PreviewSeed> = {
   }),
   'ai-no-key': () => ({
     apiKey: null,
-    aiFeaturesEnabled: true,
-    localError: 'Add your OpenAI API key in Settings first.',
+    localError: missingApiKeyMessage,
     taskRows: [
       createTaskInputRow('Study React'),
       createTaskInputRow('Gym'),
@@ -68,7 +68,6 @@ const previewSeedFactories: Record<string, () => PreviewSeed> = {
   }),
   'ai-empty-list': () => ({
     apiKey: 'preview-key',
-    aiFeaturesEnabled: true,
     localError: null,
     taskRows: [createTaskInputRow('')],
     startTime: '09:00',
@@ -76,7 +75,6 @@ const previewSeedFactories: Record<string, () => PreviewSeed> = {
   }),
   'ai-preview': () => ({
     apiKey: 'preview-key',
-    aiFeaturesEnabled: true,
     localError: null,
     taskRows: [
       createTaskInputRow('Study React'),
@@ -94,20 +92,17 @@ function getPreviewSeed(scenarioId?: string) {
 
 function getGenerateDisabledReason({
   apiKeyPresent,
-  aiFeaturesEnabled,
   taskCount,
   startTimeValid,
   generating,
 }: {
   apiKeyPresent: boolean;
-  aiFeaturesEnabled: boolean;
   taskCount: number;
   startTimeValid: boolean;
   generating: boolean;
 }): string | null {
   if (generating) return 'Generating your schedule...';
-  if (!apiKeyPresent) return 'Add and verify your OpenAI API key in Settings first.';
-  if (!aiFeaturesEnabled) return 'Turn on AI Features in Settings first.';
+  if (!apiKeyPresent) return missingApiKeyMessage;
   if (taskCount === 0) return 'Add at least one task to schedule.';
   if (!startTimeValid) return 'Use a valid 24-hour start time like 09:00.';
   return null;
@@ -139,7 +134,6 @@ export function useAIScheduleState({ isPreview, scenarioId, onComplete }: UseAIS
   const isFocused = useIsFocused();
   const previewSeed = getPreviewSeed(scenarioId);
   const [apiKey, setApiKey] = useState<string | null>(previewSeed.apiKey);
-  const [aiFeaturesEnabled, setAiFeaturesEnabled] = useState(previewSeed.aiFeaturesEnabled);
   const [taskRows, setTaskRows] = useState<TaskInputRow[]>(previewSeed.taskRows);
   const [startTime, setStartTime] = useState(previewSeed.startTime);
   const [generating, setGenerating] = useState(false);
@@ -164,7 +158,6 @@ export function useAIScheduleState({ isPreview, scenarioId, onComplete }: UseAIS
 
     const nextSeed = getPreviewSeed(scenarioId);
     setApiKey(nextSeed.apiKey);
-    setAiFeaturesEnabled(nextSeed.aiFeaturesEnabled);
     setTaskRows(nextSeed.taskRows);
     setStartTime(nextSeed.startTime);
     setGenerating(false);
@@ -175,14 +168,12 @@ export function useAIScheduleState({ isPreview, scenarioId, onComplete }: UseAIS
   useEffect(() => {
     if (isPreview || !isFocused) return;
 
-    Promise.all([getOpenAIApiKey(), getAiFeaturesEnabled()])
-      .then(([nextApiKey, nextAiFeaturesEnabled]) => {
-        setApiKey(nextApiKey);
-        setAiFeaturesEnabled(nextAiFeaturesEnabled);
+    Promise.all([getOpenAIApiKey(), getGeminiApiKey()])
+      .then(([nextOpenAiApiKey, nextGeminiApiKey]) => {
+        setApiKey(nextOpenAiApiKey ?? nextGeminiApiKey);
       })
       .catch(() => {
         setApiKey(null);
-        setAiFeaturesEnabled(true);
       });
   }, [isPreview, isFocused]);
 
@@ -199,7 +190,6 @@ export function useAIScheduleState({ isPreview, scenarioId, onComplete }: UseAIS
   const taskTitles = taskRows.map((task) => task.title.trim()).filter(Boolean);
   const generateDisabledReason = getGenerateDisabledReason({
     apiKeyPresent: Boolean(apiKey),
-    aiFeaturesEnabled,
     taskCount: taskTitles.length,
     startTimeValid: Boolean(parsedStartTime),
     generating,
@@ -257,15 +247,13 @@ export function useAIScheduleState({ isPreview, scenarioId, onComplete }: UseAIS
   };
 
   const generate = async () => {
-    const latestApiKey = isPreview ? apiKey : await getOpenAIApiKey();
+    const latestOpenAiApiKey = isPreview ? apiKey : await getOpenAIApiKey();
+    const latestGeminiApiKey = isPreview ? null : await getGeminiApiKey();
+    const latestApiKey = latestOpenAiApiKey ?? latestGeminiApiKey;
     if (!isPreview) setApiKey(latestApiKey);
 
     if (!latestApiKey) {
-      setLocalError('Add your OpenAI API key in Settings first.');
-      return;
-    }
-    if (!aiFeaturesEnabled) {
-      setLocalError('Turn on AI Features in Settings first.');
+      setLocalError(missingApiKeyMessage);
       return;
     }
     if (!parsedStartTime) {
@@ -285,11 +273,14 @@ export function useAIScheduleState({ isPreview, scenarioId, onComplete }: UseAIS
         previewStore.writeTasks(makeSequentialPreview(seededTasks, parsedStartTime));
       } else {
         const onboardingProfile = await getOnboardingProfile();
-        const generated = await generateScheduleFromText(
-          latestApiKey,
-          taskTitles,
-          formatOnboardingProfileForPrompt(onboardingProfile),
-        );
+        const formattedProfile = formatOnboardingProfileForPrompt(onboardingProfile);
+        const generated = latestOpenAiApiKey
+          ? await generateScheduleFromText(latestOpenAiApiKey, taskTitles, formattedProfile)
+          : await generateGeminiScheduleFromText(
+              latestGeminiApiKey ?? '',
+              taskTitles,
+              formattedProfile,
+            );
         previewStore.writeTasks(makeSequentialPreview(generated, parsedStartTime));
       }
     } catch (err) {

@@ -3,7 +3,8 @@ import { beforeEach, describe, expect, it, jest } from '@jest/globals';
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react-native';
 import { PaperProvider } from 'react-native-paper';
 import { AIScheduleScreen } from '../screens/AIScheduleScreen';
-import { getAiFeaturesEnabled, getOpenAIApiKey } from '../services/apiKey';
+import { getGeminiApiKey, getOpenAIApiKey } from '../services/apiKey';
+import { generateGeminiScheduleFromText } from '../services/gemini';
 import { getOnboardingProfile } from '../services/onboardingProfile';
 import { generateScheduleFromText } from '../services/openai';
 import { useTaskStore } from '../store/taskStore';
@@ -14,8 +15,12 @@ jest.mock('@react-navigation/native', () => ({
 }));
 
 jest.mock('../services/apiKey', () => ({
-  getAiFeaturesEnabled: jest.fn(),
+  getGeminiApiKey: jest.fn(),
   getOpenAIApiKey: jest.fn(),
+}));
+
+jest.mock('../services/gemini', () => ({
+  generateGeminiScheduleFromText: jest.fn(),
 }));
 
 jest.mock('../services/openai', () => ({
@@ -73,21 +78,23 @@ function renderAIScheduleRouteScreen() {
 
 describe('AIScheduleScreen', () => {
   const getOpenAIApiKeyMock = jest.mocked(getOpenAIApiKey);
-  const getAiFeaturesEnabledMock = jest.mocked(getAiFeaturesEnabled);
+  const getGeminiApiKeyMock = jest.mocked(getGeminiApiKey);
   const getOnboardingProfileMock = jest.mocked(getOnboardingProfile);
+  const generateGeminiScheduleFromTextMock = jest.mocked(generateGeminiScheduleFromText);
   const generateScheduleFromTextMock = jest.mocked(generateScheduleFromText);
   const useTaskStoreMock = jest.mocked(useTaskStore);
   const useIsFocusedMock = jest.mocked(useIsFocused);
 
   beforeEach(() => {
     getOpenAIApiKeyMock.mockReset();
-    getAiFeaturesEnabledMock.mockReset();
+    getGeminiApiKeyMock.mockReset();
+    getGeminiApiKeyMock.mockResolvedValue(null);
     getOnboardingProfileMock.mockReset();
+    generateGeminiScheduleFromTextMock.mockReset();
     generateScheduleFromTextMock.mockReset();
     useTaskStoreMock.mockReset();
     useIsFocusedMock.mockReset();
     useIsFocusedMock.mockImplementation(() => true);
-    getAiFeaturesEnabledMock.mockResolvedValue(true);
     getOnboardingProfileMock.mockResolvedValue(null);
     useTaskStoreMock.mockReturnValue(createStoreState());
   });
@@ -119,8 +126,8 @@ describe('AIScheduleScreen', () => {
 
     expect(screen.getByText('Generation is blocked')).toBeOnTheScreen();
     expect(
-      screen.getByText('Add and verify your OpenAI API key in Settings first.'),
-    ).toBeOnTheScreen();
+      screen.getAllByText('Add an OpenAI or Gemini API key in Settings first.').length,
+    ).toBeGreaterThan(0);
   });
 
   it('shows ready generation messaging when preview data is valid', () => {
@@ -160,6 +167,61 @@ describe('AIScheduleScreen', () => {
     await waitFor(() =>
       expect(generateScheduleFromTextMock).toHaveBeenCalledWith('sk-new', ['Study React'], null),
     );
+    expect(storeState.setPreviewTasks).toHaveBeenCalledTimes(1);
+  });
+
+  it('generates a schedule with Gemini when only a Gemini key is saved', async () => {
+    const storeState = createStoreState();
+    useTaskStoreMock.mockReturnValue(storeState);
+    getOpenAIApiKeyMock.mockResolvedValue(null);
+    getGeminiApiKeyMock.mockResolvedValue('gemini-live');
+    generateGeminiScheduleFromTextMock.mockResolvedValueOnce([
+      { title: 'Study React', durationMinutes: 45 },
+    ]);
+
+    renderAIScheduleRouteScreen();
+
+    await waitFor(() => expect(getGeminiApiKeyMock).toHaveBeenCalledTimes(1));
+
+    fireEvent.changeText(screen.getAllByTestId('text-input-outlined')[0], '  Study React  ');
+
+    await act(async () => {
+      fireEvent.press(screen.getByText('Generate Schedule'));
+    });
+
+    await waitFor(() =>
+      expect(generateGeminiScheduleFromTextMock).toHaveBeenCalledWith(
+        'gemini-live',
+        ['Study React'],
+        null,
+      ),
+    );
+    expect(generateScheduleFromTextMock).not.toHaveBeenCalled();
+    expect(storeState.setPreviewTasks).toHaveBeenCalledTimes(1);
+  });
+
+  it('does not depend on the AI Features toggle when generating schedules', async () => {
+    const storeState = createStoreState();
+    useTaskStoreMock.mockReturnValue(storeState);
+    getOpenAIApiKeyMock.mockResolvedValue('sk-live');
+    generateScheduleFromTextMock.mockResolvedValueOnce([
+      { title: 'Study React', durationMinutes: 45 },
+    ]);
+
+    renderAIScheduleRouteScreen();
+
+    await waitFor(() => expect(getOpenAIApiKeyMock).toHaveBeenCalledTimes(1));
+
+    fireEvent.changeText(screen.getAllByTestId('text-input-outlined')[0], 'Study React');
+
+    await act(async () => {
+      fireEvent.press(screen.getByText('Generate Schedule'));
+    });
+
+    await waitFor(() =>
+      expect(generateScheduleFromTextMock).toHaveBeenCalledWith('sk-live', ['Study React'], null),
+    );
+    expect(screen.queryByText('Turn on AI Features in Settings first.')).not.toBeOnTheScreen();
     expect(storeState.setPreviewTasks).toHaveBeenCalledTimes(1);
   });
 });
