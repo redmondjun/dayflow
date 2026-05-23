@@ -87,12 +87,18 @@ export function createDraftTaskInputRow(
     manualScheduling?: boolean;
     existingTasks?: Task[];
     plannerRows?: TaskInputRow[];
+    preferredStart?: string;
+    durationMinutes?: number;
+    now?: Date;
   },
 ): TaskInputRow {
   if (options?.manualScheduling) {
     const slot = findNextAvailableSlot({
       existingTasks: options.existingTasks ?? [],
       plannerRows: options.plannerRows ?? (previous ? [previous] : []),
+      preferredStart: options.preferredStart,
+      durationMinutes: options.durationMinutes,
+      now: options.now,
     });
     return createTaskInputRow({
       title,

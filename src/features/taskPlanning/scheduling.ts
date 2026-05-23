@@ -97,16 +97,27 @@ export function findNextAvailableSlot({
   plannerRows = [],
   durationMinutes = 60,
   gapMinutes = 5,
+  preferredStart,
   now = new Date(),
 }: {
   existingTasks?: Task[];
   plannerRows?: TaskInputRow[];
   durationMinutes?: number;
   gapMinutes?: number;
+  preferredStart?: string;
   now?: Date;
 }): { startTime: string; endTime: string } {
   const intervals = collectExistingIntervals(existingTasks, plannerRows, now);
-  let candidateStart = roundUpToFiveMinutes(now);
+  const roundedNow = roundUpToFiveMinutes(now);
+  let candidateStart = roundedNow;
+
+  if (intervals.length === 0 && preferredStart) {
+    const preferred = parseTimeInput(preferredStart, now);
+    if (preferred) {
+      const preferredDate = roundUpToFiveMinutes(new Date(preferred));
+      candidateStart = preferredDate.getTime() < roundedNow.getTime() ? roundedNow : preferredDate;
+    }
+  }
 
   while (true) {
     const candidateEnd = new Date(addMinutes(candidateStart, durationMinutes));

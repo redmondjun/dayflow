@@ -69,6 +69,47 @@ describe('findNextAvailableSlot', () => {
     expect(slot.startTime).toBe('15:00');
     expect(slot.endTime).toBe('16:00');
   });
+
+  it('uses preferredStart when the schedule is empty', () => {
+    const now = new Date(2026, 4, 23, 8, 7, 0, 0);
+
+    const slot = findNextAvailableSlot({
+      now,
+      durationMinutes: 60,
+      preferredStart: '09:00',
+    });
+
+    expect(slot.startTime).toBe('09:00');
+    expect(slot.endTime).toBe('10:00');
+  });
+
+  it('bumps preferredStart to now when it is already past', () => {
+    const now = new Date(2026, 4, 23, 14, 12, 0, 0);
+
+    const slot = findNextAvailableSlot({
+      now,
+      durationMinutes: 60,
+      preferredStart: '09:00',
+    });
+
+    expect(slot.startTime).toBe('14:15');
+    expect(slot.endTime).toBe('15:15');
+  });
+
+  it('does not use preferredStart when existing tasks exist', () => {
+    const now = new Date(2026, 4, 23, 8, 0, 0, 0);
+    const existingTasks = [makeLocalTask(9, 0, 10, 0)];
+
+    const slot = findNextAvailableSlot({
+      existingTasks,
+      now,
+      durationMinutes: 60,
+      preferredStart: '09:00',
+    });
+
+    expect(slot.startTime).toBe('08:00');
+    expect(slot.endTime).toBe('09:00');
+  });
 });
 
 describe('validateManualTaskTimes', () => {

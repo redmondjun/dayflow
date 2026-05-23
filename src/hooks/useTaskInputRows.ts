@@ -10,14 +10,17 @@ import {
   validateManualTaskTimes,
   type ManualTaskTimeValidation,
 } from '../features/taskPlanning/scheduling';
+import type { TaskPlanningDefaults } from '../features/taskPlanning/profileDefaults';
 import type { Task, TaskInputRow } from '../types/task';
-import { addMinutes, formatInputTime } from '../utils/time';
+import { addMinutes, formatInputTime, parseTimeInput } from '../utils/time';
 
 type UseTaskInputRowsArgs = {
   initialRows: TaskInputRow[];
   initialSelectedTaskId: string | null;
   manualScheduling?: boolean;
   getExistingTasks?: () => Task[];
+  planningDefaults?: TaskPlanningDefaults;
+  now?: Date;
 };
 
 function normalizeRows(rows: TaskInputRow[]) {
@@ -28,6 +31,8 @@ function buildDraftRowOptions(
   rows: TaskInputRow[],
   manualScheduling: boolean,
   getExistingTasks?: () => Task[],
+  planningDefaults?: TaskPlanningDefaults,
+  now?: Date,
 ) {
   if (!manualScheduling) return undefined;
 
@@ -35,6 +40,9 @@ function buildDraftRowOptions(
     manualScheduling: true,
     existingTasks: getExistingTasks?.() ?? [],
     plannerRows: rows.filter((row) => !row.isDraft && hasTaskRowTitle(row)),
+    preferredStart: planningDefaults?.preferredStart,
+    durationMinutes: planningDefaults?.durationMinutes,
+    now,
   };
 }
 
@@ -43,6 +51,8 @@ export function useTaskInputRows({
   initialSelectedTaskId,
   manualScheduling = false,
   getExistingTasks,
+  planningDefaults,
+  now = new Date(),
 }: UseTaskInputRowsArgs) {
   const [taskRows, setTaskRowsState] = useState(() => normalizeRows(initialRows));
   const [selectedTaskId, setSelectedTaskId] = useState<string | null>(initialSelectedTaskId);
@@ -58,16 +68,24 @@ export function useTaskInputRows({
   const expandedTask = taskRows.find((task) => task.id === selectedTaskId) ?? null;
   const committedRows = useMemo(() => taskRows.filter((task) => !task.isDraft), [taskRows]);
   const titledRows = useMemo(() => taskRows.filter(hasTaskRowTitle), [taskRows]);
-  const selectedTaskStart = expandedTask?.startTime ?? getRoundedStartTime();
-  const selectedTaskEnd = expandedTask?.endTime ?? formatInputTime(addMinutes(new Date(), 60));
+  const selectedTaskStart =
+    expandedTask?.startTime ?? planningDefaults?.preferredStart ?? getRoundedStartTime();
+  const selectedTaskEnd =
+    expandedTask?.endTime ??
+    formatInputTime(
+      addMinutes(
+        parseTimeInput(selectedTaskStart, now) ?? now.toISOString(),
+        planningDefaults?.durationMinutes ?? 60,
+      ),
+    );
   const selectedTimeValidation: ManualTaskTimeValidation | null = useMemo(() => {
     if (!manualScheduling || !expandedTask) return null;
-    return validateManualTaskTimes(expandedTask.startTime, expandedTask.endTime, new Date(), {
+    return validateManualTaskTimes(expandedTask.startTime, expandedTask.endTime, now, {
       existingTasks: getExistingTasks?.() ?? [],
       plannerRows: committedRows,
       excludeRowId: expandedTask.id,
     });
-  }, [committedRows, expandedTask, getExistingTasks, manualScheduling]);
+  }, [committedRows, expandedTask, getExistingTasks, manualScheduling, now]);
 
   const updateTaskRow = (taskId: string, patch: Partial<TaskInputRow>) => {
     setTaskRows((rows) =>
@@ -138,7 +156,13 @@ export function useTaskInputRows({
       const nextDraft = createDraftTaskInputRow(
         withoutDraft.at(-1),
         '',
-        buildDraftRowOptions(withoutDraft, manualScheduling, getExistingTasks),
+        buildDraftRowOptions(
+          withoutDraft,
+          manualScheduling,
+          getExistingTasks,
+          planningDefaults,
+          now,
+        ),
       );
       setSelectedTaskId(nextDraft.id);
       return [...withoutDraft, nextDraft];
@@ -156,7 +180,7 @@ export function useTaskInputRows({
       const next = createDraftTaskInputRow(
         rows.at(-1),
         title,
-        buildDraftRowOptions(rows, manualScheduling, getExistingTasks),
+        buildDraftRowOptions(rows, manualScheduling, getExistingTasks, planningDefaults, now),
       );
       setSelectedTaskId(next.id);
       return [...rows, next];

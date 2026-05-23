@@ -1,5 +1,5 @@
 import React from 'react';
-import { describe, expect, it, jest, afterEach } from '@jest/globals';
+import { describe, expect, it, jest, afterEach, beforeEach } from '@jest/globals';
 import { TextInput } from 'react-native';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react-native';
 import { PaperProvider } from 'react-native-paper';
@@ -7,6 +7,8 @@ import { AIScheduleScreen } from './AIScheduleScreen';
 import { useTaskStore } from '../store/taskStore';
 import type { Task } from '../types/task';
 import * as scheduling from '../features/taskPlanning/scheduling';
+import { getOnboardingProfile } from '../services/onboardingProfile';
+import { resetDevDemoState, setDemoNowOverride } from '../services/devDemo';
 
 jest.mock('@react-navigation/native', () => ({
   useIsFocused: jest.fn(() => true),
@@ -16,10 +18,21 @@ jest.mock('../store/taskStore', () => ({
   useTaskStore: jest.fn(),
 }));
 
+jest.mock('../services/onboardingProfile', () => ({
+  getOnboardingProfile: jest.fn(),
+  formatOnboardingProfileForPrompt: jest.fn(() => null),
+}));
+
 describe('AIScheduleScreen preview', () => {
   afterEach(() => {
     jest.restoreAllMocks();
     jest.useRealTimers();
+    resetDevDemoState();
+  });
+
+  beforeEach(() => {
+    jest.mocked(getOnboardingProfile).mockResolvedValue(null);
+    resetDevDemoState();
   });
 
   function makeExistingTask(
@@ -88,11 +101,13 @@ describe('AIScheduleScreen preview', () => {
       </PaperProvider>,
     );
 
+    await waitFor(() => {
+      expect(screen.getByTestId('ai-schedule-draft-input')).toBeOnTheScreen();
+    });
     expect(screen.getByText('Start')).toBeOnTheScreen();
     expect(screen.getByText('End')).toBeOnTheScreen();
     expect(screen.getByTestId('ai-schedule-time-cancel')).toBeOnTheScreen();
     expect(screen.getByTestId('ai-schedule-time-add')).toBeOnTheScreen();
-    expect(screen.getByTestId('ai-schedule-draft-input')).toBeOnTheScreen();
     await waitFor(() => {
       expect(focusSpy).toHaveBeenCalled();
     });
@@ -126,7 +141,7 @@ describe('AIScheduleScreen preview', () => {
     focusSpy.mockRestore();
   });
 
-  it('shows Cancel and Add when AI scheduling is enabled', () => {
+  it('shows Cancel and Add when AI scheduling is enabled', async () => {
     mockStore();
 
     render(
@@ -135,8 +150,10 @@ describe('AIScheduleScreen preview', () => {
       </PaperProvider>,
     );
 
+    await waitFor(() => {
+      expect(screen.getByTestId('ai-schedule-time-cancel')).toBeOnTheScreen();
+    });
     expect(screen.queryByText('Start')).not.toBeOnTheScreen();
-    expect(screen.getByTestId('ai-schedule-time-cancel')).toBeOnTheScreen();
     expect(screen.getByTestId('ai-schedule-time-add')).toBeOnTheScreen();
   });
 
@@ -155,7 +172,7 @@ describe('AIScheduleScreen preview', () => {
     expect(screen.queryByTestId('ai-schedule-remove-row')).not.toBeOnTheScreen();
   });
 
-  it('does not show a delete button on an empty draft row', () => {
+  it('does not show a delete button on an empty draft row', async () => {
     mockStore();
 
     render(
@@ -164,7 +181,9 @@ describe('AIScheduleScreen preview', () => {
       </PaperProvider>,
     );
 
-    expect(screen.getByTestId('ai-schedule-draft-input')).toBeOnTheScreen();
+    await waitFor(() => {
+      expect(screen.getByTestId('ai-schedule-draft-input')).toBeOnTheScreen();
+    });
     expect(screen.queryByTestId('ai-schedule-remove-row')).not.toBeOnTheScreen();
   });
 
@@ -201,7 +220,9 @@ describe('AIScheduleScreen preview', () => {
       </PaperProvider>,
     );
 
-    expect(screen.getByText('Start')).toBeOnTheScreen();
+    await waitFor(() => {
+      expect(screen.getByText('Start')).toBeOnTheScreen();
+    });
     fireEvent.press(screen.getByTestId('ai-schedule-time-cancel'));
 
     expect(screen.queryByText('Start')).not.toBeOnTheScreen();
@@ -232,7 +253,7 @@ describe('AIScheduleScreen preview', () => {
     expect(screen.getByTestId('ai-schedule-time-add')).toBeDisabled();
   });
 
-  it('defaults new draft times after an in-progress task instead of overlapping it', () => {
+  it('defaults new draft times after an in-progress task instead of overlapping it', async () => {
     jest.useFakeTimers();
     jest.setSystemTime(new Date(2026, 4, 23, 14, 12, 0, 0));
 
@@ -247,11 +268,13 @@ describe('AIScheduleScreen preview', () => {
       </PaperProvider>,
     );
 
-    expect(findNextAvailableSlotSpy).toHaveBeenCalledWith(
-      expect.objectContaining({
-        existingTasks: [existingTask],
-      }),
-    );
+    await waitFor(() => {
+      expect(findNextAvailableSlotSpy).toHaveBeenCalledWith(
+        expect.objectContaining({
+          existingTasks: [existingTask],
+        }),
+      );
+    });
     expect(findNextAvailableSlotSpy).toHaveReturnedWith({
       startTime: '15:00',
       endTime: '16:00',
@@ -259,6 +282,104 @@ describe('AIScheduleScreen preview', () => {
     expect(findNextAvailableSlotSpy).not.toHaveReturnedWith({
       startTime: '14:15',
       endTime: '15:15',
+    });
+  });
+
+  it('defaults empty-schedule draft times from onboarding profile wake time', async () => {
+    jest.useFakeTimers();
+    jest.setSystemTime(new Date(2026, 4, 23, 6, 7, 0, 0));
+    jest.mocked(getOnboardingProfile).mockResolvedValue({
+      work: '9:00 AM',
+      wake: '7:00 AM',
+      'free-time': '1-2 hours',
+    });
+
+    mockStore();
+    const findNextAvailableSlotSpy = jest.spyOn(scheduling, 'findNextAvailableSlot');
+
+    render(
+      <PaperProvider>
+        <AIScheduleScreen onCancel={jest.fn()} onOpenSettings={jest.fn()} />
+      </PaperProvider>,
+    );
+
+    await waitFor(() => {
+      expect(findNextAvailableSlotSpy).toHaveBeenCalledWith(
+        expect.objectContaining({
+          preferredStart: '07:00',
+          durationMinutes: 60,
+        }),
+      );
+    });
+    expect(findNextAvailableSlotSpy).toHaveReturnedWith({
+      startTime: '07:00',
+      endTime: '08:00',
+    });
+  });
+
+  it('bumps profile-based defaults to now when wake time is already past', async () => {
+    jest.useFakeTimers();
+    jest.setSystemTime(new Date(2026, 4, 23, 14, 12, 0, 0));
+    jest.mocked(getOnboardingProfile).mockResolvedValue({
+      work: '9:00 AM',
+      wake: '7:00 AM',
+      'free-time': '2-3 hours',
+    });
+
+    mockStore();
+    const findNextAvailableSlotSpy = jest.spyOn(scheduling, 'findNextAvailableSlot');
+
+    render(
+      <PaperProvider>
+        <AIScheduleScreen onCancel={jest.fn()} onOpenSettings={jest.fn()} />
+      </PaperProvider>,
+    );
+
+    await waitFor(() => {
+      expect(findNextAvailableSlotSpy).toHaveBeenCalledWith(
+        expect.objectContaining({
+          preferredStart: '14:15',
+          durationMinutes: 60,
+        }),
+      );
+    });
+    expect(findNextAvailableSlotSpy).toHaveReturnedWith({
+      startTime: '14:15',
+      endTime: '15:15',
+    });
+  });
+
+  it('uses demo time instead of real clock when computing profile-based defaults', async () => {
+    jest.useFakeTimers();
+    jest.setSystemTime(new Date(2026, 4, 23, 18, 12, 0, 0));
+    setDemoNowOverride(new Date(2026, 4, 24, 8, 0, 0, 0).toISOString());
+    jest.mocked(getOnboardingProfile).mockResolvedValue({
+      work: '9:00 AM',
+      wake: '7:00 AM',
+      'free-time': '1-2 hours',
+    });
+
+    mockStore();
+    const findNextAvailableSlotSpy = jest.spyOn(scheduling, 'findNextAvailableSlot');
+
+    render(
+      <PaperProvider>
+        <AIScheduleScreen onCancel={jest.fn()} onOpenSettings={jest.fn()} />
+      </PaperProvider>,
+    );
+
+    await waitFor(() => {
+      expect(findNextAvailableSlotSpy).toHaveBeenCalledWith(
+        expect.objectContaining({
+          preferredStart: '08:00',
+          durationMinutes: 60,
+          now: new Date(2026, 4, 24, 8, 0, 0, 0),
+        }),
+      );
+    });
+    expect(findNextAvailableSlotSpy).toHaveReturnedWith({
+      startTime: '08:00',
+      endTime: '09:00',
     });
   });
 });
