@@ -4,6 +4,7 @@ import { act, render, screen, fireEvent, waitFor } from '@testing-library/react-
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Button, PaperProvider } from 'react-native-paper';
 import type { RootStackParamList } from '../navigation/types';
+import { OnboardingPreviewScreen } from '../dev-preview/OnboardingPreviewScreen';
 import { OnboardingScreen } from './OnboardingScreen';
 import { getOnboardingProfile, saveOnboardingProfile } from '../services/onboardingProfile';
 
@@ -35,6 +36,22 @@ function renderOnboardingScreen(params?: RootStackParamList['Onboarding']) {
 
 function answerName(name = 'Chris') {
   fireEvent.changeText(screen.getByTestId('onboarding-name-input'), name);
+  fireEvent.press(screen.getByText('Next'));
+}
+
+function completeOnboardingFlow() {
+  answerName();
+  fireEvent.press(screen.getByText('Next'));
+  fireEvent.press(screen.getByText('Next'));
+  fireEvent.press(screen.getByText('Yes'));
+  fireEvent.press(screen.getByText('Next'));
+  fireEvent.press(screen.getByText("I don't have fixed commitments"));
+  fireEvent.press(screen.getByText('Next'));
+  fireEvent.press(screen.getByText('Morning'));
+  fireEvent.press(screen.getByText('Next'));
+  fireEvent.press(screen.getByText('1-2 hours'));
+  fireEvent.press(screen.getByText('Next'));
+  fireEvent.press(screen.getByText('Study'));
   fireEvent.press(screen.getByText('Next'));
 }
 
@@ -103,6 +120,25 @@ describe('OnboardingScreen', () => {
     fireEvent.press(screen.getByText('Get Started'));
 
     expect(navigation.navigate).toHaveBeenCalledWith('Home');
+  });
+
+  it('does not save a profile from the onboarding preview flow', async () => {
+    const onExit = jest.fn();
+
+    render(
+      <PaperProvider>
+        <OnboardingPreviewScreen onExit={onExit} />
+      </PaperProvider>,
+    );
+
+    completeOnboardingFlow();
+
+    await waitFor(() => expect(screen.getByText('All set!')).toBeOnTheScreen());
+    expect(saveOnboardingProfileMock).not.toHaveBeenCalled();
+
+    fireEvent.press(screen.getByText('Get Started'));
+
+    expect(onExit).toHaveBeenCalledTimes(1);
   });
 
   it('shows an error and lets the user retry when saving the profile fails', async () => {

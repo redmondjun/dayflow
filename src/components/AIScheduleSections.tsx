@@ -117,7 +117,7 @@ export function AISchedulePlannerSection() {
         <View className="mt-5 rounded-2xl bg-warm4 p-4">
           <Text className="font-semibold text-ink">AI generation is disabled.</Text>
           <Text className="mt-1 text-sm leading-5 text-warm">
-            Add your OpenAI API key in Settings to generate schedules.
+            Add your OpenAI or Gemini API key in Settings to generate schedules.
           </Text>
           <Button
             mode="contained"

@@ -1,5 +1,7 @@
 import { beforeEach, describe, expect, it, jest } from '@jest/globals';
-import { generateScheduleFromText, validateOpenAIApiKey } from './openai';
+import { generateScheduleFromText, generateWeeklyInsight, validateOpenAIApiKey } from './openai';
+import type { WeeklyInsightSummary } from '../types/insight';
+import type { Task } from '../types/task';
 
 type MockResponseOptions = {
   ok: boolean;
@@ -14,6 +16,35 @@ function createMockResponse({ ok, status, jsonValue }: MockResponseOptions): Res
     json: async () => jsonValue,
   } as unknown as Response;
 }
+
+const weeklySummary: WeeklyInsightSummary = {
+  dateRange: 'Apr 21 - Apr 28',
+  headline: 'You are most productive in the morning',
+  basedOn: 'Based on your last 7 days',
+  completionPercent: 76,
+  skippedPercent: 24,
+  peakHourLabel: '10 AM',
+  timeChart: [
+    { label: '8', value: 1 },
+    { label: '10', value: 4 },
+  ],
+  patterns: [],
+  suggestions: [],
+  reflection: 'Your schedule is improving compared to last week.',
+};
+
+const weeklyTasks: Task[] = [
+  {
+    id: 'task-1',
+    title: 'Deep work',
+    startTime: new Date(2026, 3, 28, 10, 0).toISOString(),
+    endTime: new Date(2026, 3, 28, 11, 0).toISOString(),
+    status: 'completed',
+    aiGenerated: false,
+    createdAt: new Date(2026, 3, 28, 9, 0).toISOString(),
+    updatedAt: new Date(2026, 3, 28, 11, 0).toISOString(),
+  },
+];
 
 describe('openai service', () => {
   const fetchMock = jest.fn() as jest.MockedFunction<typeof fetch>;
@@ -186,5 +217,49 @@ describe('openai service', () => {
     await expect(generateScheduleFromText('sk-live', ['Study React'])).rejects.toThrow(
       'AI response did not include tasks.',
     );
+  });
+
+  it('sends task history and profile context when generating weekly insights', async () => {
+    fetchMock.mockResolvedValueOnce(
+      createMockResponse({
+        ok: true,
+        status: 200,
+        jsonValue: {
+          output_text: JSON.stringify({
+            patterns: [{ label: 'Morning', text: 'Morning tasks finish more often.' }],
+            suggestions: [{ text: 'Protect 10 AM for deep work.', action: 'Apply' }],
+          }),
+        },
+      }),
+    );
+
+    const insight = await generateWeeklyInsight(
+      'sk-live',
+      weeklyTasks,
+      weeklySummary,
+      '- Wake-up time: 7:00 AM',
+    );
+
+    expect(insight.patterns[0]).toEqual({
+      label: 'Morning',
+      text: 'Morning tasks finish more often.',
+    });
+    expect(insight.suggestions[0]).toEqual({
+      text: 'Protect 10 AM for deep work.',
+      action: 'Apply',
+    });
+
+    const request = fetchMock.mock.calls[0]?.[1] as RequestInit | undefined;
+    const body = JSON.parse(String(request?.body));
+    expect(body.input[1].content).toContain('- Wake-up time: 7:00 AM');
+    expect(body.input[1].content).toContain('Deep work');
+    expect(body.text.format.name).toBe('dayflow_weekly_insight');
+  });
+
+  it('does not generate weekly insights without task history', async () => {
+    await expect(generateWeeklyInsight('sk-live', [], weeklySummary)).rejects.toThrow(
+      'Complete tasks to unlock weekly AI insights.',
+    );
+    expect(fetchMock).not.toHaveBeenCalled();
   });
 });
