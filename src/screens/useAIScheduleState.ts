@@ -32,6 +32,8 @@ type PreviewSeed = {
   previewTasks: GeneratedTaskPreview[];
 };
 
+const missingApiKeyMessage = 'Add an OpenAI or Gemini API key in Settings first.';
+
 function createTaskInputRow(title = ''): TaskInputRow {
   return {
     id: `${Date.now()}-${Math.random().toString(36).slice(2, 10)}`,
@@ -55,7 +57,7 @@ const previewSeedFactories: Record<string, () => PreviewSeed> = {
   }),
   'ai-no-key': () => ({
     apiKey: null,
-    localError: 'Add an OpenAI or Gemini API key in Settings first.',
+    localError: missingApiKeyMessage,
     taskRows: [
       createTaskInputRow('Study React'),
       createTaskInputRow('Gym'),
@@ -100,7 +102,7 @@ function getGenerateDisabledReason({
   generating: boolean;
 }): string | null {
   if (generating) return 'Generating your schedule...';
-  if (!apiKeyPresent) return 'Add an OpenAI or Gemini API key in Settings first.';
+  if (!apiKeyPresent) return missingApiKeyMessage;
   if (taskCount === 0) return 'Add at least one task to schedule.';
   if (!startTimeValid) return 'Use a valid 24-hour start time like 09:00.';
   return null;
@@ -251,7 +253,7 @@ export function useAIScheduleState({ isPreview, scenarioId, onComplete }: UseAIS
     if (!isPreview) setApiKey(latestApiKey);
 
     if (!latestApiKey) {
-      setLocalError('Add an OpenAI or Gemini API key in Settings first.');
+      setLocalError(missingApiKeyMessage);
       return;
     }
     if (!parsedStartTime) {

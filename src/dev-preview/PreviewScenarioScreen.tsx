@@ -3,11 +3,11 @@ import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { RootStackParamList } from '../navigation/types';
 import { AIScheduleScreen } from '../screens/AIScheduleScreen';
 import { HomeScreen } from '../screens/HomeScreen';
-import { OnboardingScreen } from '../screens/OnboardingScreen';
 import { SettingsScreen } from '../screens/SettingsScreen';
 import { TaskFormScreen } from '../screens/TaskFormScreen';
-import { WeeklyInsightScreen } from '../screens/WeeklyInsightScreen';
+import { OnboardingPreviewScreen } from './OnboardingPreviewScreen';
 import { previewScenarios } from './scenarios';
+import { WeeklyInsightPreviewScreen } from './WeeklyInsightPreviewScreen';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'PreviewScenario'>;
 
@@ -33,7 +33,7 @@ export function PreviewScenarioScreen({ navigation, route }: Props) {
   }
 
   if (scenario.id === 'onboarding') {
-    return <OnboardingScreen onExit={onBack} />;
+    return <OnboardingPreviewScreen onExit={onBack} />;
   }
 
   if (scenario.id.startsWith('task-')) {
@@ -48,7 +48,7 @@ export function PreviewScenarioScreen({ navigation, route }: Props) {
 
   if (scenario.id.startsWith('weekly-')) {
     return (
-      <WeeklyInsightScreen
+      <WeeklyInsightPreviewScreen
         scenarioId={scenario.id as 'weekly-empty' | 'weekly-data'}
         onOptimizeTomorrow={onBack}
       />

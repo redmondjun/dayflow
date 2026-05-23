@@ -15,6 +15,7 @@ import { getOnboardingProfile } from '../services/onboardingProfile';
 import { generateWeeklyInsight } from '../services/openai';
 import { useTaskStore } from '../store/taskStore';
 import { buildWeeklyInsightSummary } from '../utils/weeklyInsight';
+import { WeeklyInsightPreviewScreen } from '../dev-preview/WeeklyInsightPreviewScreen';
 import { WeeklyInsightScreen } from './WeeklyInsightScreen';
 
 const mockAiSettingsListeners = new Set<() => void>();
@@ -131,7 +132,7 @@ function renderWeeklyInsightPreview(scenarioId: 'weekly-empty' | 'weekly-data') 
 
   render(
     <PaperProvider>
-      <WeeklyInsightScreen scenarioId={scenarioId} onOptimizeTomorrow={onOptimizeTomorrow} />
+      <WeeklyInsightPreviewScreen scenarioId={scenarioId} onOptimizeTomorrow={onOptimizeTomorrow} />
     </PaperProvider>,
   );
 

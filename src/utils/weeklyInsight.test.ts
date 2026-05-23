@@ -62,4 +62,14 @@ describe('buildWeeklyInsightSummary', () => {
     expect(summary.headline).toBe('You are most productive in the evening');
     expect(summary.peakHourLabel).toBe('6 PM');
   });
+
+  it('leaves patterns and suggestions empty for AI-generated insight content', () => {
+    const summary = buildWeeklyInsightSummary(
+      [makeTask('morning-1', new Date(2026, 4, 20, 10, 0))],
+      now,
+    );
+
+    expect(summary.patterns).toEqual([]);
+    expect(summary.suggestions).toEqual([]);
+  });
 });
