@@ -27,9 +27,11 @@ function getAdjacentTasks(tasks: Task[], existing: Task | null | undefined) {
 
 function getDayLabel(task: Task | null | undefined) {
   if (!task) return undefined;
-  return new Date(task.startTime)
-    .toLocaleDateString([], { weekday: 'short', month: 'short', day: 'numeric' })
-    .replace(',', ' ·');
+  const date = new Date(task.startTime);
+  const weekday = date.toLocaleDateString([], { weekday: 'short' });
+  const monthDay = date.toLocaleDateString([], { month: 'short', day: 'numeric' });
+
+  return `${weekday} · ${monthDay}`;
 }
 
 export function TaskFormScreen(props: Props) {

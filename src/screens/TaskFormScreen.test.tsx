@@ -91,6 +91,14 @@ describe('TaskFormScreen', () => {
     expect(navigation.goBack).toHaveBeenCalledTimes(1);
   });
 
+  it('formats the edit day label with a middle dot separator', () => {
+    mockTaskStore();
+
+    renderEditTaskScreen();
+
+    expect(screen.getByText('Tue · Apr 28')).toBeTruthy();
+  });
+
   it('keeps task form preview saves out of the real task store', async () => {
     const store = mockTaskStore();
     const onCancel = jest.fn();

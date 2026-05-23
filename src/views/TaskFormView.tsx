@@ -223,16 +223,6 @@ export function TaskFormView({
             <Text className="text-[11px] font-bold uppercase tracking-[2.42px] text-ink">
               Edit Task
             </Text>
-            <Button
-              mode="text"
-              compact
-              disabled={!canSave}
-              textColor={colors.warm2}
-              onPress={handleSave}
-              labelStyle={{ fontSize: 15, fontWeight: '700', letterSpacing: 0.075 }}
-            >
-              Save
-            </Button>
           </View>
 
           <View className="px-6 pt-8">
