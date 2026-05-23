@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Pressable, ScrollView, Switch, Text, TextInput, View } from 'react-native';
+import { Pressable, ScrollView, Text, TextInput, View } from 'react-native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { Button, Snackbar } from 'react-native-paper';
 import EyeClosedIcon from '../assets/icons/eye-closed.svg';
@@ -27,6 +27,11 @@ type ApiKeySectionProps = {
   onChange: (value: string) => void;
   onSave: () => void;
   onRemove: () => void;
+};
+
+type AiFeatureSwitchProps = {
+  value: boolean;
+  onValueChange: (value: boolean) => void;
 };
 
 function isRouteProps(props: Props): props is RouteProps {
@@ -136,6 +141,25 @@ function ApiKeySection({
   );
 }
 
+function AiFeatureSwitch({ value, onValueChange }: AiFeatureSwitchProps) {
+  return (
+    <Pressable
+      accessibilityRole="switch"
+      accessibilityState={{ checked: value }}
+      onPress={() => onValueChange(!value)}
+      className={`h-[31px] w-[51px] justify-center rounded-full ${
+        value ? 'bg-accent' : 'bg-warm3'
+      }`}
+      testID="ai-features-switch"
+    >
+      <View
+        className="h-[27px] w-[27px] rounded-full bg-white"
+        style={{ marginLeft: value ? 22 : 2 }}
+      />
+    </Pressable>
+  );
+}
+
 export function SettingsScreen(props: Props) {
   const {
     aiFeaturesEnabled,
@@ -185,13 +209,7 @@ export function SettingsScreen(props: Props) {
                 {aiFeaturesEnabled ? 'Schedule suggestions on' : 'Schedule suggestions off'}
               </Text>
             </View>
-            <Switch
-              value={aiFeaturesEnabled}
-              onValueChange={toggleAiFeatures}
-              trackColor={{ false: 'rgba(120,120,128,0.22)', true: '#3EAF44' }}
-              thumbColor={colors.white}
-              ios_backgroundColor="rgba(120,120,128,0.22)"
-            />
+            <AiFeatureSwitch value={aiFeaturesEnabled} onValueChange={toggleAiFeatures} />
           </View>
         </View>
 

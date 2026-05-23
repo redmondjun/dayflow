@@ -9,6 +9,7 @@ import {
   saveGeminiApiKey,
   saveOpenAIApiKey,
 } from '../services/apiKey';
+import { validateGeminiApiKey } from '../services/gemini';
 import { validateOpenAIApiKey } from '../services/openai';
 
 type SaveKeyParams = {
@@ -147,9 +148,10 @@ export function useSettingsState() {
       saveKey: saveGeminiApiKey,
       setSavedKey: setSavedGeminiApiKey,
       setValue: setGeminiApiKey,
-      successMessage: 'Gemini API key saved.',
+      successMessage: 'Gemini API key verified and saved.',
       removeMessage: 'Gemini API key removed.',
       errorMessage: 'Could not save Gemini API key.',
+      validate: validateGeminiApiKey,
     });
   };
 

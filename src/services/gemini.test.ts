@@ -1,5 +1,9 @@
 import { beforeEach, describe, expect, it, jest } from '@jest/globals';
-import { generateGeminiScheduleFromText, generateGeminiWeeklyInsight } from './gemini';
+import {
+  generateGeminiScheduleFromText,
+  generateGeminiWeeklyInsight,
+  validateGeminiApiKey,
+} from './gemini';
 import type { WeeklyInsightSummary } from '../types/insight';
 import type { Task } from '../types/task';
 
@@ -105,6 +109,31 @@ describe('gemini service', () => {
     expect(body.generationConfig.responseSchema.required).toEqual(['patterns', 'suggestions']);
   });
 
+  it('validates a Gemini API key with a lightweight request', async () => {
+    fetchMock.mockResolvedValueOnce(
+      createMockResponse({
+        ok: true,
+        status: 200,
+        jsonValue: {
+          candidates: [{ content: { parts: [{ text: 'OK' }] } }],
+        },
+      }),
+    );
+
+    await validateGeminiApiKey('  gemini-live  ');
+
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    const [url, request] = fetchMock.mock.calls[0] ?? [];
+    expect(String(url)).toContain('key=gemini-live');
+    const body = JSON.parse(String((request as RequestInit | undefined)?.body));
+    expect(body.contents[0].parts[0].text).toBe('Reply with OK.');
+  });
+
+  it('rejects an empty Gemini API key during validation', async () => {
+    await expect(validateGeminiApiKey('   ')).rejects.toThrow('Enter a Gemini API key first.');
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
   it('sends numbered tasks when generating a schedule', async () => {
     fetchMock.mockResolvedValueOnce(
       createMockResponse({
@@ -162,6 +191,48 @@ describe('gemini service', () => {
     await expect(
       generateGeminiWeeklyInsight('bad-key', weeklyTasks, weeklySummary),
     ).rejects.toThrow('This Gemini API key is invalid, expired, or not allowed.');
+  });
+
+  it('maps invalid key errors during Gemini validation', async () => {
+    fetchMock.mockResolvedValueOnce(
+      createMockResponse({
+        ok: false,
+        status: 403,
+        jsonValue: { error: { message: 'API key not valid.' } },
+      }),
+    );
+
+    await expect(validateGeminiApiKey('bad-key')).rejects.toThrow(
+      'This Gemini API key is invalid, expired, or not allowed.',
+    );
+  });
+
+  it('maps Gemini quota errors to the billing message', async () => {
+    fetchMock.mockResolvedValueOnce(
+      createMockResponse({
+        ok: false,
+        status: 429,
+        jsonValue: { error: { message: 'You exceeded your current quota.' } },
+      }),
+    );
+
+    await expect(validateGeminiApiKey('gemini-live')).rejects.toThrow(
+      'Quota or billing issue. Check your Gemini billing settings.',
+    );
+  });
+
+  it('maps Gemini non-quota 429 errors to the rate-limit message', async () => {
+    fetchMock.mockResolvedValueOnce(
+      createMockResponse({
+        ok: false,
+        status: 429,
+        jsonValue: { error: { message: 'Too many requests.' } },
+      }),
+    );
+
+    await expect(validateGeminiApiKey('gemini-live')).rejects.toThrow(
+      'Gemini rate limit reached. Try again in a moment.',
+    );
   });
 
   it('rejects malformed JSON responses', async () => {

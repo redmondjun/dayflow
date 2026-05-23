@@ -137,7 +137,7 @@ describe('SettingsScreen', () => {
   it('calls the AI features toggle handler', () => {
     renderSettingsScreen();
 
-    fireEvent(screen.getByRole('switch'), 'valueChange', false);
+    fireEvent.press(screen.getByRole('switch'));
     expect(mockSettingsState.toggleAiFeatures).toHaveBeenCalledWith(false);
   });
 });

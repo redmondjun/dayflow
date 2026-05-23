@@ -145,6 +145,21 @@ export async function generateGeminiWeeklyInsight(
   return validateWeeklyInsight(parsed);
 }
 
+export async function validateGeminiApiKey(apiKey: string): Promise<void> {
+  if (!apiKey.trim()) throw new Error('Enter a Gemini API key first.');
+
+  const response = await postGeminiGenerateContent(apiKey, {
+    contents: [
+      {
+        role: 'user',
+        parts: [{ text: 'Reply with OK.' }],
+      },
+    ],
+  });
+
+  await throwIfGeminiError(response);
+}
+
 function buildSchedulePrompt(tasks: string[], userProfile?: string | null): string {
   const taskList = tasks.map((task, index) => `${index + 1}. ${task}`).join('\n');
   const profile = userProfile?.trim();
@@ -207,7 +222,11 @@ async function throwIfGeminiError(response: Response): Promise<void> {
     throw new Error('This Gemini API key is invalid, expired, or not allowed.');
   }
   if (response.status === 429) {
-    throw new Error('Gemini rate limit reached. Try again in a moment.');
+    throw new Error(
+      detail.toLowerCase().includes('quota')
+        ? 'Quota or billing issue. Check your Gemini billing settings.'
+        : 'Gemini rate limit reached. Try again in a moment.',
+    );
   }
   if (response.status >= 500) {
     throw new Error('Gemini is temporarily unavailable. Try again soon.');
