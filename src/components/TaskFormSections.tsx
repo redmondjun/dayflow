@@ -184,27 +184,40 @@ export function TaskQuickAddSection({
 export function TaskStatusSection({
   status,
   onChangeStatus,
+  showLabel = true,
+  containerClassName = 'px-6 pt-8',
 }: {
   status: TaskStatus;
   onChangeStatus: (value: TaskStatus) => void;
+  showLabel?: boolean;
+  containerClassName?: string;
 }) {
   return (
-    <View className="px-6 pt-8">
-      <Text className="pb-3 text-[11px] font-medium uppercase tracking-[-0.11px] text-warm2">
-        State
-      </Text>
+    <View className={containerClassName}>
+      {showLabel ? (
+        <Text className="pb-3 text-[11px] font-medium uppercase tracking-[-0.11px] text-warm2">
+          State
+        </Text>
+      ) : null}
       <View className="flex-row rounded-full bg-warm4 p-1">
         {(['scheduled', 'skipped', 'completed'] as const).map((option) => (
-          <Button
+          <Pressable
             key={option}
-            mode={status === option ? 'contained' : 'text'}
             onPress={() => onChangeStatus(option)}
-            buttonColor={status === option ? colors.paper : 'transparent'}
-            textColor={status === option ? colors.ink : colors.warm}
-            style={{ flex: 1, borderRadius: 999 }}
+            className={`h-[38px] flex-1 items-center justify-center rounded-full ${
+              status === option ? 'bg-paper' : 'bg-transparent'
+            }`}
           >
-            {option === 'scheduled' ? 'Active' : option}
-          </Button>
+            <Text
+              numberOfLines={1}
+              adjustsFontSizeToFit
+              className={`text-[13px] font-medium tracking-[-0.065px] ${
+                status === option ? 'text-ink' : 'text-warm'
+              }`}
+            >
+              {option === 'scheduled' ? 'Active' : option}
+            </Text>
+          </Pressable>
         ))}
       </View>
     </View>

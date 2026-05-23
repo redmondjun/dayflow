@@ -4,9 +4,9 @@ import type { RootStackParamList } from '../navigation/types';
 import { AIScheduleScreen } from '../screens/AIScheduleScreen';
 import { HomeScreen } from '../screens/HomeScreen';
 import { SettingsScreen } from '../screens/SettingsScreen';
-import { TaskFormScreen } from '../screens/TaskFormScreen';
 import { OnboardingPreviewScreen } from './OnboardingPreviewScreen';
 import { previewScenarios } from './scenarios';
+import { TaskFormPreviewScreen } from './TaskFormPreviewScreen';
 import { WeeklyInsightPreviewScreen } from './WeeklyInsightPreviewScreen';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'PreviewScenario'>;
@@ -38,7 +38,10 @@ export function PreviewScenarioScreen({ navigation, route }: Props) {
 
   if (scenario.id.startsWith('task-')) {
     return (
-      <TaskFormScreen scenarioId={scenario.id as 'task-create' | 'task-edit'} onCancel={onBack} />
+      <TaskFormPreviewScreen
+        scenarioId={scenario.id as 'task-create' | 'task-edit'}
+        onCancel={onBack}
+      />
     );
   }
 

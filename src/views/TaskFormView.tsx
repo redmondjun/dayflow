@@ -20,6 +20,7 @@ import {
   parseTimeInput,
   toWheelTime,
 } from '../utils/time';
+import type { EditableTaskForm } from '../navigation/types';
 
 export type TaskFormSubmit = {
   title: string;
@@ -32,7 +33,7 @@ export type TaskFormSubmit = {
 
 type Props = {
   mode: 'create' | 'edit';
-  initialTask?: Pick<Task, 'title' | 'startTime' | 'endTime' | 'status'>;
+  initialTask?: EditableTaskForm;
   dayLabel?: string;
   previousTask?: Task;
   nextTask?: Task;
@@ -126,9 +127,19 @@ export function TaskFormView({
     endTime ? formatInputTime(endTime) : formatInputTime(defaults.end),
   );
   const [status, setStatus] = useState<TaskStatus>(initialStatus ?? 'scheduled');
+  const [submitting, setSubmitting] = useState(false);
   const titleInputRef = useRef<RNTextInput>(null);
+  const submittingRef = useRef(false);
+  const mountedRef = useRef(true);
   const startParseBaseDate = startTime ? new Date(startTime) : defaults.start;
   const endParseBaseDate = endTime ? new Date(endTime) : defaults.end;
+
+  useEffect(
+    () => () => {
+      mountedRef.current = false;
+    },
+    [],
+  );
 
   useEffect(() => {
     const nextDefaults = getDefaultTimes();
@@ -155,12 +166,26 @@ export function TaskFormView({
     return null;
   }, [title, parsedStart, parsedEnd]);
 
-  const canSave = !validation && title.trim().length > 0 && !loading;
+  const hasChanges =
+    mode === 'create' ||
+    title !== (initialTitle ?? '') ||
+    start !== (startTime ? formatInputTime(startTime) : '') ||
+    end !== (endTime ? formatInputTime(endTime) : '') ||
+    status !== (initialStatus ?? 'scheduled');
+  const saving = loading || submitting;
+  const canSave = !validation && title.trim().length > 0 && !saving && hasChanges;
+
+  const finishSubmitting = () => {
+    submittingRef.current = false;
+    if (mountedRef.current) setSubmitting(false);
+  };
 
   const handleSave = () => {
-    if (!parsedStart || !parsedEnd || validation || loading) return;
+    if (!parsedStart || !parsedEnd || validation || saving || submittingRef.current) return;
 
-    void onSave({
+    submittingRef.current = true;
+    setSubmitting(true);
+    const result = onSave({
       title,
       start,
       end,
@@ -168,6 +193,13 @@ export function TaskFormView({
       startTime: parsedStart,
       endTime: parsedEnd,
     });
+
+    if (result && typeof result.finally === 'function') {
+      void result.finally(finishSubmitting);
+      return;
+    }
+
+    finishSubmitting();
   };
 
   if (mode === 'edit') {
@@ -247,7 +279,12 @@ export function TaskFormView({
             <Text className="text-[11px] font-semibold uppercase tracking-[1.98px] text-warm">
               State
             </Text>
-            <TaskStatusSection status={status} onChangeStatus={setStatus} />
+            <TaskStatusSection
+              status={status}
+              onChangeStatus={setStatus}
+              showLabel={false}
+              containerClassName="pt-4"
+            />
           </View>
 
           <View className="px-6 pt-8">
@@ -286,10 +323,10 @@ export function TaskFormView({
         <View className="absolute bottom-0 left-0 right-0 bg-paper px-6 pb-7 pt-3">
           <Button
             mode="contained"
-            buttonColor="rgba(35, 36, 34, 0.32)"
+            buttonColor={canSave ? colors.accent : 'rgba(35, 36, 34, 0.32)'}
             textColor={colors.white}
             disabled={!canSave}
-            loading={loading}
+            loading={saving}
             onPress={handleSave}
             style={{ borderRadius: 999 }}
             contentStyle={{ height: 50 }}
@@ -333,7 +370,7 @@ export function TaskFormView({
           buttonColor={colors.accent}
           textColor={colors.white}
           disabled={!canSave}
-          loading={loading}
+          loading={saving}
           onPress={handleSave}
           style={{ borderRadius: 999 }}
           contentStyle={{ height: 54 }}

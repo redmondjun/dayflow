@@ -1,7 +1,7 @@
 import React from 'react';
 import { describe, expect, it, jest } from '@jest/globals';
-import { fireEvent, render, screen } from '@testing-library/react-native';
-import { PaperProvider } from 'react-native-paper';
+import { act, fireEvent, render, screen } from '@testing-library/react-native';
+import { Button, PaperProvider } from 'react-native-paper';
 import { TaskFormView, type TaskFormSubmit } from './TaskFormView';
 
 function renderTaskFormView(
@@ -26,6 +26,13 @@ function renderTaskFormView(
     ),
     props,
   };
+}
+
+function getSaveChangesButton() {
+  const buttons = screen.UNSAFE_getAllByType(Button);
+  const saveChangesButton = buttons.find((button) => button.props.children === 'Save changes');
+  if (!saveChangesButton) throw new Error('Save changes button not found.');
+  return saveChangesButton;
 }
 
 describe('TaskFormView', () => {
@@ -98,7 +105,7 @@ describe('TaskFormView', () => {
     expect(screen.getByText('Edit Task')).toBeOnTheScreen();
     expect(screen.getByText('Task')).toBeOnTheScreen();
     expect(screen.getByText('Schedule')).toBeOnTheScreen();
-    expect(screen.getAllByText('State').length).toBeGreaterThan(0);
+    expect(screen.getAllByText('State')).toHaveLength(1);
     expect(screen.getByText('Active')).toBeOnTheScreen();
     expect(screen.getByText('skipped')).toBeOnTheScreen();
     expect(screen.getByText('completed')).toBeOnTheScreen();
@@ -106,8 +113,13 @@ describe('TaskFormView', () => {
     expect(screen.getByText('No previous task')).toBeOnTheScreen();
     expect(screen.getByText('Review notes')).toBeOnTheScreen();
     expect(screen.getByText('No next task')).toBeOnTheScreen();
+    expect(getSaveChangesButton().props.buttonColor).toBe('rgba(35, 36, 34, 0.32)');
+    expect(getSaveChangesButton().props.disabled).toBe(true);
 
     fireEvent.press(screen.getByText('skipped'));
+    expect(getSaveChangesButton().props.buttonColor).toBe('#01B224');
+    expect(getSaveChangesButton().props.disabled).toBe(false);
+
     fireEvent.press(screen.getByText('Save changes'));
 
     expect(onSave).toHaveBeenCalledTimes(1);
@@ -128,6 +140,7 @@ describe('TaskFormView', () => {
       onSave,
     });
 
+    fireEvent.press(screen.getByText('completed'));
     fireEvent.press(screen.getByText('Save changes'));
 
     expect(onSave).toHaveBeenCalledWith(
@@ -138,5 +151,36 @@ describe('TaskFormView', () => {
         endTime: '2026-05-21T07:15:00.000Z',
       }),
     );
+  });
+
+  it('prevents duplicate edit saves while a save is pending', async () => {
+    let resolveSave: () => void = () => {};
+    const onSave = jest.fn(
+      () =>
+        new Promise<void>((resolve) => {
+          resolveSave = resolve;
+        }),
+    );
+
+    renderTaskFormView({
+      mode: 'edit',
+      initialTask: {
+        title: 'Review notes',
+        startTime: '2026-05-20T07:00:00-07:00',
+        endTime: '2026-05-20T07:45:00-07:00',
+        status: 'scheduled',
+      },
+      onSave,
+    });
+
+    fireEvent.press(screen.getByText('completed'));
+    fireEvent.press(screen.getByText('Save changes'));
+    fireEvent.press(screen.getByText('Save changes'));
+
+    expect(onSave).toHaveBeenCalledTimes(1);
+
+    await act(async () => {
+      resolveSave();
+    });
   });
 });
