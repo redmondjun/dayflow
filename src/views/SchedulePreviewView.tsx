@@ -3,15 +3,7 @@ import { Snackbar } from 'react-native-paper';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { PillActionButton } from '../components/LightScreenPrimitives';
 import type { GeneratedTaskPreview } from '../types/task';
-import { formatDisplayTime } from '../utils/time';
-
-function formatPreviewDate(date = new Date()) {
-  return date.toLocaleDateString([], {
-    weekday: 'long',
-    month: 'short',
-    day: 'numeric',
-  });
-}
+import { formatDisplayTime, formatSchedulePreviewDate } from '../utils/time';
 
 function PreviewCheckmark() {
   return (
@@ -67,7 +59,9 @@ export function SchedulePreviewView({ tasks, loading, error, onDismissError, onC
       <ScrollView contentContainerClassName="flex-grow px-6 pb-32 pt-12">
         <View className="items-center">
           <View className="rounded-full bg-warm4 px-[14px] py-[6px]">
-            <Text className="text-[13px] tracking-[-0.13px] text-warm2">{formatPreviewDate()}</Text>
+            <Text className="text-[13px] tracking-[-0.13px] text-warm2">
+              {formatSchedulePreviewDate()}
+            </Text>
           </View>
 
           <View className="pt-10">
