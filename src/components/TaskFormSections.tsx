@@ -25,6 +25,8 @@ type TaskFormSectionsContextValue = {
   onChangeStatus: (value: TaskStatus) => void;
   onChangeStart: (value: string) => void;
   onChangeEnd: (value: string) => void;
+  onTimeInteractionStart: () => void;
+  onTimeInteractionEnd: () => void;
 };
 
 const TaskFormSectionsContext = createContext<TaskFormSectionsContextValue | null>(null);
@@ -114,6 +116,8 @@ export function TaskTimeFields() {
     end,
     onChangeStart,
     onChangeEnd,
+    onTimeInteractionStart,
+    onTimeInteractionEnd,
     onDelete,
     onClearTitle,
   } = useTaskFormSectionsContext();
@@ -147,6 +151,8 @@ export function TaskTimeFields() {
             value={start}
             onChange={onChangeStart}
             containerClassName="self-stretch"
+            onInteractionStart={onTimeInteractionStart}
+            onInteractionEnd={onTimeInteractionEnd}
           />
         </View>
 
@@ -158,7 +164,13 @@ export function TaskTimeFields() {
           <Text className="pb-1 text-[11px] font-medium uppercase tracking-[-0.11px] text-ink">
             End
           </Text>
-          <TimeWheelPicker value={end} onChange={onChangeEnd} containerClassName="self-stretch" />
+          <TimeWheelPicker
+            value={end}
+            onChange={onChangeEnd}
+            containerClassName="self-stretch"
+            onInteractionStart={onTimeInteractionStart}
+            onInteractionEnd={onTimeInteractionEnd}
+          />
         </View>
       </View>
     </View>

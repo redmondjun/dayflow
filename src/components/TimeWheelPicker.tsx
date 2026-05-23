@@ -12,6 +12,8 @@ function WheelColumn({
   options,
   selectedValue,
   onChange,
+  onInteractionStart,
+  onInteractionEnd,
   width,
   align = 'center',
   testID,
@@ -19,6 +21,8 @@ function WheelColumn({
   options: string[];
   selectedValue: string;
   onChange: (value: string) => void;
+  onInteractionStart?: () => void;
+  onInteractionEnd?: () => void;
   width: number;
   align?: 'left' | 'center' | 'right';
   testID?: string;
@@ -73,6 +77,7 @@ function WheelColumn({
         ref={scrollRef}
         testID={testID}
         style={{ flex: 1 }}
+        nestedScrollEnabled
         showsVerticalScrollIndicator={false}
         snapToInterval={wheelItemHeight}
         decelerationRate="normal"
@@ -90,6 +95,9 @@ function WheelColumn({
           clearFallbackSelection();
           momentumScrollingRef.current = true;
         }}
+        onScrollBeginDrag={() => {
+          onInteractionStart?.();
+        }}
         onScrollEndDrag={(event) => {
           const velocityY = event.nativeEvent.velocity?.y;
           if (
@@ -99,11 +107,13 @@ function WheelColumn({
             scheduleFallbackSelection(event.nativeEvent.contentOffset?.y);
             return;
           }
+          onInteractionEnd?.();
           applyScrollSelection(event.nativeEvent.contentOffset?.y);
         }}
         onMomentumScrollEnd={(event) => {
           clearFallbackSelection();
           momentumScrollingRef.current = false;
+          onInteractionEnd?.();
           applyScrollSelection(event.nativeEvent.contentOffset?.y);
         }}
       >
@@ -210,6 +220,8 @@ export function TimeWheelPicker({
         <WheelColumn
           options={hourOptions}
           selectedValue={parsed.hour}
+          onInteractionStart={onInteractionStart}
+          onInteractionEnd={onInteractionEnd}
           width={104}
           align="right"
           testID="onboarding-hour-wheel"
@@ -218,6 +230,8 @@ export function TimeWheelPicker({
         <WheelColumn
           options={minuteOptions}
           selectedValue={parsed.minute}
+          onInteractionStart={onInteractionStart}
+          onInteractionEnd={onInteractionEnd}
           width={96}
           testID="onboarding-minute-wheel"
           onChange={(minute) => updateTimePart('minute', minute)}
@@ -225,6 +239,8 @@ export function TimeWheelPicker({
         <WheelColumn
           options={meridiemOptions}
           selectedValue={parsed.meridiem}
+          onInteractionStart={onInteractionStart}
+          onInteractionEnd={onInteractionEnd}
           width={108}
           align="left"
           testID="onboarding-meridiem-wheel"
