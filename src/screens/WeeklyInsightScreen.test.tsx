@@ -50,6 +50,7 @@ jest.mock('../store/taskStore', () => ({
 
 jest.mock('../services/devDemo', () => ({
   getDemoAdjustedTasks: jest.fn((tasks) => tasks),
+  getEffectiveNow: jest.fn((now = new Date()) => now),
   useDevDemoState: jest.fn(() => ({ nowOverride: null, weeklyPreviewEnabled: false })),
 }));
 

@@ -1,11 +1,11 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { RefreshControl, ScrollView, Text, View } from 'react-native';
 import { Button, Snackbar } from 'react-native-paper';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { CurrentTaskCard } from '../components/CurrentTaskCard';
 import { TaskTimelineRow } from '../components/TaskTimelineRow';
 import { makeActiveDayTasks, makeCompletedHeavyTasks } from '../dev-preview/mockData';
-import { getDemoAdjustedTasks, useDevDemoState } from '../services/devDemo';
+import { getDemoAdjustedTasks, getEffectiveNow, useDevDemoState } from '../services/devDemo';
 import { useTaskStore } from '../store/taskStore';
 import { colors } from '../theme/colors';
 import type { Task } from '../types/task';
@@ -78,11 +78,18 @@ export function HomeScreenView(props: Props) {
     }
   }, [previewScenarioId]);
 
-  const effectiveNow = !isPreview && __DEV__ && nowOverride ? new Date(nowOverride) : new Date(tick);
+  const effectiveNow = useMemo(
+    () => (isPreview ? new Date(tick) : getEffectiveNow(new Date(tick))),
+    [isPreview, tick, nowOverride],
+  );
   const date = formatDisplayDate(effectiveNow);
-  const tasks = isPreview ? previewTasks : getDemoAdjustedTasks(todayTasks(effectiveNow), effectiveNow);
+  const tasks = isPreview
+    ? previewTasks
+    : getDemoAdjustedTasks(todayTasks(effectiveNow), effectiveNow);
   const current = isPreview ? getCurrentTask(tasks, effectiveNow) : currentTask(effectiveNow);
-  const next = isPreview ? getUpcomingTasks(tasks, effectiveNow)[0] : upcomingTasks(effectiveNow)[0];
+  const next = isPreview
+    ? getUpcomingTasks(tasks, effectiveNow)[0]
+    : upcomingTasks(effectiveNow)[0];
   const routeOnEditTask = 'onEditTask' in props ? props.onEditTask : undefined;
   const mode = isPreview
     ? {

@@ -12,7 +12,7 @@ import {
   formatOnboardingProfileForPrompt,
   getOnboardingProfile,
 } from '../services/onboardingProfile';
-import { getDemoAdjustedTasks, useDevDemoState } from '../services/devDemo';
+import { getDemoAdjustedTasks, getEffectiveNow, useDevDemoState } from '../services/devDemo';
 import { generateWeeklyInsight, type AiWeeklyInsight } from '../services/openai';
 import { useTaskStore } from '../store/taskStore';
 import type { Task } from '../types/task';
@@ -48,11 +48,11 @@ function hasRecentCompletedOrSkippedTasks(tasks: Task[], now: Date): boolean {
 export function WeeklyInsightScreen(props: Props) {
   const tasks = useTaskStore((state) => state.tasks);
   const { nowOverride, weeklyPreviewEnabled } = useDevDemoState();
-  const effectiveNow = useMemo(
-    () => (__DEV__ && nowOverride ? new Date(nowOverride) : new Date()),
-    [nowOverride],
+  const effectiveNow = useMemo(() => getEffectiveNow(), [nowOverride]);
+  const effectiveTasks = useMemo(
+    () => getDemoAdjustedTasks(tasks, effectiveNow),
+    [effectiveNow, tasks],
   );
-  const effectiveTasks = useMemo(() => getDemoAdjustedTasks(tasks, effectiveNow), [effectiveNow, tasks]);
   const baseSummary = useMemo(
     () =>
       __DEV__ && weeklyPreviewEnabled

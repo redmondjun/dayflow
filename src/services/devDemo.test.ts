@@ -78,6 +78,28 @@ describe('devDemo service', () => {
     expect(adjusted[1].status).toBe('scheduled');
   });
 
+  it('leaves tasks with invalid end times unchanged while demo time override is active', () => {
+    setDemoNowOverride('2026-05-30T15:45:00.000Z');
+
+    const adjusted = getDemoAdjustedTasks(
+      [
+        {
+          id: 'invalid-end',
+          title: 'Bad end time',
+          startTime: '2026-05-30T13:00:00.000Z',
+          endTime: 'not-a-date',
+          status: 'scheduled',
+          aiGenerated: false,
+          createdAt: '2026-05-30T12:00:00.000Z',
+          updatedAt: '2026-05-30T12:00:00.000Z',
+        },
+      ],
+      new Date('2026-05-30T15:45:00.000Z'),
+    );
+
+    expect(adjusted[0].status).toBe('scheduled');
+  });
+
   it('ignores demo overrides outside dev mode', () => {
     Reflect.set(globalThis, '__DEV__', false);
 

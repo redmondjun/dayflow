@@ -48,7 +48,8 @@ export function getDemoAdjustedTasks(tasks: Task[], now = new Date()): Task[] {
   const nowMs = now.getTime();
   return tasks.map((task) => {
     if (task.status !== 'scheduled') return task;
-    if (new Date(task.endTime).getTime() > nowMs) return task;
+    const endMs = new Date(task.endTime).getTime();
+    if (Number.isNaN(endMs) || endMs > nowMs) return task;
     return {
       ...task,
       status: 'completed',

@@ -324,21 +324,24 @@ function parseDemoDateTime(dateValue: string, timeValue: string): Date | null {
     Number.isNaN(month) ||
     Number.isNaN(day) ||
     Number.isNaN(hours) ||
-    Number.isNaN(minutes) ||
-    month < 0 ||
-    month > 11 ||
-    day < 1 ||
-    day > 31 ||
-    hours < 0 ||
-    hours > 23 ||
-    minutes < 0 ||
-    minutes > 59
+    Number.isNaN(minutes)
   ) {
     return null;
   }
 
   const parsed = new Date(year, month, day, hours, minutes, 0, 0);
-  return Number.isNaN(parsed.getTime()) ? null : parsed;
+  if (
+    Number.isNaN(parsed.getTime()) ||
+    parsed.getFullYear() !== year ||
+    parsed.getMonth() !== month ||
+    parsed.getDate() !== day ||
+    parsed.getHours() !== hours ||
+    parsed.getMinutes() !== minutes
+  ) {
+    return null;
+  }
+
+  return parsed;
 }
 
 function formatDisplayLabel(value: Date): string {
