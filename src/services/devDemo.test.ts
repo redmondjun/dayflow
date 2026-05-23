@@ -12,12 +12,10 @@ import {
 
 describe('devDemo service', () => {
   beforeEach(() => {
-    Reflect.set(globalThis, '__DEV__', true);
     resetDevDemoState();
   });
 
   afterEach(() => {
-    Reflect.set(globalThis, '__DEV__', false);
     resetDevDemoState();
   });
 
@@ -78,5 +76,18 @@ describe('devDemo service', () => {
     expect(adjusted[0].status).toBe('completed');
     expect(adjusted[0].actualEndTime).toBe('2026-05-30T14:00:00.000Z');
     expect(adjusted[1].status).toBe('scheduled');
+  });
+
+  it('ignores demo overrides outside dev mode', () => {
+    Reflect.set(globalThis, '__DEV__', false);
+
+    setDemoNowOverride('2026-05-30T15:45:00.000Z');
+    setWeeklyPreviewEnabled(true);
+
+    expect(getEffectiveNow(new Date('2026-01-01T00:00:00.000Z')).toISOString()).toBe(
+      '2026-01-01T00:00:00.000Z',
+    );
+    expect(getDevDemoSnapshot().nowOverride).toBeNull();
+    expect(getDevDemoSnapshot().weeklyPreviewEnabled).toBe(false);
   });
 });

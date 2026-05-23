@@ -14,6 +14,7 @@ type RouteProps = NativeStackScreenProps<RootStackParamList, 'Settings'>;
 type EmbeddedProps = {
   onCancel?: () => void;
   onOpenPreviewCatalog?: () => void;
+  hideDeveloperTools?: boolean;
 };
 
 type Props = RouteProps | EmbeddedProps;
@@ -164,7 +165,8 @@ export function SettingsScreen(props: Props) {
   const onOpenWeeklyInsight = isRouteProps(props)
     ? () => props.navigation.navigate('WeeklyInsight')
     : undefined;
-  const showDeveloperTools = __DEV__ && Boolean(onOpenPreviewCatalog);
+  const hideDeveloperTools = isRouteProps(props) ? false : Boolean(props.hideDeveloperTools);
+  const showDeveloperTools = __DEV__ && !hideDeveloperTools;
   const onResetOnboarding = isRouteProps(props)
     ? async () => {
         const cleared = await clearOnboarding();
@@ -229,7 +231,9 @@ export function SettingsScreen(props: Props) {
             <View className="mt-4 overflow-hidden rounded-2xl border border-warm3 bg-paper px-[18px] py-4">
               <Text className="text-[15px] tracking-tight text-ink">Demo time</Text>
               <Text className="mt-1 text-xs tracking-tight text-warm">
-                {demoNowOverride ? 'Override active for in-app schedule behavior' : 'Using live device time'}
+                {demoNowOverride
+                  ? 'Override active for in-app schedule behavior'
+                  : 'Using live device time'}
               </Text>
               <View className="mt-4 flex-row gap-2">
                 <TextInput
@@ -319,15 +323,17 @@ export function SettingsScreen(props: Props) {
               Reset Onboarding
             </Button>
 
-            <Button
-              mode="outlined"
-              onPress={onOpenPreviewCatalog}
-              testID="settings-open-preview-catalog-button"
-              textColor={colors.ink}
-              style={{ marginTop: 12, borderRadius: 999 }}
-            >
-              UI Preview
-            </Button>
+            {onOpenPreviewCatalog ? (
+              <Button
+                mode="outlined"
+                onPress={onOpenPreviewCatalog}
+                testID="settings-open-preview-catalog-button"
+                textColor={colors.ink}
+                style={{ marginTop: 12, borderRadius: 999 }}
+              >
+                UI Preview
+              </Button>
+            ) : null}
           </View>
         ) : null}
       </ScrollView>

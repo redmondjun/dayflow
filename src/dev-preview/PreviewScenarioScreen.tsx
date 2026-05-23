@@ -50,5 +50,5 @@ export function PreviewScenarioScreen({ navigation, route }: Props) {
     );
   }
 
-  return <SettingsScreen onCancel={onBack} onOpenPreviewCatalog={onBack} />;
+  return <SettingsScreen onCancel={onBack} hideDeveloperTools />;
 }

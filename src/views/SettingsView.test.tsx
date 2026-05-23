@@ -1,5 +1,5 @@
 import React from 'react';
-import { afterEach, beforeEach, describe, expect, it, jest } from '@jest/globals';
+import { beforeEach, describe, expect, it, jest } from '@jest/globals';
 import { fireEvent, render, screen } from '@testing-library/react-native';
 import { Text } from 'react-native';
 import { PaperProvider } from 'react-native-paper';
@@ -98,6 +98,7 @@ function renderSettingsScreen(
   overrideProps: Partial<{
     onCancel: () => void;
     onOpenPreviewCatalog: () => void;
+    hideDeveloperTools: boolean;
   }> = {},
 ) {
   return render(
@@ -109,10 +110,6 @@ function renderSettingsScreen(
 
 describe('SettingsScreen', () => {
   beforeEach(() => {
-    Reflect.set(globalThis, '__DEV__', false);
-  });
-
-  afterEach(() => {
     Reflect.set(globalThis, '__DEV__', false);
   });
 
@@ -163,9 +160,7 @@ describe('SettingsScreen', () => {
   it('shows developer demo controls only in dev mode', () => {
     Reflect.set(globalThis, '__DEV__', true);
 
-    renderSettingsScreen({
-      onOpenPreviewCatalog: jest.fn(),
-    });
+    renderSettingsScreen();
 
     expect(screen.getByText('Developer')).toBeOnTheScreen();
     expect(screen.getByText('Demo time')).toBeOnTheScreen();
@@ -173,12 +168,35 @@ describe('SettingsScreen', () => {
     expect(screen.getByText('Reset Onboarding')).toBeOnTheScreen();
   });
 
-  it('hides developer demo controls outside dev mode', () => {
-    Reflect.set(globalThis, '__DEV__', false);
+  it('hides developer demo controls in UI preview mode', () => {
+    Reflect.set(globalThis, '__DEV__', true);
 
-    renderSettingsScreen();
+    renderSettingsScreen({ hideDeveloperTools: true });
 
     expect(screen.queryByText('Developer')).not.toBeOnTheScreen();
     expect(screen.queryByText('Demo time')).not.toBeOnTheScreen();
+    expect(screen.queryByText('UI Preview')).not.toBeOnTheScreen();
+  });
+
+  it('shows UI Preview in the developer section when a preview handler is provided', () => {
+    Reflect.set(globalThis, '__DEV__', true);
+
+    renderSettingsScreen();
+    expect(screen.queryByText('UI Preview')).not.toBeOnTheScreen();
+
+    renderSettingsScreen({ onOpenPreviewCatalog: jest.fn() });
+    expect(screen.getByText('Developer')).toBeOnTheScreen();
+    expect(screen.getByText('UI Preview')).toBeOnTheScreen();
+    expect(screen.queryByText('Preview')).not.toBeOnTheScreen();
+  });
+
+  it('hides developer demo controls outside dev mode', () => {
+    Reflect.set(globalThis, '__DEV__', false);
+
+    renderSettingsScreen({ onOpenPreviewCatalog: jest.fn() });
+
+    expect(screen.queryByText('Developer')).not.toBeOnTheScreen();
+    expect(screen.queryByText('Demo time')).not.toBeOnTheScreen();
+    expect(screen.queryByText('UI Preview')).not.toBeOnTheScreen();
   });
 });

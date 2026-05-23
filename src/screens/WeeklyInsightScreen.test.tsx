@@ -1,5 +1,5 @@
 import React from 'react';
-import { afterEach, beforeEach, describe, expect, it, jest } from '@jest/globals';
+import { beforeEach, describe, expect, it, jest } from '@jest/globals';
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react-native';
 import { PaperProvider } from 'react-native-paper';
 import type { WeeklyInsightSummary } from '../types/insight';
@@ -192,10 +192,6 @@ describe('WeeklyInsightScreen', () => {
       if (typeof selector !== 'function') return { tasks: [] };
       return selector({ tasks: [] });
     });
-  });
-
-  afterEach(() => {
-    Reflect.set(globalThis, '__DEV__', false);
   });
 
   it('renders weekly insight metrics without AI sections by default', () => {
