@@ -1,4 +1,5 @@
 import { ScrollView, View } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import type { WeeklyInsightSummary } from '../types/insight';
 import {
   WeeklyInsightFooter,
@@ -16,7 +17,7 @@ type Props = {
 
 export function WeeklyInsightView({ summary, onOptimizeTomorrow }: Props) {
   return (
-    <View className="flex-1 bg-paper">
+    <SafeAreaView className="flex-1 bg-paper" edges={['top']}>
       <ScrollView contentContainerClassName="pb-8 pt-5">
         <WeeklyInsightHeader summary={summary} />
         <WeeklyInsightHeadline summary={summary} />
@@ -25,6 +26,6 @@ export function WeeklyInsightView({ summary, onOptimizeTomorrow }: Props) {
         <WeeklyInsightSuggestions summary={summary} />
         <WeeklyInsightFooter summary={summary} onOptimizeTomorrow={onOptimizeTomorrow} />
       </ScrollView>
-    </View>
+    </SafeAreaView>
   );
 }
