@@ -1,42 +1,80 @@
-import type { NativeStackScreenProps } from '@react-navigation/native-stack';
+import { useState } from 'react';
+import { TextInput } from 'react-native';
 import {
   AISchedulePlannerSection,
   AIScheduleProvider,
-  AISchedulePreviewSection,
   AIScheduleShell,
-} from '../components/AIScheduleSections';
-import type { RootStackParamList } from '../navigation/types';
+} from '../components/aiSchedule';
+import type { AIScheduleContextValue } from '../components/aiSchedule';
 import { useAIScheduleState } from './useAIScheduleState';
+import { SchedulePreviewView } from '../views/SchedulePreviewView';
 
-type RouteProps = NativeStackScreenProps<RootStackParamList, 'AISchedule'>;
-
-type EmbeddedProps = {
+type Props = {
   onCancel: () => void;
   onOpenSettings: () => void;
   scenarioId?: string;
+  initialAiEnabled?: boolean;
+  autoOpenDraft?: boolean;
 };
 
-type Props = RouteProps | EmbeddedProps;
-
-function isRouteProps(props: Props): props is RouteProps {
-  return 'navigation' in props;
-}
-
 export function AIScheduleScreen(props: Props) {
-  const isPreview = !isRouteProps(props);
-  const scenarioId = isRouteProps(props) ? undefined : props.scenarioId;
-  const onCancel = isRouteProps(props) ? () => props.navigation.goBack() : props.onCancel;
-  const onOpenSettings = isRouteProps(props)
-    ? () => props.navigation.navigate('Settings')
-    : props.onOpenSettings;
-  const onComplete = isRouteProps(props) ? () => props.navigation.goBack() : props.onCancel;
-  const schedule = useAIScheduleState({ isPreview, scenarioId, onComplete });
+  const [isTimePickerInteracting, setIsTimePickerInteracting] = useState(false);
+  const schedule = useAIScheduleState({
+    isPreview: Boolean(props.scenarioId),
+    scenarioId: props.scenarioId,
+    onComplete: props.onCancel,
+    initialAiEnabled: props.initialAiEnabled,
+    autoOpenDraft: props.autoOpenDraft ?? !props.scenarioId,
+  });
+
+  if (schedule.previewTasks.length > 0) {
+    return (
+      <SchedulePreviewView
+        tasks={schedule.previewTasks}
+        loading={schedule.loading}
+        error={schedule.storeError ?? schedule.localError}
+        onDismissError={schedule.onDismissError}
+        onConfirm={schedule.onConfirm}
+      />
+    );
+  }
+
+  const plannerContext: AIScheduleContextValue = {
+    localError: schedule.localError,
+    storeError: schedule.storeError,
+    onDismissError: schedule.onDismissError,
+    scrollEnabled: !isTimePickerInteracting,
+    aiEnabled: schedule.aiEnabled,
+    taskRows: schedule.taskRows,
+    selectedTaskId: schedule.selectedTaskId,
+    selectedTaskStart: schedule.selectedTaskStart,
+    selectedTaskEnd: schedule.selectedTaskEnd,
+    selectedTimeValidation: schedule.selectedTimeValidation,
+    canSubmit: schedule.canSubmit,
+    generating: schedule.generating,
+    loading: schedule.loading,
+    onToggleAiEnabled: schedule.onToggleAiEnabled,
+    onSelectTaskRow: schedule.onSelectTaskRow,
+    onChangeTaskTitle: schedule.onChangeTaskTitle,
+    onAddTaskRow: schedule.onAddTaskRow,
+    onRemoveSelectedTaskRow: schedule.onRemoveSelectedTaskRow,
+    onSelectQuickAdd: schedule.onSelectQuickAdd,
+    onChangeSelectedStart: schedule.onChangeSelectedStart,
+    onChangeSelectedEnd: schedule.onChangeSelectedEnd,
+    onCancelTaskTimeEdit: schedule.onCancelTaskTimeEdit,
+    onConfirmTaskTimeEdit: schedule.onConfirmTaskTimeEdit,
+    onTimeInteractionStart: () => {
+      TextInput.State.currentlyFocusedInput?.()?.blur();
+      setIsTimePickerInteracting(true);
+    },
+    onTimeInteractionEnd: () => setIsTimePickerInteracting(false),
+    onSubmit: schedule.onSubmit,
+  };
 
   return (
-    <AIScheduleProvider value={{ ...schedule, onCancel, onOpenSettings }}>
+    <AIScheduleProvider value={plannerContext}>
       <AIScheduleShell>
         <AISchedulePlannerSection />
-        <AISchedulePreviewSection />
       </AIScheduleShell>
     </AIScheduleProvider>
   );

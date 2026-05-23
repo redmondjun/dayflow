@@ -13,7 +13,6 @@ import { formatDisplayDate, getCurrentTask, getUpcomingTasks } from '../utils/ti
 type RouteProps = {
   onEditTask?: (taskId: string) => void;
   onCreateTask: () => void;
-  onOpenAiSchedule: () => void;
   onOpenSettings?: () => void;
 };
 
@@ -106,7 +105,6 @@ export function HomeScreenView(props: Props) {
         onCurrentSkip: current ? () => markSkipped(current.id) : undefined,
         onTaskPress: routeOnEditTask,
         onPrimaryAction: props.onCreateTask,
-        onSecondaryAction: props.onOpenAiSchedule,
         showError: true,
       };
   const {
@@ -114,7 +112,6 @@ export function HomeScreenView(props: Props) {
     onCurrentSkip,
     onHeaderPress,
     onPrimaryAction,
-    onSecondaryAction,
     onTaskPress,
     refreshControl,
     showError,
@@ -153,7 +150,7 @@ export function HomeScreenView(props: Props) {
           <View className="px-6 py-8">
             <Text className="text-base font-medium text-ink">No tasks yet.</Text>
             <Text className="mt-2 text-sm leading-6 text-warm">
-              Create a task manually or generate a schedule from a rough plan.
+              Create your first task to start planning the day.
             </Text>
           </View>
         ) : (
@@ -186,16 +183,7 @@ export function HomeScreenView(props: Props) {
           onPress={onPrimaryAction}
           style={{ borderRadius: 999 }}
         >
-          Create Task
-        </Button>
-        <Button
-          mode="contained"
-          buttonColor={colors.accent}
-          textColor={colors.ink}
-          onPress={onSecondaryAction}
-          style={{ borderRadius: 999 }}
-        >
-          Generate Schedule with AI
+          {tasks.length > 0 ? 'Add task' : 'Create Task'}
         </Button>
       </View>
 

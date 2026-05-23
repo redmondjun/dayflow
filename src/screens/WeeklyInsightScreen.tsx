@@ -57,7 +57,7 @@ export function WeeklyInsightScreen(props: Props) {
     suggestions: aiInsight?.suggestions ?? [],
   };
   const onOptimizeTomorrow = isRouteProps(props)
-    ? () => props.navigation.navigate('AISchedule')
+    ? () => props.navigation.navigate('CreateTask', { aiEnabled: true })
     : props.onOptimizeTomorrow;
 
   useEffect(

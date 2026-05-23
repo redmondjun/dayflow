@@ -34,9 +34,6 @@ jest.mock('../screens/HomeScreen', () => ({
 jest.mock('../screens/TaskFormScreen', () => ({
   TaskFormScreen: () => null,
 }));
-jest.mock('../screens/AIScheduleScreen', () => ({
-  AIScheduleScreen: () => null,
-}));
 jest.mock('../screens/OnboardingScreen', () => ({
   OnboardingScreen: () => null,
 }));

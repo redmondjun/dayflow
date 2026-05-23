@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react';
-import { Text, View } from 'react-native';
+import { Pressable, Text, View } from 'react-native';
 import { Button } from 'react-native-paper';
 import { colors } from '../theme/colors';
 
@@ -11,6 +11,50 @@ export function SectionEyebrow({ children }: { children: ReactNode }) {
 
 export function HairlineDivider() {
   return <View className="mx-6 h-px bg-warm3" />;
+}
+
+export function PlannerHeader({
+  title,
+  subtitle,
+  action,
+}: {
+  title: string;
+  subtitle: string;
+  action?: ReactNode;
+}) {
+  return (
+    <View className="px-6 pt-7">
+      <View className="flex-row items-center justify-between">
+        <StepProgress total={4} activeIndex={0} compact />
+        {action}
+      </View>
+      <Text className="pt-[14px] text-[34px] font-bold tracking-[-1.36px] text-ink">{title}</Text>
+      <Text className="pt-2 text-[15px] tracking-[-0.15px] text-warm">{subtitle}</Text>
+    </View>
+  );
+}
+
+export function QuickAddChip({
+  label,
+  onPress,
+  emphasized = false,
+}: {
+  label: string;
+  onPress: () => void;
+  emphasized?: boolean;
+}) {
+  return (
+    <Pressable
+      onPress={onPress}
+      className={`rounded-full px-[14px] py-[7px] ${
+        emphasized ? 'border border-warm3 bg-paper' : 'bg-[rgba(35,36,34,0.05)]'
+      }`}
+    >
+      <Text className={`text-[13px] tracking-[-0.13px] ${emphasized ? 'text-warm' : 'text-warm2'}`}>
+        {emphasized ? `+  ${label}` : label}
+      </Text>
+    </Pressable>
+  );
 }
 
 export function StepProgress({
@@ -50,6 +94,7 @@ export function PillActionButton({
   buttonColor,
   textColor,
   labelStyle,
+  testID,
 }: {
   label: string;
   onPress: () => void;
@@ -63,9 +108,11 @@ export function PillActionButton({
     letterSpacing?: number;
     lineHeight?: number;
   };
+  testID?: string;
 }) {
   return (
     <Button
+      testID={testID}
       mode="contained"
       disabled={disabled}
       loading={loading}

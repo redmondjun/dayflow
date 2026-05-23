@@ -2,9 +2,8 @@ import type { TaskStatus } from '../types/task';
 
 export type RootStackParamList = {
   Home: undefined;
-  CreateTask: undefined;
+  CreateTask: { aiEnabled?: boolean } | undefined;
   EditTask: { taskId: string };
-  AISchedule: undefined;
   Onboarding: { mode?: 'setup' | 'edit' } | undefined;
   WeeklyInsight: undefined;
   Settings: undefined;

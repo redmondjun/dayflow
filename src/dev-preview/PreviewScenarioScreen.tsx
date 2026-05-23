@@ -1,7 +1,6 @@
 import { Text, View } from 'react-native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { RootStackParamList } from '../navigation/types';
-import { AIScheduleScreen } from '../screens/AIScheduleScreen';
 import { HomeScreen } from '../screens/HomeScreen';
 import { SettingsScreen } from '../screens/SettingsScreen';
 import { TaskFormScreen } from '../screens/TaskFormScreen';
@@ -40,10 +39,6 @@ export function PreviewScenarioScreen({ navigation, route }: Props) {
     return (
       <TaskFormScreen scenarioId={scenario.id as 'task-create' | 'task-edit'} onCancel={onBack} />
     );
-  }
-
-  if (scenario.id.startsWith('ai-')) {
-    return <AIScheduleScreen onCancel={onBack} onOpenSettings={onBack} scenarioId={scenario.id} />;
   }
 
   if (scenario.id.startsWith('weekly-')) {

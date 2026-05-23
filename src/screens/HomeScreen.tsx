@@ -31,7 +31,6 @@ export function HomeScreen(props: Props) {
             <HomeScreenView
               onEditTask={(taskId) => props.navigation.navigate('EditTask', { taskId })}
               onCreateTask={() => props.navigation.navigate('CreateTask')}
-              onOpenAiSchedule={() => props.navigation.navigate('AISchedule')}
             />
           ) : (
             <HomeScreenView scenarioId={props.scenarioId} onBack={props.onBack} />
@@ -39,7 +38,9 @@ export function HomeScreen(props: Props) {
         ) : activeTab === 'weekly' ? (
           <WeeklyInsightScreen
             onOptimizeTomorrow={
-              isRoute ? () => props.navigation.navigate('AISchedule') : props.onBack
+              isRoute
+                ? () => props.navigation.navigate('CreateTask', { aiEnabled: true })
+                : props.onBack
             }
           />
         ) : (
