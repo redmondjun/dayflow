@@ -1,4 +1,5 @@
 import type { OnboardingProfile } from '../../services/onboardingProfile';
+import { isFuturePlanningDay, type SchedulingContext } from './planningDay';
 import {
   fromWheelTime,
   parseTimeInput,
@@ -14,29 +15,38 @@ export type TaskPlanningDefaults = {
 const FALLBACK_START = '09:00';
 const FALLBACK_DURATION_MINUTES = 60;
 
-function parseProfileTime(value: unknown, now: Date): Date | null {
+function parseProfileTime(value: unknown, planningDay: Date): Date | null {
   if (typeof value !== 'string' || !value.trim()) return null;
-  const parsed = parseTimeInput(fromWheelTime(value.trim()), now);
+  const parsed = parseTimeInput(fromWheelTime(value.trim()), planningDay);
   return parsed ? new Date(parsed) : null;
 }
 
-function getProfileAnchorTime(profile: OnboardingProfile | null, now: Date): Date {
-  const wakeTime = parseProfileTime(profile?.wake, now);
+function getProfileAnchorTime(profile: OnboardingProfile | null, planningDay: Date): Date {
+  const wakeTime = parseProfileTime(profile?.wake, planningDay);
   if (wakeTime) return wakeTime;
 
-  const workTime = parseProfileTime(profile?.work, now);
+  const workTime = parseProfileTime(profile?.work, planningDay);
   if (workTime) return workTime;
 
-  const fallback = parseTimeInput(FALLBACK_START, now);
-  return fallback ? new Date(fallback) : roundUpToFiveMinutes(now);
+  const fallback = parseTimeInput(FALLBACK_START, planningDay);
+  return fallback ? new Date(fallback) : roundUpToFiveMinutes(planningDay);
 }
 
 export function getTaskPlanningDefaultsFromProfile(
   profile: OnboardingProfile | null,
-  now = new Date(),
+  context: SchedulingContext,
 ): TaskPlanningDefaults {
-  const anchor = getProfileAnchorTime(profile, now);
-  const roundedNow = roundUpToFiveMinutes(now);
+  const { planningDay, referenceNow } = context;
+  const anchor = getProfileAnchorTime(profile, planningDay);
+
+  if (isFuturePlanningDay(planningDay, referenceNow)) {
+    return {
+      preferredStart: formatInputTime(anchor),
+      durationMinutes: FALLBACK_DURATION_MINUTES,
+    };
+  }
+
+  const roundedNow = roundUpToFiveMinutes(referenceNow);
   const candidateStart = anchor.getTime() < roundedNow.getTime() ? roundedNow : anchor;
 
   return {

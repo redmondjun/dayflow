@@ -16,6 +16,7 @@ jest.mock('../services/onboardingProfile', () => ({
 function renderOnboardingScreen(params?: RootStackParamList['Onboarding']) {
   const navigation = {
     navigate: jest.fn(),
+    goBack: jest.fn(),
   } as unknown as NativeStackNavigationProp<RootStackParamList, 'Onboarding'>;
 
   const route = {
@@ -559,6 +560,33 @@ describe('OnboardingScreen', () => {
     } finally {
       jest.useRealTimers();
     }
+  });
+
+  it('does not exit onboarding from the first step in setup mode', () => {
+    const { navigation } = renderOnboardingScreen();
+
+    fireEvent.press(screen.getByTestId('onboarding-back-button'));
+
+    expect(navigation.goBack).not.toHaveBeenCalled();
+  });
+
+  it('exits onboarding from the first step in edit mode', async () => {
+    getOnboardingProfileMock.mockResolvedValueOnce({
+      name: 'Alex',
+      wake: '8:00 AM',
+      work: '7:00 AM',
+      'commitment-presence': 'No',
+      focus: 'Evening',
+      'free-time': '2-3 hours',
+      goal: 'Exercise',
+    });
+    const { navigation } = renderOnboardingScreen({ mode: 'edit' });
+
+    await waitFor(() => expect(screen.getByDisplayValue('Alex')).toBeOnTheScreen());
+
+    fireEvent.press(screen.getByTestId('onboarding-back-button'));
+
+    expect(navigation.goBack).toHaveBeenCalledTimes(1);
   });
 
   it('loads a saved profile in edit mode and goes home after saving', async () => {

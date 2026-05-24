@@ -76,7 +76,7 @@ describe('AIScheduleScreen preview', () => {
     };
   }
 
-  function mockStore(todayTasks: () => Task[] = () => []) {
+  function mockStore(tasksForDayFn: () => Task[] = () => []) {
     jest.mocked(useTaskStore).mockReturnValue({
       previewTasks: [],
       setPreviewTasks: jest.fn(),
@@ -87,10 +87,12 @@ describe('AIScheduleScreen preview', () => {
       error: null,
       clearError: jest.fn(),
       loading: false,
-      todayTasks,
+      todayTasks: tasksForDayFn,
+      tasksForDay: () => tasksForDayFn(),
     } as never);
     jest.mocked(useTaskStore).getState = jest.fn(() => ({
-      todayTasks,
+      todayTasks: tasksForDayFn,
+      tasksForDay: () => tasksForDayFn(),
     })) as never;
   }
 
@@ -171,6 +173,24 @@ describe('AIScheduleScreen preview', () => {
     });
 
     focusSpy.mockRestore();
+  });
+
+  it('keeps Confirm Schedule disabled until a task is committed', async () => {
+    mockStore();
+
+    render(
+      <PaperProvider>
+        <AIScheduleScreen onCancel={jest.fn()} onOpenSettings={jest.fn()} />
+      </PaperProvider>,
+    );
+
+    await waitFor(() => {
+      expect(screen.getByTestId('ai-schedule-draft-input')).toBeOnTheScreen();
+    });
+    expect(screen.getByTestId('ai-schedule-submit')).toBeDisabled();
+
+    fireEvent.changeText(screen.getByTestId('ai-schedule-draft-input'), 'Morning walk');
+    expect(screen.getByTestId('ai-schedule-submit')).toBeDisabled();
   });
 
   it('keeps the dropdown closed until the add-row button is pressed when auto-open is disabled', async () => {
@@ -532,7 +552,9 @@ describe('AIScheduleScreen preview', () => {
         expect.objectContaining({
           preferredStart: '08:00',
           durationMinutes: 60,
-          now: new Date(2026, 4, 24, 8, 0, 0, 0),
+          context: expect.objectContaining({
+            referenceNow: new Date(2026, 4, 24, 8, 0, 0, 0),
+          }),
         }),
       );
     });
@@ -540,5 +562,27 @@ describe('AIScheduleScreen preview', () => {
       startTime: '08:00',
       endTime: '09:00',
     });
+  });
+
+  it('shows plan ahead copy when planning for tomorrow', async () => {
+    jest.useFakeTimers();
+    jest.setSystemTime(new Date(2026, 4, 23, 10, 0, 0, 0));
+    mockStore();
+
+    render(
+      <PaperProvider>
+        <AIScheduleScreen
+          onCancel={jest.fn()}
+          onOpenSettings={jest.fn()}
+          initialPlanningDayKey="2026-05-24"
+        />
+      </PaperProvider>,
+    );
+
+    await waitFor(() => {
+      expect(screen.getByText('Plan ahead')).toBeOnTheScreen();
+    });
+    expect(screen.getByText('Sunday, May 24')).toBeOnTheScreen();
+    expect(screen.getByText('Tomorrow')).toBeOnTheScreen();
   });
 });

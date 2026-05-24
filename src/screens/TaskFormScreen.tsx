@@ -42,6 +42,8 @@ export function TaskFormScreen(props: Props) {
     isRoute && props.route.name === 'EditTask' ? props.route.params.taskId : undefined;
   const createAiEnabled =
     isRoute && props.route.name === 'CreateTask' ? Boolean(props.route.params?.aiEnabled) : false;
+  const createPlanningDayKey =
+    isRoute && props.route.name === 'CreateTask' ? props.route.params?.planningDayKey : undefined;
   const { tasks, addTask, updateTask, deleteTask, error, clearError, loading } = useTaskStore();
   const existing = tasks.find((task) => task.id === editingId);
   const initialTask = toInitialTask(
@@ -58,6 +60,7 @@ export function TaskFormScreen(props: Props) {
         onOpenSettings={isRoute ? () => props.navigation.navigate('Settings') : props.onCancel}
         scenarioId={isPreview ? 'ai-empty-list' : undefined}
         initialDraftAiScheduled={createAiEnabled}
+        initialPlanningDayKey={createPlanningDayKey}
       />
     );
   }

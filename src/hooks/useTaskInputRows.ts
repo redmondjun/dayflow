@@ -10,6 +10,7 @@ import {
   type ManualTaskTimeValidation,
 } from '../features/taskPlanning/scheduling';
 import type { TaskPlanningDefaults } from '../features/taskPlanning/profileDefaults';
+import type { SchedulingContext } from '../features/taskPlanning/planningDay';
 import type { Task, TaskInputRow } from '../types/task';
 import { addMinutes, formatInputTime, parseTimeInput } from '../utils/time';
 
@@ -19,7 +20,7 @@ type UseTaskInputRowsArgs = {
   defaultDraftAiScheduled?: boolean;
   getExistingTasks?: () => Task[];
   planningDefaults?: TaskPlanningDefaults;
-  now?: Date;
+  schedulingContext: SchedulingContext;
 };
 
 function normalizeRows(rows: TaskInputRow[]) {
@@ -31,7 +32,7 @@ function buildDraftRowOptions(
   aiScheduled: boolean,
   getExistingTasks?: () => Task[],
   planningDefaults?: TaskPlanningDefaults,
-  now?: Date,
+  schedulingContext?: SchedulingContext,
 ) {
   return {
     aiScheduled,
@@ -39,7 +40,7 @@ function buildDraftRowOptions(
     plannerRows: rows.filter((row) => !row.isDraft && hasTaskRowTitle(row)),
     preferredStart: planningDefaults?.preferredStart,
     durationMinutes: planningDefaults?.durationMinutes,
-    now,
+    context: schedulingContext,
   };
 }
 
@@ -49,10 +50,11 @@ export function useTaskInputRows({
   defaultDraftAiScheduled = false,
   getExistingTasks,
   planningDefaults,
-  now = new Date(),
+  schedulingContext,
 }: UseTaskInputRowsArgs) {
   const [taskRows, setTaskRowsState] = useState(() => normalizeRows(initialRows));
   const [selectedTaskId, setSelectedTaskId] = useState<string | null>(initialSelectedTaskId);
+  const { planningDay, referenceNow } = schedulingContext;
 
   const setTaskRows = (value: TaskInputRow[] | ((rows: TaskInputRow[]) => TaskInputRow[])) => {
     setTaskRowsState((rows) => {
@@ -66,23 +68,30 @@ export function useTaskInputRows({
   const committedRows = useMemo(() => taskRows.filter((task) => !task.isDraft), [taskRows]);
   const titledRows = useMemo(() => taskRows.filter(hasTaskRowTitle), [taskRows]);
   const selectedTaskStart =
-    expandedTask?.startTime ?? planningDefaults?.preferredStart ?? getRoundedStartTime();
+    expandedTask?.startTime ??
+    planningDefaults?.preferredStart ??
+    getRoundedStartTime(referenceNow);
   const selectedTaskEnd =
     expandedTask?.endTime ??
     formatInputTime(
       addMinutes(
-        parseTimeInput(selectedTaskStart, now) ?? now.toISOString(),
+        parseTimeInput(selectedTaskStart, planningDay) ?? planningDay.toISOString(),
         planningDefaults?.durationMinutes ?? 60,
       ),
     );
   const selectedTimeValidation: ManualTaskTimeValidation | null = useMemo(() => {
     if (!expandedTask || expandedTask.aiScheduled) return null;
-    return validateManualTaskTimes(expandedTask.startTime, expandedTask.endTime, now, {
-      existingTasks: getExistingTasks?.() ?? [],
-      plannerRows: committedRows,
-      excludeRowId: expandedTask.id,
-    });
-  }, [committedRows, expandedTask, getExistingTasks, now]);
+    return validateManualTaskTimes(
+      expandedTask.startTime,
+      expandedTask.endTime,
+      schedulingContext,
+      {
+        existingTasks: getExistingTasks?.() ?? [],
+        plannerRows: committedRows,
+        excludeRowId: expandedTask.id,
+      },
+    );
+  }, [committedRows, expandedTask, getExistingTasks, schedulingContext]);
 
   const updateTaskRow = (taskId: string, patch: Partial<TaskInputRow>) => {
     setTaskRows((rows) =>
@@ -158,7 +167,7 @@ export function useTaskInputRows({
           defaultDraftAiScheduled,
           getExistingTasks,
           planningDefaults,
-          now,
+          schedulingContext,
         ),
       );
       setSelectedTaskId(nextDraft.id);
@@ -182,7 +191,7 @@ export function useTaskInputRows({
           defaultDraftAiScheduled,
           getExistingTasks,
           planningDefaults,
-          now,
+          schedulingContext,
         ),
       );
       setSelectedTaskId(next.id);

@@ -8,13 +8,14 @@ import { OnboardingFlowView } from '../views/OnboardingFlowView';
 type Props = NativeStackScreenProps<RootStackParamList, 'Onboarding'>;
 
 export function OnboardingScreen({ navigation, route }: Props) {
-  const editMode = route.params?.mode === 'edit';
+  const isEditMode = route.params?.mode === 'edit';
   const [initialAnswers, setInitialAnswers] =
     useState<Record<string, OnboardingAnswer>>(defaultOnboardingAnswers);
-  const [loadingProfile, setLoadingProfile] = useState(editMode);
+  const [loadingProfile, setLoadingProfile] = useState(isEditMode);
 
   useEffect(() => {
-    if (!editMode) {
+    if (!isEditMode) {
+      setInitialAnswers(defaultOnboardingAnswers);
       setLoadingProfile(false);
       return;
     }
@@ -36,15 +37,16 @@ export function OnboardingScreen({ navigation, route }: Props) {
     return () => {
       mounted = false;
     };
-  }, [editMode]);
+  }, [isEditMode]);
 
   if (loadingProfile) return null;
 
   return (
     <OnboardingFlowView
+      key={isEditMode ? 'edit' : 'setup'}
       initialAnswers={initialAnswers}
       onFinish={() => navigation.navigate('Home')}
-      onExit={editMode ? () => navigation.goBack() : undefined}
+      onExit={isEditMode ? () => navigation.goBack() : undefined}
       onSubmit={saveOnboardingProfile}
     />
   );

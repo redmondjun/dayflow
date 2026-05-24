@@ -117,7 +117,7 @@ describe('gemini service', () => {
                 parts: [
                   {
                     text: JSON.stringify({
-                      tasks: [{ title: 'Study React', durationMinutes: 45 }],
+                      tasks: [{ title: 'Study React', durationMinutes: 45, startTime: '09:00' }],
                     }),
                   },
                 ],
@@ -128,18 +128,19 @@ describe('gemini service', () => {
       }),
     );
 
-    const tasks = await generateGeminiScheduleFromText(
-      'gemini-live',
-      [' Study React ', 'Gym'],
-      '- Wake-up time: 7:00 AM',
-    );
+    const tasks = await generateGeminiScheduleFromText('gemini-live', [' Study React ', 'Gym'], {
+      planningDayLabel: 'Today, May 23',
+      earliestStart: '07:00',
+      userProfile: '- Wake-up time: 7:00 AM',
+    });
 
-    expect(tasks).toEqual([{ title: 'Study React', durationMinutes: 45 }]);
+    expect(tasks).toEqual([{ title: 'Study React', durationMinutes: 45, startTime: '09:00' }]);
     const [, request] = fetchMock.mock.calls[0] ?? [];
     const body = JSON.parse(String((request as RequestInit | undefined)?.body));
     expect(body.contents[0].parts[0].text).toContain('- Wake-up time: 7:00 AM');
-    expect(body.contents[0].parts[0].text).toContain('1. Study React');
-    expect(body.contents[0].parts[0].text).toContain('2. Gym');
+    expect(body.contents[0].parts[0].text).toContain('- Study React');
+    expect(body.contents[0].parts[0].text).toContain('- Gym');
+    expect(body.contents[0].parts[0].text).toContain('ignore input order');
     expect(body.generationConfig.responseSchema.required).toEqual(['tasks']);
   });
 

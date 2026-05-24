@@ -32,7 +32,11 @@ export function SettingsScreen(props: Props) {
   const onResetOnboarding = isRoute
     ? async () => {
         const cleared = await settings.clearOnboarding();
-        if (cleared) props.navigation.replace('Onboarding');
+        if (!cleared) return;
+        props.navigation.reset({
+          index: 0,
+          routes: [{ name: 'Onboarding' }],
+        });
       }
     : async () => {
         await settings.clearOnboarding();

@@ -1,5 +1,6 @@
 import { createContext, useContext } from 'react';
 import type { ManualTaskTimeValidation } from '../../features/taskPlanning/scheduling';
+import type { PlanningDayKey } from '../../features/taskPlanning/planningDay';
 import type { TaskInputRow } from '../../types/task';
 
 export type AIScheduleContextValue = {
@@ -10,6 +11,11 @@ export type AIScheduleContextValue = {
   aiAvailable: boolean;
   selectedRowAiScheduled: boolean;
   draftAiScheduled: boolean;
+  planningDayKey: PlanningDayKey;
+  setPlanningDayKey: (key: PlanningDayKey) => void;
+  planningDay: Date;
+  effectiveNow: Date;
+  isFuturePlanningDay: boolean;
   taskRows: TaskInputRow[];
   selectedTaskId: string | null;
   selectedTaskStart: string;

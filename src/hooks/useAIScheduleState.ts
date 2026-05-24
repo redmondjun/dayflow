@@ -4,6 +4,7 @@ import { createTaskPlanningPreviewStore } from '../features/taskPlanning/preview
 import {
   getRoundedStartTime,
   getTaskPlanningPreviewSeed,
+  hasTaskRowTitle,
   missingApiKeyMessage,
   serializeTaskRowsForPreview,
 } from '../features/taskPlanning';
@@ -16,6 +17,12 @@ import {
   getTaskPlanningDefaultsFromProfile,
   type TaskPlanningDefaults,
 } from '../features/taskPlanning/profileDefaults';
+import {
+  createSchedulingContext,
+  getTodayKey,
+  isFuturePlanningDay,
+  type PlanningDayKey,
+} from '../features/taskPlanning/planningDay';
 import { useTaskInputRows } from './useTaskInputRows';
 import { useMountedRef } from './useMountedRef';
 import { getActiveAiApiKey, getAiFeaturesEnabled } from '../services/apiKey';
@@ -25,16 +32,19 @@ import {
   formatOnboardingProfileForPrompt,
   getOnboardingProfile,
 } from '../services/onboardingProfile';
+import { getProfileSchedulingContext } from '../features/taskPlanning/profileScheduling';
 import { generateScheduleFromText } from '../services/openai';
 import { useTaskStore } from '../store/taskStore';
 import type { GeneratedTaskPreview, TaskInputRow } from '../types/task';
 import { buildHybridPreview } from '../utils/scheduling';
+import { formatInputTime } from '../utils/time';
 
 type UseAIScheduleStateArgs = {
   isPreview: boolean;
   scenarioId?: string;
   onComplete: () => void;
   initialDraftAiScheduled?: boolean;
+  initialPlanningDayKey?: PlanningDayKey;
   autoOpenDraft?: boolean;
   /** @deprecated Use initialDraftAiScheduled */
   initialAiEnabled?: boolean;
@@ -57,6 +67,7 @@ export function useAIScheduleState({
   scenarioId,
   onComplete,
   initialDraftAiScheduled: initialDraftAiScheduledProp = false,
+  initialPlanningDayKey,
   initialAiEnabled,
   autoOpenDraft = false,
 }: UseAIScheduleStateArgs) {
@@ -64,6 +75,14 @@ export function useAIScheduleState({
   const isFocused = useIsFocused();
   const { nowOverride } = useDevDemoState();
   const effectiveNow = useMemo(() => getEffectiveNow(), [nowOverride]);
+  const [planningDayKey, setPlanningDayKey] = useState<PlanningDayKey>(
+    initialPlanningDayKey ?? getTodayKey(effectiveNow),
+  );
+  const schedulingContext = useMemo(
+    () => createSchedulingContext(planningDayKey, effectiveNow),
+    [effectiveNow, planningDayKey],
+  );
+  const { planningDay } = schedulingContext;
   const initialState = isPreview ? getTaskPlanningPreviewSeed(scenarioId) : getLiveCreateState();
   const [apiKey, setApiKey] = useState<string | null>(initialState.apiKey);
   const [aiFeaturesEnabled, setAiFeaturesEnabled] = useState(initialState.aiFeaturesEnabled);
@@ -78,13 +97,13 @@ export function useAIScheduleState({
       : null,
   );
   const [planningDefaults, setPlanningDefaults] = useState<TaskPlanningDefaults | null>(
-    isPreview ? getTaskPlanningDefaultsFromProfile(null) : null,
+    isPreview ? getTaskPlanningDefaultsFromProfile(null, schedulingContext) : null,
   );
   const mountedRef = useMountedRef();
 
   const aiAvailable = Boolean(apiKey) && aiFeaturesEnabled;
   const hasExistingSchedule =
-    !isPreview && useTaskStore.getState().todayTasks(effectiveNow).length > 0;
+    !isPreview && useTaskStore.getState().tasksForDay(planningDayKey, effectiveNow).length > 0;
   const defaultDraftAiScheduled = isPreview
     ? initialState.initialDraftAiScheduled
     : initialDraftAiScheduled
@@ -105,8 +124,8 @@ export function useAIScheduleState({
 
   const getExistingTasks = useCallback(() => {
     if (isPreview) return [];
-    return useTaskStore.getState().todayTasks(effectiveNow);
-  }, [effectiveNow, isPreview]);
+    return useTaskStore.getState().tasksForDay(planningDayKey, effectiveNow);
+  }, [effectiveNow, isPreview, planningDayKey]);
 
   const { setTaskRows, setSelectedTaskId, updateTaskRow, ...taskInput } = useTaskInputRows({
     initialRows: initialState.taskRows,
@@ -114,8 +133,13 @@ export function useAIScheduleState({
     defaultDraftAiScheduled,
     getExistingTasks,
     planningDefaults: planningDefaults ?? undefined,
-    now: effectiveNow,
+    schedulingContext,
   });
+
+  const committedTitledRows = useMemo(
+    () => taskInput.committedRows.filter(hasTaskRowTitle),
+    [taskInput.committedRows],
+  );
 
   const didAutoOpenDraft = useRef(false);
 
@@ -125,13 +149,13 @@ export function useAIScheduleState({
     getOnboardingProfile()
       .then((profile) => {
         if (!mountedRef.current) return;
-        setPlanningDefaults(getTaskPlanningDefaultsFromProfile(profile, effectiveNow));
+        setPlanningDefaults(getTaskPlanningDefaultsFromProfile(profile, schedulingContext));
       })
       .catch(() => {
         if (!mountedRef.current) return;
-        setPlanningDefaults(getTaskPlanningDefaultsFromProfile(null, effectiveNow));
+        setPlanningDefaults(getTaskPlanningDefaultsFromProfile(null, schedulingContext));
       });
-  }, [effectiveNow, isPreview, mountedRef]);
+  }, [isPreview, mountedRef, schedulingContext]);
 
   useEffect(() => {
     if (!autoOpenDraft || didAutoOpenDraft.current) return;
@@ -186,8 +210,8 @@ export function useAIScheduleState({
   }, []);
 
   const previewInputSignature = useMemo(
-    () => serializeTaskRowsForPreview(taskInput.titledRows),
-    [taskInput.titledRows],
+    () => serializeTaskRowsForPreview(committedTitledRows),
+    [committedTitledRows],
   );
 
   const previewStore = createTaskPlanningPreviewStore({
@@ -228,7 +252,7 @@ export function useAIScheduleState({
       plannerRows: taskInput.committedRows.filter((committed) => committed.id !== row.id),
       preferredStart: planningDefaults?.preferredStart,
       durationMinutes: planningDefaults?.durationMinutes,
-      now: effectiveNow,
+      context: schedulingContext,
     });
     updateTaskRow(row.id, {
       aiScheduled: false,
@@ -238,11 +262,11 @@ export function useAIScheduleState({
   };
 
   const saveManualSchedule = async () => {
-    const manualRows = taskInput.titledRows.filter((row) => !row.aiScheduled);
+    const manualRows = committedTitledRows.filter((row) => !row.aiScheduled);
     const result = await submitManualSchedule({
       manualRows,
       existingTasks: getExistingTasks(),
-      now: effectiveNow,
+      context: schedulingContext,
       addTasks,
     });
     if (result.error) {
@@ -254,7 +278,7 @@ export function useAIScheduleState({
   };
 
   const generateHybridSchedule = async () => {
-    const rows = taskInput.titledRows;
+    const rows = committedTitledRows;
     const aiRows = rows.filter((row) => row.aiScheduled);
     const manualRows = rows.filter((row) => !row.aiScheduled);
 
@@ -263,7 +287,7 @@ export function useAIScheduleState({
       return;
     }
 
-    const manualError = validateHybridManualRows(manualRows, getExistingTasks(), effectiveNow);
+    const manualError = validateHybridManualRows(manualRows, getExistingTasks(), schedulingContext);
     if (manualError) {
       setLocalError(manualError);
       return;
@@ -287,29 +311,35 @@ export function useAIScheduleState({
     setGenerating(true);
     setLocalError(null);
     try {
-      let aiDurations = aiRows.map((row, index) => ({
+      let aiSchedule = aiRows.map((row, index) => ({
         title: row.title.trim(),
         durationMinutes: initialState.previewTasks[index]?.durationMinutes ?? 45,
+        startTime: formatInputTime(
+          initialState.previewTasks[index]?.startTime ??
+            planningDefaults?.preferredStart ??
+            getRoundedStartTime(effectiveNow),
+        ),
       }));
 
       if (aiRows.length > 0 && !isPreview) {
         const onboardingProfile = await getOnboardingProfile();
         const formattedProfile = formatOnboardingProfileForPrompt(onboardingProfile);
+        const scheduleContext = getProfileSchedulingContext(
+          onboardingProfile,
+          schedulingContext,
+          formattedProfile,
+        );
         const titles = aiRows.map((row) => row.title.trim());
-        aiDurations = latestOpenAiApiKey
-          ? await generateScheduleFromText(latestOpenAiApiKey, titles, formattedProfile)
-          : await generateGeminiScheduleFromText(
-              latestGeminiApiKey ?? '',
-              titles,
-              formattedProfile,
-            );
+        aiSchedule = latestOpenAiApiKey
+          ? await generateScheduleFromText(latestOpenAiApiKey, titles, scheduleContext)
+          : await generateGeminiScheduleFromText(latestGeminiApiKey ?? '', titles, scheduleContext);
       }
 
       previewStore.writeTasks(
-        buildHybridPreview(rows, aiDurations, {
+        buildHybridPreview(rows, aiSchedule, {
           existingTasks: getExistingTasks(),
-          now: effectiveNow,
-          preferredStart: planningDefaults?.preferredStart ?? getRoundedStartTime(),
+          context: schedulingContext,
+          preferredStart: planningDefaults?.preferredStart ?? getRoundedStartTime(effectiveNow),
         }),
       );
       cachedPreviewSignatureRef.current = previewInputSignature;
@@ -322,7 +352,7 @@ export function useAIScheduleState({
   };
 
   const onSubmit = () => {
-    const hasAiRows = taskInput.titledRows.some((row) => row.aiScheduled);
+    const hasAiRows = committedTitledRows.some((row) => row.aiScheduled);
     if (!hasAiRows) {
       return saveManualSchedule();
     }
@@ -346,10 +376,16 @@ export function useAIScheduleState({
     loading: activeLoading,
     previewTasks,
     showingPreview,
-    canSubmit: taskInput.titledRows.length > 0 && !generating && !activeLoading,
+    canSubmit: committedTitledRows.length > 0 && !generating && !activeLoading,
     canConfirmPreview,
     selectedRowAiScheduled,
     draftAiScheduled,
+    planningDayKey,
+    setPlanningDayKey,
+    planningDay,
+    schedulingContext,
+    isFuturePlanningDay: isFuturePlanningDay(planningDay, effectiveNow),
+    effectiveNow,
     onDismissError: previewStore.dismissError,
     onToggleRowAiScheduled: toggleRowAiScheduled,
     onSubmit,

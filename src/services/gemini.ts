@@ -5,6 +5,7 @@ import {
   buildWeeklyInsightPrompt,
   geminiScheduleSchema,
   geminiWeeklyInsightSchema,
+  type ScheduleGenerationContext,
 } from './ai/prompts';
 import {
   validateGeneratedTasks,
@@ -18,10 +19,13 @@ export type { AiGeneratedTask, AiWeeklyInsight };
 const GEMINI_MODEL = 'gemini-2.5-flash';
 const GEMINI_GENERATE_CONTENT_URL = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent`;
 
+const SCHEDULE_SYSTEM_PROMPT =
+  'You are a scheduling assistant. Build a realistic daily schedule with logical start times and durations for each task. Use the user profile windows and constraints. Return JSON only.';
+
 export async function generateGeminiScheduleFromText(
   apiKey: string,
   taskTitles: string[],
-  userProfile?: string | null,
+  scheduleContext?: ScheduleGenerationContext | null,
 ): Promise<AiGeneratedTask[]> {
   const tasks = taskTitles.map((title) => title.trim()).filter(Boolean);
   if (!apiKey.trim()) throw new Error('Add your Gemini API key in Settings first.');
@@ -31,14 +35,14 @@ export async function generateGeminiScheduleFromText(
     systemInstruction: {
       parts: [
         {
-          text: 'You are a scheduling assistant. Convert separate user tasks into a clear sequential schedule. Estimate realistic durations in minutes. Return JSON only.',
+          text: SCHEDULE_SYSTEM_PROMPT,
         },
       ],
     },
     contents: [
       {
         role: 'user',
-        parts: [{ text: buildSchedulePrompt(tasks, userProfile) }],
+        parts: [{ text: buildSchedulePrompt(tasks, scheduleContext) }],
       },
     ],
     generationConfig: {

@@ -164,8 +164,18 @@ export function sortByStartTime<T extends { startTime: string }>(items: T[]): T[
 /** @deprecated Use sortByStartTime */
 export const sortGeneratedTasksByStartTime = sortByStartTime;
 
+export function addLocalDays(day: Date, days: number): Date {
+  const result = new Date(day);
+  result.setDate(result.getDate() + days);
+  return result;
+}
+
+export function getTasksForDay(tasks: Task[], day: Date): Task[] {
+  return sortByStartTime(tasks.filter((task) => isSameLocalDay(new Date(task.startTime), day)));
+}
+
 export function getTodayTasks(tasks: Task[], now = new Date()): Task[] {
-  return sortByStartTime(tasks.filter((task) => isSameLocalDay(new Date(task.startTime), now)));
+  return getTasksForDay(tasks, now);
 }
 
 export function getCurrentTask(tasks: Task[], now = new Date()): Task | undefined {

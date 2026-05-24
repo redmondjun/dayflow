@@ -1,7 +1,8 @@
 import { describe, expect, it } from '@jest/globals';
 import type { TaskInputRow } from '../types/task';
+import { schedulingContextForDay } from '../features/taskPlanning/planningDay';
 import { buildHybridPreview } from './scheduling';
-import { formatInputTime } from './time';
+import { addLocalDays, formatInputTime } from './time';
 
 function row(
   title: string,
@@ -21,7 +22,8 @@ function toClock(time: string) {
 }
 
 describe('buildHybridPreview', () => {
-  const now = new Date(2026, 4, 23, 8, 0, 0, 0);
+  const referenceNow = new Date(2026, 4, 23, 8, 0, 0, 0);
+  const context = schedulingContextForDay(referenceNow, referenceNow);
 
   it('slots AI tasks around a pinned lunch break', () => {
     const rows: TaskInputRow[] = [
@@ -33,10 +35,10 @@ describe('buildHybridPreview', () => {
     const preview = buildHybridPreview(
       rows,
       [
-        { title: 'Morning walk', durationMinutes: 30 },
-        { title: 'Deep work', durationMinutes: 90 },
+        { title: 'Morning walk', durationMinutes: 30, startTime: '08:00' },
+        { title: 'Deep work', durationMinutes: 90, startTime: '12:30' },
       ],
-      { now, preferredStart: '08:00' },
+      { context, preferredStart: '08:00' },
     );
 
     expect(preview).toHaveLength(3);
@@ -62,7 +64,7 @@ describe('buildHybridPreview', () => {
   it('returns manual-only preview without AI durations', () => {
     const rows: TaskInputRow[] = [row('Lunch', { startTime: '12:00', endTime: '13:00' })];
 
-    const preview = buildHybridPreview(rows, [], { now });
+    const preview = buildHybridPreview(rows, [], { context });
 
     expect(preview).toHaveLength(1);
     expect(preview[0].aiGenerated).toBe(false);
@@ -76,12 +78,48 @@ describe('buildHybridPreview', () => {
       row('Lunch', { startTime: '12:00', endTime: '13:00' }),
     ];
 
-    const preview = buildHybridPreview(rows, [], { now });
+    const preview = buildHybridPreview(rows, [], { context });
 
     expect(preview.map((task) => task.title)).toEqual([
       'Morning standup',
       'Lunch',
       'Afternoon review',
     ]);
+  });
+
+  it('anchors preview tasks to a future planning day', () => {
+    const tomorrow = addLocalDays(referenceNow, 1);
+    const futureContext = schedulingContextForDay(tomorrow, referenceNow);
+    const rows: TaskInputRow[] = [row('Morning walk', { startTime: '07:00', endTime: '08:00' })];
+
+    const preview = buildHybridPreview(rows, [], { context: futureContext });
+
+    expect(new Date(preview[0].startTime).getDate()).toBe(24);
+    expect(toClock(preview[0].startTime)).toBe('07:00');
+  });
+
+  it('uses AI start times instead of input order for scrambled tasks', () => {
+    const earlyContext = schedulingContextForDay(referenceNow, new Date(2026, 4, 23, 6, 0, 0, 0));
+    const rows: TaskInputRow[] = [
+      row('Sleep', { aiScheduled: true }),
+      row('Dinner', { aiScheduled: true }),
+      row('Breakfast', { aiScheduled: true }),
+      row('Work', { aiScheduled: true }),
+    ];
+
+    const preview = buildHybridPreview(
+      rows,
+      [
+        { title: 'Breakfast', durationMinutes: 30, startTime: '07:30' },
+        { title: 'Work', durationMinutes: 240, startTime: '09:00' },
+        { title: 'Dinner', durationMinutes: 45, startTime: '19:00' },
+        { title: 'Sleep', durationMinutes: 30, startTime: '22:30' },
+      ],
+      { context: earlyContext, preferredStart: '07:00' },
+    );
+
+    expect(preview.map((task) => task.title)).toEqual(['Breakfast', 'Work', 'Dinner', 'Sleep']);
+    expect(toClock(preview[0].startTime)).toBe('07:30');
+    expect(toClock(preview[3].startTime)).toBe('22:30');
   });
 });
