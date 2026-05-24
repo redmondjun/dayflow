@@ -4,6 +4,7 @@ import {
   bulkCreateTasks,
   createTask,
   deleteTask as deleteTaskFromDb,
+  deleteTasksForDay as deleteTasksForDayFromDb,
   initDb,
   loadTasks,
   updateTask as updateTaskInDb,
@@ -33,6 +34,7 @@ type TaskStore = {
     input: Partial<NewTaskInput> & { status?: TaskStatus },
   ) => Promise<void>;
   deleteTask: (taskId: string) => Promise<void>;
+  deleteTasksForDay: (day: Date) => Promise<number>;
   markCompleted: (taskId: string) => Promise<void>;
   markSkipped: (taskId: string) => Promise<void>;
   setPreviewTasks: (tasks: GeneratedTaskPreview[]) => void;
@@ -140,6 +142,18 @@ export const useTaskStore = create<TaskStore>((set, get) => ({
       await cancelTaskNotification(existing?.notificationId);
       await deleteTaskFromDb(taskId);
     });
+  },
+
+  deleteTasksForDay: async (day) => {
+    let deletedCount = 0;
+    await runStoreAction(set, async () => {
+      const deleted = await deleteTasksForDayFromDb(day);
+      deletedCount = deleted.length;
+      for (const task of deleted) {
+        await cancelTaskNotification(task.notificationId);
+      }
+    });
+    return deletedCount;
   },
 
   markCompleted: async (taskId) => {

@@ -3,9 +3,11 @@ import {
   deleteGeminiApiKey,
   deleteOpenAIApiKey,
   getAiFeaturesEnabled,
+  getAiSuggestionEnabled,
   getGeminiApiKey,
   getOpenAIApiKey,
   saveAiFeaturesEnabled,
+  saveAiSuggestionEnabled,
   saveGeminiApiKey,
   saveOpenAIApiKey,
 } from '../services/apiKey';
@@ -17,6 +19,9 @@ import {
 } from '../services/devDemo';
 import { clearOnboardingProfile } from '../services/onboardingProfile';
 import { validateOpenAIApiKey } from '../services/openai';
+import { useTaskStore } from '../store/taskStore';
+
+export type AiProvider = 'google' | 'openai';
 
 type SaveKeyParams = {
   value: string;
@@ -39,39 +44,43 @@ type RemoveKeyParams = {
   errorMessage: string;
 };
 
-type ApiKeySectionState = {
-  id: 'openai' | 'gemini';
-  provider: string;
-  placeholder: string;
-  value: string;
-  savedKey: string | null;
-  loading: boolean;
-  onChange: (value: string) => void;
-  onSave: () => void;
-  onRemove: () => void;
-};
-
 export function useSettingsState() {
   const { nowOverride, weeklyPreviewEnabled } = useDevDemoState();
+  const deleteTasksForDay = useTaskStore((state) => state.deleteTasksForDay);
+  const [selectedProvider, setSelectedProvider] = useState<AiProvider>('openai');
   const [openAiApiKey, setOpenAiApiKey] = useState('');
   const [savedOpenAiApiKey, setSavedOpenAiApiKey] = useState<string | null>(null);
   const [geminiApiKey, setGeminiApiKey] = useState('');
   const [savedGeminiApiKey, setSavedGeminiApiKey] = useState<string | null>(null);
   const [aiFeaturesEnabled, setAiFeaturesEnabled] = useState(true);
+  const [aiSuggestionEnabled, setAiSuggestionEnabled] = useState(true);
   const [message, setMessage] = useState<string | null>(null);
   const [validatingOpenAi, setValidatingOpenAi] = useState(false);
   const [savingGemini, setSavingGemini] = useState(false);
+  const [savingSettings, setSavingSettings] = useState(false);
+  const [deletingDemoTasks, setDeletingDemoTasks] = useState(false);
   const [demoDate, setDemoDate] = useState('');
   const [demoTime, setDemoTime] = useState('');
 
+  const currentApiKey = selectedProvider === 'openai' ? openAiApiKey : geminiApiKey;
+  const savedCurrentApiKey = selectedProvider === 'openai' ? savedOpenAiApiKey : savedGeminiApiKey;
+  const savingCurrentKey = selectedProvider === 'openai' ? validatingOpenAi : savingGemini;
+
   useEffect(() => {
-    Promise.all([getOpenAIApiKey(), getGeminiApiKey(), getAiFeaturesEnabled()])
-      .then(([openAiKey, geminiKey, aiEnabled]) => {
+    Promise.all([
+      getOpenAIApiKey(),
+      getGeminiApiKey(),
+      getAiFeaturesEnabled(),
+      getAiSuggestionEnabled(),
+    ])
+      .then(([openAiKey, geminiKey, aiEnabled, aiSuggestion]) => {
         setSavedOpenAiApiKey(openAiKey);
         setOpenAiApiKey(openAiKey ?? '');
         setSavedGeminiApiKey(geminiKey);
         setGeminiApiKey(geminiKey ?? '');
         setAiFeaturesEnabled(aiEnabled);
+        setAiSuggestionEnabled(aiSuggestion);
+        if (geminiKey && !openAiKey) setSelectedProvider('google');
       })
       .catch(() => setMessage('Could not load saved settings.'));
   }, []);
@@ -170,6 +179,14 @@ export function useSettingsState() {
     });
   };
 
+  const saveCurrentProviderKey = async () => {
+    if (selectedProvider === 'openai') {
+      await saveOpenAi();
+      return;
+    }
+    await saveGemini();
+  };
+
   const removeOpenAi = async () => {
     await removeKey({
       setLoading: setValidatingOpenAi,
@@ -192,13 +209,43 @@ export function useSettingsState() {
     });
   };
 
-  const toggleAiFeatures = async (value: boolean) => {
-    setAiFeaturesEnabled(value);
+  const removeCurrentProviderKey = async () => {
+    if (selectedProvider === 'openai') {
+      await removeOpenAi();
+      return;
+    }
+    await removeGemini();
+  };
+
+  const setCurrentApiKey = (value: string) => {
+    if (selectedProvider === 'openai') {
+      setOpenAiApiKey(value);
+      return;
+    }
+    setGeminiApiKey(value);
+  };
+
+  const saveAllSettings = async () => {
+    setSavingSettings(true);
+    setMessage(null);
     try {
-      await saveAiFeaturesEnabled(value);
+      await Promise.all([
+        saveAiFeaturesEnabled(aiFeaturesEnabled),
+        saveAiSuggestionEnabled(aiSuggestionEnabled),
+      ]);
+      if (currentApiKey.trim()) {
+        if (selectedProvider === 'openai') {
+          await saveOpenAi();
+        } else {
+          await saveGemini();
+        }
+      } else {
+        setMessage('Settings saved.');
+      }
     } catch {
-      setAiFeaturesEnabled(!value);
-      setMessage('Could not update AI features setting.');
+      setMessage('Could not save settings.');
+    } finally {
+      setSavingSettings(false);
     }
   };
 
@@ -229,6 +276,30 @@ export function useSettingsState() {
     setMessage(value ? 'Weekly demo preview enabled.' : 'Weekly demo preview disabled.');
   };
 
+  const deleteDemoDayTasks = async () => {
+    if (!__DEV__) return;
+    const parsed = parseDemoDateOnly(demoDate);
+    if (!parsed) {
+      setMessage('Enter a valid demo date.');
+      return;
+    }
+
+    setDeletingDemoTasks(true);
+    setMessage(null);
+    try {
+      const deletedCount = await deleteTasksForDay(parsed);
+      setMessage(
+        deletedCount === 0
+          ? `No tasks found for ${formatDateLabel(parsed)}.`
+          : `Deleted ${deletedCount} task${deletedCount === 1 ? '' : 's'} for ${formatDateLabel(parsed)}.`,
+      );
+    } catch {
+      setMessage('Could not delete demo day tasks.');
+    } finally {
+      setDeletingDemoTasks(false);
+    }
+  };
+
   const clearOnboarding = async () => {
     try {
       await clearOnboardingProfile();
@@ -240,59 +311,35 @@ export function useSettingsState() {
     }
   };
 
-  const apiKeySections: ApiKeySectionState[] = [
-    {
-      id: 'openai',
-      provider: 'OpenAI',
-      placeholder: 'sk-proj-...',
-      value: openAiApiKey,
-      savedKey: savedOpenAiApiKey,
-      loading: validatingOpenAi,
-      onChange: setOpenAiApiKey,
-      onSave: saveOpenAi,
-      onRemove: removeOpenAi,
-    },
-    {
-      id: 'gemini',
-      provider: 'Gemini',
-      placeholder: 'AIza...',
-      value: geminiApiKey,
-      savedKey: savedGeminiApiKey,
-      loading: savingGemini,
-      onChange: setGeminiApiKey,
-      onSave: saveGemini,
-      onRemove: removeGemini,
-    },
-  ];
-
   return {
-    apiKeySections,
-    openAiApiKey,
-    savedOpenAiApiKey,
-    geminiApiKey,
-    savedGeminiApiKey,
     aiFeaturesEnabled,
+    aiSuggestionEnabled,
     clearOnboarding,
-    message,
+    currentApiKey,
+    deleteDemoDayTasks,
     demoDate,
     demoTime,
     demoNowOverride: nowOverride,
-    weeklyPreviewEnabled,
-    validatingOpenAi,
-    savingGemini,
-    setOpenAiApiKey,
-    setGeminiApiKey,
-    setMessage,
+    deletingDemoTasks,
+    message,
+    removeCurrentProviderKey,
+    resetDemoTime,
+    saveAllSettings,
+    saveCurrentProviderKey,
+    savedCurrentApiKey,
+    savingCurrentKey,
+    savingSettings,
+    selectedProvider,
+    setAiFeaturesEnabled,
+    setAiSuggestionEnabled,
+    setCurrentApiKey,
     setDemoDate,
     setDemoTime,
-    saveOpenAi,
-    saveGemini,
+    setMessage,
+    setSelectedProvider,
     saveDemoTime,
-    removeOpenAi,
-    removeGemini,
-    resetDemoTime,
-    toggleAiFeatures,
     toggleWeeklyPreview,
+    weeklyPreviewEnabled,
   };
 }
 
@@ -307,6 +354,28 @@ function formatTimeInput(value: Date): string {
   const hours = String(value.getHours()).padStart(2, '0');
   const minutes = String(value.getMinutes()).padStart(2, '0');
   return `${hours}:${minutes}`;
+}
+
+function parseDemoDateOnly(dateValue: string): Date | null {
+  const dateMatch = /^(\d{4})-(\d{2})-(\d{2})$/.exec(dateValue.trim());
+  if (!dateMatch) return null;
+
+  const year = Number(dateMatch[1]);
+  const month = Number(dateMatch[2]) - 1;
+  const day = Number(dateMatch[3]);
+  if (Number.isNaN(year) || Number.isNaN(month) || Number.isNaN(day)) return null;
+
+  const parsed = new Date(year, month, day, 0, 0, 0, 0);
+  if (
+    Number.isNaN(parsed.getTime()) ||
+    parsed.getFullYear() !== year ||
+    parsed.getMonth() !== month ||
+    parsed.getDate() !== day
+  ) {
+    return null;
+  }
+
+  return parsed;
 }
 
 function parseDemoDateTime(dateValue: string, timeValue: string): Date | null {
@@ -351,4 +420,8 @@ function formatDisplayLabel(value: Date): string {
     hour: 'numeric',
     minute: '2-digit',
   });
+}
+
+function formatDateLabel(value: Date): string {
+  return value.toLocaleDateString([], { month: 'short', day: 'numeric', year: 'numeric' });
 }

@@ -31,67 +31,38 @@ jest.mock('../assets/icons/trash.svg', () => {
 });
 
 const mockSettingsState = {
-  openAiApiKey: '',
-  savedOpenAiApiKey: null as string | null,
-  geminiApiKey: '',
-  savedGeminiApiKey: null as string | null,
   aiFeaturesEnabled: true,
+  aiSuggestionEnabled: true,
   clearOnboarding: jest.fn(async () => true),
+  currentApiKey: '',
+  deleteDemoDayTasks: jest.fn(),
   demoDate: '2026-05-22',
   demoTime: '09:30',
   demoNowOverride: null as string | null,
+  deletingDemoTasks: false,
   message: null as string | null,
+  removeCurrentProviderKey: jest.fn(),
   resetDemoTime: jest.fn(),
-  validatingOpenAi: false,
-  savingGemini: false,
-  setOpenAiApiKey: jest.fn(),
-  setGeminiApiKey: jest.fn(),
-  setMessage: jest.fn(),
+  saveAllSettings: jest.fn(),
+  saveCurrentProviderKey: jest.fn(),
+  savedCurrentApiKey: null as string | null,
+  savingCurrentKey: false,
+  savingSettings: false,
+  selectedProvider: 'openai' as const,
+  setAiFeaturesEnabled: jest.fn(),
+  setAiSuggestionEnabled: jest.fn(),
+  setCurrentApiKey: jest.fn(),
   setDemoDate: jest.fn(),
   setDemoTime: jest.fn(),
-  saveOpenAi: jest.fn(),
-  saveGemini: jest.fn(),
+  setMessage: jest.fn(),
+  setSelectedProvider: jest.fn(),
   saveDemoTime: jest.fn(),
-  removeOpenAi: jest.fn(),
-  removeGemini: jest.fn(),
-  resetDemoState: jest.fn(),
-  toggleAiFeatures: jest.fn(),
   toggleWeeklyPreview: jest.fn(),
   weeklyPreviewEnabled: false,
 };
 
-function mockBuildApiKeySections() {
-  return [
-    {
-      id: 'openai' as const,
-      provider: 'OpenAI',
-      placeholder: 'sk-proj-...',
-      value: mockSettingsState.openAiApiKey,
-      savedKey: mockSettingsState.savedOpenAiApiKey,
-      loading: mockSettingsState.validatingOpenAi,
-      onChange: mockSettingsState.setOpenAiApiKey,
-      onSave: mockSettingsState.saveOpenAi,
-      onRemove: mockSettingsState.removeOpenAi,
-    },
-    {
-      id: 'gemini' as const,
-      provider: 'Gemini',
-      placeholder: 'AIza...',
-      value: mockSettingsState.geminiApiKey,
-      savedKey: mockSettingsState.savedGeminiApiKey,
-      loading: mockSettingsState.savingGemini,
-      onChange: mockSettingsState.setGeminiApiKey,
-      onSave: mockSettingsState.saveGemini,
-      onRemove: mockSettingsState.removeGemini,
-    },
-  ];
-}
-
 jest.mock('../hooks/useSettingsState', () => ({
-  useSettingsState: () => ({
-    ...mockSettingsState,
-    apiKeySections: mockBuildApiKeySections(),
-  }),
+  useSettingsState: () => mockSettingsState,
 }));
 
 function renderSettingsScreen(
@@ -111,50 +82,69 @@ function renderSettingsScreen(
 describe('SettingsScreen', () => {
   beforeEach(() => {
     Reflect.set(globalThis, '__DEV__', false);
+    mockSettingsState.savedCurrentApiKey = null;
+    mockSettingsState.currentApiKey = '';
+    mockSettingsState.selectedProvider = 'openai';
+    mockSettingsState.savingCurrentKey = false;
   });
 
-  it('renders the new AI settings sections', () => {
+  it('renders the redesigned AI settings sections', () => {
     renderSettingsScreen();
 
-    expect(screen.getByText('Settings')).toBeOnTheScreen();
-    expect(screen.getByText('OpenAI API Key')).toBeOnTheScreen();
-    expect(screen.getByText('Gemini API Key')).toBeOnTheScreen();
+    expect(screen.getByText('Setting')).toBeOnTheScreen();
+    expect(screen.getByText('Google')).toBeOnTheScreen();
+    expect(screen.getByText('OpenAI')).toBeOnTheScreen();
     expect(screen.getByText('AI Features')).toBeOnTheScreen();
+    expect(screen.getByText('AI Suggestion')).toBeOnTheScreen();
+    expect(screen.getByText('Weekly insight suggestions on')).toBeOnTheScreen();
+    expect(screen.getAllByText('Save')).toHaveLength(2);
   });
 
   it('shows empty-state copy when no keys are saved', () => {
     renderSettingsScreen();
 
-    expect(screen.getAllByText('No saved keys — add one above')).toHaveLength(2);
+    expect(screen.getByText('No saved keys - add one above')).toBeOnTheScreen();
   });
 
-  it('reveals saved key sections when keys exist', () => {
-    mockSettingsState.savedOpenAiApiKey = 'sk-proj-1234567890abcdef';
-    mockSettingsState.savedGeminiApiKey = 'AIza1234567890abcdef';
+  it('reveals saved key row when a key exists', () => {
+    mockSettingsState.savedCurrentApiKey = 'sk-proj-1234567890abcdef';
 
     renderSettingsScreen();
 
-    expect(screen.getAllByText('Saved keys')).toHaveLength(2);
+    expect(screen.getByText('sk-pro  •••••••••••••  cdef')).toBeOnTheScreen();
 
-    mockSettingsState.savedOpenAiApiKey = null;
-    mockSettingsState.savedGeminiApiKey = null;
+    mockSettingsState.savedCurrentApiKey = null;
   });
 
-  it('shows validating copy while checking the OpenAI key', () => {
-    mockSettingsState.validatingOpenAi = true;
+  it('shows validating copy while checking the API key', () => {
+    mockSettingsState.savingCurrentKey = true;
 
     renderSettingsScreen();
 
-    expect(screen.getByText('Checking your OpenAI API key...')).toBeOnTheScreen();
+    expect(screen.getByText('Checking your API key...')).toBeOnTheScreen();
 
-    mockSettingsState.validatingOpenAi = false;
+    mockSettingsState.savingCurrentKey = false;
   });
 
   it('calls the AI features toggle handler', () => {
     renderSettingsScreen();
 
-    fireEvent(screen.getByRole('switch'), 'valueChange', false);
-    expect(mockSettingsState.toggleAiFeatures).toHaveBeenCalledWith(false);
+    fireEvent(screen.getAllByRole('switch')[0], 'valueChange', false);
+    expect(mockSettingsState.setAiFeaturesEnabled).toHaveBeenCalledWith(false);
+  });
+
+  it('calls the AI suggestion toggle handler', () => {
+    renderSettingsScreen();
+
+    fireEvent(screen.getByTestId('settings-ai-suggestion-switch'), 'valueChange', false);
+    expect(mockSettingsState.setAiSuggestionEnabled).toHaveBeenCalledWith(false);
+  });
+
+  it('calls save all settings from the bottom button', () => {
+    renderSettingsScreen();
+
+    fireEvent.press(screen.getByTestId('settings-save-all-button'));
+    expect(mockSettingsState.saveAllSettings).toHaveBeenCalled();
   });
 
   it('shows developer demo controls only in dev mode', () => {
@@ -164,8 +154,18 @@ describe('SettingsScreen', () => {
 
     expect(screen.getByText('Developer')).toBeOnTheScreen();
     expect(screen.getByText('Demo time')).toBeOnTheScreen();
+    expect(screen.getByText('Delete demo day tasks')).toBeOnTheScreen();
     expect(screen.getByText('Weekly demo data')).toBeOnTheScreen();
     expect(screen.getByText('Reset Onboarding')).toBeOnTheScreen();
+  });
+
+  it('calls delete demo day tasks from the developer section', () => {
+    Reflect.set(globalThis, '__DEV__', true);
+
+    renderSettingsScreen();
+
+    fireEvent.press(screen.getByTestId('settings-delete-demo-tasks-button'));
+    expect(mockSettingsState.deleteDemoDayTasks).toHaveBeenCalled();
   });
 
   it('hides developer demo controls in UI preview mode', () => {

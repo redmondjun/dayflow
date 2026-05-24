@@ -3,6 +3,7 @@ import * as SecureStore from 'expo-secure-store';
 const OPENAI_API_KEY = 'dayflow.openaiApiKey';
 const GEMINI_API_KEY = 'dayflow.geminiApiKey';
 const AI_FEATURES_ENABLED = 'dayflow.aiFeaturesEnabled';
+const AI_SUGGESTION_ENABLED = 'dayflow.aiSuggestionEnabled';
 
 type AiSettingsListener = () => void;
 
@@ -71,5 +72,15 @@ export async function getAiFeaturesEnabled(): Promise<boolean> {
 
 export async function saveAiFeaturesEnabled(value: boolean): Promise<void> {
   await SecureStore.setItemAsync(AI_FEATURES_ENABLED, value ? 'true' : 'false');
+  notifyAiSettingsChanged();
+}
+
+export async function getAiSuggestionEnabled(): Promise<boolean> {
+  const value = await getStoredValue(AI_SUGGESTION_ENABLED);
+  return value !== 'false';
+}
+
+export async function saveAiSuggestionEnabled(value: boolean): Promise<void> {
+  await SecureStore.setItemAsync(AI_SUGGESTION_ENABLED, value ? 'true' : 'false');
   notifyAiSettingsChanged();
 }

@@ -5,7 +5,7 @@ import { PaperProvider } from 'react-native-paper';
 import type { WeeklyInsightSummary } from '../types/insight';
 import { colors } from '../theme/colors';
 import {
-  getAiFeaturesEnabled,
+  getAiSuggestionEnabled,
   getGeminiApiKey,
   getOpenAIApiKey,
   subscribeAiSettingsChanges,
@@ -22,7 +22,7 @@ import { WeeklyInsightScreen } from './WeeklyInsightScreen';
 const mockAiSettingsListeners = new Set<() => void>();
 
 jest.mock('../services/apiKey', () => ({
-  getAiFeaturesEnabled: jest.fn(),
+  getAiSuggestionEnabled: jest.fn(),
   getGeminiApiKey: jest.fn(),
   getOpenAIApiKey: jest.fn(),
   subscribeAiSettingsChanges: jest.fn((listener: () => void) => {
@@ -162,7 +162,7 @@ function renderEmbeddedWeeklyInsight() {
 describe('WeeklyInsightScreen', () => {
   const useTaskStoreMock = useTaskStore as unknown as jest.Mock;
   const buildWeeklyInsightSummaryMock = jest.mocked(buildWeeklyInsightSummary);
-  const getAiFeaturesEnabledMock = jest.mocked(getAiFeaturesEnabled);
+  const getAiSuggestionEnabledMock = jest.mocked(getAiSuggestionEnabled);
   const getGeminiApiKeyMock = jest.mocked(getGeminiApiKey);
   const getOpenAIApiKeyMock = jest.mocked(getOpenAIApiKey);
   const subscribeAiSettingsChangesMock = jest.mocked(subscribeAiSettingsChanges);
@@ -176,8 +176,8 @@ describe('WeeklyInsightScreen', () => {
     buildWeeklyInsightSummaryMock.mockReset();
     buildWeeklyInsightSummaryMock.mockReturnValue(summary);
     mockAiSettingsListeners.clear();
-    getAiFeaturesEnabledMock.mockReset();
-    getAiFeaturesEnabledMock.mockResolvedValue(true);
+    getAiSuggestionEnabledMock.mockReset();
+    getAiSuggestionEnabledMock.mockResolvedValue(true);
     getOpenAIApiKeyMock.mockReset();
     getOpenAIApiKeyMock.mockResolvedValue(null);
     getGeminiApiKeyMock.mockReset();
@@ -267,8 +267,8 @@ describe('WeeklyInsightScreen', () => {
     expect(screen.getByText('Move lower-priority tasks to the afternoon.')).toBeOnTheScreen();
   });
 
-  it('does not request AI weekly insights when AI features are off', async () => {
-    getAiFeaturesEnabledMock.mockResolvedValueOnce(false);
+  it('does not request AI weekly insights when AI suggestions are off', async () => {
+    getAiSuggestionEnabledMock.mockResolvedValueOnce(false);
     getOpenAIApiKeyMock.mockResolvedValueOnce('sk-live');
     useTaskStoreMock.mockImplementation((selector: unknown) => {
       if (typeof selector !== 'function') return { tasks: completedTasks };
@@ -277,7 +277,7 @@ describe('WeeklyInsightScreen', () => {
 
     renderWeeklyInsightScreen();
 
-    await waitFor(() => expect(getAiFeaturesEnabledMock).toHaveBeenCalled());
+    await waitFor(() => expect(getAiSuggestionEnabledMock).toHaveBeenCalled());
     expect(generateWeeklyInsightMock).not.toHaveBeenCalled();
     expect(generateGeminiWeeklyInsightMock).not.toHaveBeenCalled();
     expect(screen.queryByText('Patterns')).not.toBeOnTheScreen();
@@ -293,7 +293,7 @@ describe('WeeklyInsightScreen', () => {
 
     renderWeeklyInsightScreen();
 
-    await waitFor(() => expect(getAiFeaturesEnabledMock).toHaveBeenCalled());
+    await waitFor(() => expect(getAiSuggestionEnabledMock).toHaveBeenCalled());
     expect(generateWeeklyInsightMock).not.toHaveBeenCalled();
     expect(generateGeminiWeeklyInsightMock).not.toHaveBeenCalled();
     expect(screen.queryByText('Patterns')).not.toBeOnTheScreen();
@@ -353,7 +353,7 @@ describe('WeeklyInsightScreen', () => {
   });
 
   it('reloads AI weekly insights when AI settings change', async () => {
-    getAiFeaturesEnabledMock.mockResolvedValueOnce(false).mockResolvedValue(true);
+    getAiSuggestionEnabledMock.mockResolvedValueOnce(false).mockResolvedValue(true);
     getOpenAIApiKeyMock.mockResolvedValueOnce('sk-live').mockResolvedValue('sk-live');
     useTaskStoreMock.mockImplementation((selector: unknown) => {
       if (typeof selector !== 'function') return { tasks: completedTasks };
@@ -366,7 +366,7 @@ describe('WeeklyInsightScreen', () => {
 
     renderWeeklyInsightScreen();
 
-    await waitFor(() => expect(getAiFeaturesEnabledMock).toHaveBeenCalledTimes(1));
+    await waitFor(() => expect(getAiSuggestionEnabledMock).toHaveBeenCalledTimes(1));
     expect(generateWeeklyInsightMock).not.toHaveBeenCalled();
 
     act(() => {
