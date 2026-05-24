@@ -9,7 +9,9 @@ import { RootNavigator } from './src/navigation/RootNavigator';
 import { useTaskStore } from './src/store/taskStore';
 import { colors } from './src/theme/colors';
 
-void SplashScreen.preventAutoHideAsync();
+void SplashScreen.preventAutoHideAsync().catch(() => {
+  // Splash may already be hidden or unavailable in this environment.
+});
 
 const paperTheme = {
   ...MD3LightTheme,
@@ -29,10 +31,20 @@ export default function App() {
   useEffect(() => {
     let mounted = true;
 
-    initialize().finally(async () => {
-      if (!mounted) return;
-      await SplashScreen.hideAsync();
-    });
+    void (async () => {
+      try {
+        await initialize();
+      } catch {
+        // initialize() already records store error state.
+      } finally {
+        if (!mounted) return;
+        try {
+          await SplashScreen.hideAsync();
+        } catch {
+          // Non-fatal: continue even if splash hide fails.
+        }
+      }
+    })();
 
     return () => {
       mounted = false;
