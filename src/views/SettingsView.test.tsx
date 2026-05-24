@@ -31,37 +31,37 @@ jest.mock('../assets/icons/trash.svg', () => {
   return mockTrash;
 });
 
-const mockSettingsProps: SettingsViewProps = {
+const mockSettingsProps = {
   aiFeaturesEnabled: true,
   aiSuggestionEnabled: true,
   currentApiKey: '',
-  deleteDemoDayTasks: jest.fn(),
+  deleteDemoDayTasks: jest.fn<() => void>(),
   demoDate: '2026-05-22',
   demoTime: '09:30',
   demoNowOverride: null,
   deletingDemoTasks: false,
   message: null,
-  onResetOnboarding: jest.fn(async () => true),
-  removeCurrentProviderKey: jest.fn(),
-  resetDemoTime: jest.fn(),
-  saveAllSettings: jest.fn(),
-  saveCurrentProviderKey: jest.fn(),
-  saveDemoTime: jest.fn(),
+  onResetOnboarding: jest.fn<() => Promise<void>>(),
+  removeCurrentProviderKey: jest.fn<() => void>(),
+  resetDemoTime: jest.fn<() => void>(),
+  saveAllSettings: jest.fn<() => void>(),
+  saveCurrentProviderKey: jest.fn<() => void>(),
+  saveDemoTime: jest.fn<() => boolean>(() => true),
   savedCurrentApiKey: null,
   savingCurrentKey: false,
   savingSettings: false,
-  selectedProvider: 'openai',
-  setAiFeaturesEnabled: jest.fn(),
-  setAiSuggestionEnabled: jest.fn(),
-  setCurrentApiKey: jest.fn(),
-  setDemoDate: jest.fn(),
-  setDemoTime: jest.fn(),
-  setMessage: jest.fn(),
-  setSelectedProvider: jest.fn(),
+  selectedProvider: 'openai' as const,
+  setAiFeaturesEnabled: jest.fn<(value: boolean) => void>(),
+  setAiSuggestionEnabled: jest.fn<(value: boolean) => void>(),
+  setCurrentApiKey: jest.fn<(value: string) => void>(),
+  setDemoDate: jest.fn<(value: string) => void>(),
+  setDemoTime: jest.fn<(value: string) => void>(),
+  setMessage: jest.fn<(value: string | null) => void>(),
+  setSelectedProvider: jest.fn<(provider: 'openai' | 'google') => void>(),
   showDeveloperTools: false,
-  toggleWeeklyPreview: jest.fn(),
+  toggleWeeklyPreview: jest.fn<(value: boolean) => void>(),
   weeklyPreviewEnabled: false,
-};
+} satisfies SettingsViewProps;
 
 function renderSettingsView(overrideProps: Partial<SettingsViewProps> = {}) {
   return render(

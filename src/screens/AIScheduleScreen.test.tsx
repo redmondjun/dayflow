@@ -232,6 +232,43 @@ describe('AIScheduleScreen preview', () => {
     expect(screen.getByTestId('ai-schedule-time-add')).toBeOnTheScreen();
   });
 
+  it('defaults draft to manual scheduling when adding to an existing schedule', async () => {
+    mockStore(() => [makeExistingTask(9, 0, 10, 0)]);
+    mockAiAvailable();
+
+    render(
+      <PaperProvider>
+        <AIScheduleScreen onCancel={jest.fn()} onOpenSettings={jest.fn()} />
+      </PaperProvider>,
+    );
+
+    await waitFor(() => {
+      expect(screen.getByTestId('ai-schedule-draft-input')).toBeOnTheScreen();
+    });
+    expect(screen.getByTestId('ai-schedule-toggle').props.value).toBe(false);
+    expect(screen.getByText('Start')).toBeOnTheScreen();
+    expect(
+      screen.queryByText("No need to set time - we'll organize your day."),
+    ).not.toBeOnTheScreen();
+  });
+
+  it('defaults draft to AI scheduling when starting from an empty schedule', async () => {
+    mockStore();
+    mockAiAvailable();
+
+    render(
+      <PaperProvider>
+        <AIScheduleScreen onCancel={jest.fn()} onOpenSettings={jest.fn()} />
+      </PaperProvider>,
+    );
+
+    await waitFor(() => {
+      expect(screen.getByTestId('ai-schedule-toggle')).toBeOnTheScreen();
+    });
+    expect(screen.getByTestId('ai-schedule-toggle').props.value).toBe(true);
+    expect(screen.queryByText('Start')).not.toBeOnTheScreen();
+  });
+
   it('does not show placeholder times on AI-scheduled committed rows', async () => {
     mockStore();
     mockAiAvailable();

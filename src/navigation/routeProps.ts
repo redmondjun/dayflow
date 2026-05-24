@@ -1,7 +1,11 @@
-export function hasNavigation<T extends object>(props: T): props is T & { navigation: unknown } {
+export function isRouteScreenProps<TRoute extends object, TEmbedded extends object>(
+  props: TRoute | TEmbedded,
+): props is TRoute {
   return 'navigation' in props;
 }
 
-export function hasScenarioId<T extends object>(props: T): props is T & { scenarioId: string } {
+export function hasScenarioId<T extends object, ScenarioId extends string = string>(
+  props: T,
+): props is T & { scenarioId: ScenarioId } {
   return 'scenarioId' in props;
 }

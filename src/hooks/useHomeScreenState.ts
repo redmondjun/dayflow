@@ -9,7 +9,6 @@ import {
 import { useTaskStore } from '../store/taskStore';
 import type { Task } from '../types/task';
 import { formatDisplayDate, getCurrentTask, getUpcomingTasks } from '../utils/time';
-import { hasScenarioId } from '../navigation/routeProps';
 import { useMountedRef } from './useMountedRef';
 
 export type HomePreviewScenarioId = 'home-empty' | 'home-active' | 'home-completed';
@@ -26,6 +25,10 @@ export type HomeScreenPreviewProps = {
 };
 
 export type HomeScreenViewProps = HomeScreenRouteProps | HomeScreenPreviewProps;
+
+function isHomePreviewProps(props: HomeScreenViewProps): props is HomeScreenPreviewProps {
+  return 'scenarioId' in props;
+}
 
 function buildPreviewTasks(scenarioId: HomePreviewScenarioId): Task[] {
   const previewTaskMap: Record<HomePreviewScenarioId, Task[]> = {
@@ -47,7 +50,7 @@ function updatePreviewTaskStatus(
 }
 
 export function useHomeScreenState(props: HomeScreenViewProps) {
-  const isPreview = hasScenarioId(props);
+  const isPreview = isHomePreviewProps(props);
   const previewScenarioId = isPreview ? props.scenarioId : null;
   const [tick, setTick] = useState(Date.now());
   const { nowOverride } = useDevDemoState();

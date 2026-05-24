@@ -88,7 +88,13 @@ export function useAIScheduleState({
   const mountedRef = useMountedRef();
 
   const aiAvailable = Boolean(apiKey) && aiFeaturesEnabled;
-  const defaultDraftAiScheduled = isPreview ? initialState.initialDraftAiScheduled : aiAvailable;
+  const hasExistingSchedule =
+    !isPreview && useTaskStore.getState().todayTasks(effectiveNow).length > 0;
+  const defaultDraftAiScheduled = isPreview
+    ? initialState.initialDraftAiScheduled
+    : initialDraftAiScheduled
+      ? aiAvailable
+      : aiAvailable && !hasExistingSchedule;
 
   const {
     previewTasks: storePreviewTasks,

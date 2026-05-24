@@ -2,7 +2,7 @@ import { Alert } from 'react-native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { Task } from '../types/task';
 import type { RootStackParamList } from '../navigation/types';
-import { hasNavigation } from '../navigation/routeProps';
+import { isRouteScreenProps } from '../navigation/routeProps';
 import { useTaskStore } from '../store/taskStore';
 import { addMinutes } from '../utils/time';
 import { AIScheduleScreen } from './AIScheduleScreen';
@@ -36,7 +36,7 @@ function toInitialTask(task: Task | null | undefined) {
 }
 
 export function TaskFormScreen(props: Props) {
-  const isRoute = hasNavigation(props);
+  const isRoute = isRouteScreenProps<RouteProps, PreviewProps>(props);
   const isPreview = !isRoute;
   const editingId =
     isRoute && props.route.name === 'EditTask' ? props.route.params.taskId : undefined;

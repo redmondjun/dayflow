@@ -53,7 +53,7 @@ jest.mock('../services/devDemo', () => ({
 }));
 
 jest.mock('../utils/weeklyInsight', () => ({
-  ...jest.requireActual('../utils/weeklyInsight'),
+  ...(jest.requireActual('../utils/weeklyInsight') as Record<string, unknown>),
   buildWeeklyInsightSummary: jest.fn(),
 }));
 

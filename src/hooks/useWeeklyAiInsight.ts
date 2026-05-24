@@ -28,8 +28,8 @@ export function useWeeklyAiInsight({
   effectiveNow,
   weeklyPreviewEnabled,
 }: Params) {
-  const [patterns, setPatterns] = useState<string[]>([]);
-  const [suggestions, setSuggestions] = useState<string[]>([]);
+  const [patterns, setPatterns] = useState<WeeklyInsightSummary['patterns']>([]);
+  const [suggestions, setSuggestions] = useState<WeeklyInsightSummary['suggestions']>([]);
   const [aiSettingsVersion, setAiSettingsVersion] = useState(0);
   const loadingRef = useRef(false);
   const mountedRef = useMountedRef();

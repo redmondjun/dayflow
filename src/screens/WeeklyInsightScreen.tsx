@@ -4,7 +4,7 @@ import { weeklyInsightPreviewSummary } from '../dev-preview/mockData';
 import { useEffectiveDemoTasks } from '../hooks/useEffectiveDemoTasks';
 import { useWeeklyAiInsight } from '../hooks/useWeeklyAiInsight';
 import type { RootStackParamList } from '../navigation/types';
-import { hasNavigation } from '../navigation/routeProps';
+import { isRouteScreenProps } from '../navigation/routeProps';
 import { buildWeeklyInsightSummary } from '../utils/weeklyInsight';
 import { WeeklyInsightView } from '../views/WeeklyInsightView';
 
@@ -30,7 +30,7 @@ export function WeeklyInsightScreen(props: Props) {
     effectiveNow,
     weeklyPreviewEnabled,
   });
-  const onOptimizeTomorrow = hasNavigation(props)
+  const onOptimizeTomorrow = isRouteScreenProps<RouteProps, EmbeddedProps>(props)
     ? () => props.navigation.navigate('CreateTask', { aiEnabled: true })
     : props.onOptimizeTomorrow;
 

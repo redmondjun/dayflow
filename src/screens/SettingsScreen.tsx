@@ -1,7 +1,7 @@
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useSettingsState } from '../hooks/useSettingsState';
 import type { RootStackParamList } from '../navigation/types';
-import { hasNavigation } from '../navigation/routeProps';
+import { isRouteScreenProps } from '../navigation/routeProps';
 import { SettingsView } from '../views/SettingsView';
 
 type RouteProps = NativeStackScreenProps<RootStackParamList, 'Settings'>;
@@ -16,7 +16,7 @@ type Props = RouteProps | EmbeddedProps;
 
 export function SettingsScreen(props: Props) {
   const settings = useSettingsState();
-  const isRoute = hasNavigation(props);
+  const isRoute = isRouteScreenProps<RouteProps, EmbeddedProps>(props);
 
   const onCancel = isRoute ? () => props.navigation.goBack() : props.onCancel;
   const onOpenPreviewCatalog = isRoute
