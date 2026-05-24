@@ -26,14 +26,12 @@ const paperTheme = {
 };
 
 export default function App() {
-  const initialize = useTaskStore((state) => state.initialize);
-
   useEffect(() => {
     let mounted = true;
 
     void (async () => {
       try {
-        await initialize();
+        await useTaskStore.getState().initialize();
       } catch {
         // initialize() already records store error state.
       } finally {
@@ -49,7 +47,7 @@ export default function App() {
     return () => {
       mounted = false;
     };
-  }, [initialize]);
+  }, []);
 
   return (
     <SafeAreaProvider>
