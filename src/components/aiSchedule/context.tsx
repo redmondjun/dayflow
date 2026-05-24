@@ -7,7 +7,9 @@ export type AIScheduleContextValue = {
   storeError: string | null;
   onDismissError: () => void;
   scrollEnabled: boolean;
-  aiEnabled: boolean;
+  aiAvailable: boolean;
+  selectedRowAiScheduled: boolean;
+  draftAiScheduled: boolean;
   taskRows: TaskInputRow[];
   selectedTaskId: string | null;
   selectedTaskStart: string;
@@ -16,7 +18,7 @@ export type AIScheduleContextValue = {
   canSubmit: boolean;
   generating: boolean;
   loading: boolean;
-  onToggleAiEnabled: (value: boolean) => void;
+  onToggleRowAiScheduled: (value: boolean) => void;
   onSelectTaskRow: (taskId: string) => void;
   onChangeTaskTitle: (taskId: string, title: string) => void;
   onAddTaskRow: () => void;
@@ -53,13 +55,14 @@ export function useAIScheduleContext() {
 
 export function useAIScheduleTaskInput() {
   const {
-    aiEnabled,
+    aiAvailable,
+    selectedRowAiScheduled,
     taskRows,
     selectedTaskId,
     selectedTaskStart,
     selectedTaskEnd,
     selectedTimeValidation,
-    onToggleAiEnabled,
+    onToggleRowAiScheduled,
     onSelectTaskRow,
     onChangeTaskTitle,
     onAddTaskRow,
@@ -73,13 +76,14 @@ export function useAIScheduleTaskInput() {
   } = useAIScheduleContext();
 
   return {
-    aiEnabled,
+    aiAvailable,
+    selectedRowAiScheduled,
     taskRows,
     selectedTaskId,
     selectedTaskStart,
     selectedTaskEnd,
     selectedTimeValidation,
-    onToggleAiEnabled,
+    onToggleRowAiScheduled,
     onSelectTaskRow,
     onChangeTaskTitle,
     onAddTaskRow,
@@ -94,10 +98,10 @@ export function useAIScheduleTaskInput() {
 }
 
 export function useAIScheduleFooter() {
-  const { aiEnabled, onSelectQuickAdd, onSubmit, canSubmit, generating, loading } =
+  const { draftAiScheduled, onSelectQuickAdd, onSubmit, canSubmit, generating, loading } =
     useAIScheduleContext();
 
-  return { aiEnabled, onSelectQuickAdd, onSubmit, canSubmit, generating, loading };
+  return { draftAiScheduled, onSelectQuickAdd, onSubmit, canSubmit, generating, loading };
 }
 
 export function useAIScheduleShellState() {

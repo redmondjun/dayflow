@@ -10,9 +10,13 @@ import {
   TaskStatusSection,
   TaskTimeFields,
 } from '../components/TaskFormSections';
+import { StickyBottomBar } from '../components/StickyBottomBar';
+import { getRoundedStartTime } from '../features/taskPlanning';
+import { validateManualTaskTimes } from '../features/taskPlanning/scheduling';
 import { colors } from '../theme/colors';
 import type { Task, TaskStatus } from '../types/task';
 import {
+  addMinutes,
   formatDuration,
   formatInputTime,
   formatWheelTimeRange,
@@ -33,6 +37,7 @@ export type TaskFormSubmit = {
 type Props = {
   mode: 'create' | 'edit';
   initialTask?: Pick<Task, 'title' | 'startTime' | 'endTime' | 'status'>;
+  existingTasks?: Task[];
   loading: boolean;
   error: string | null;
   onDismissError?: () => void;
@@ -42,16 +47,17 @@ type Props = {
 };
 
 function getDefaultTimes() {
-  const start = new Date();
-  start.setMinutes(Math.ceil(start.getMinutes() / 5) * 5, 0, 0);
-  const end = new Date(start);
-  end.setMinutes(end.getMinutes() + 45);
-  return { start, end };
+  const startIso = parseTimeInput(getRoundedStartTime()) ?? new Date().toISOString();
+  return {
+    start: new Date(startIso),
+    end: new Date(addMinutes(startIso, 45)),
+  };
 }
 
 export function TaskFormView({
   mode,
   initialTask,
+  existingTasks = [],
   loading,
   error,
   onDismissError = () => {},
@@ -96,8 +102,19 @@ export function TaskFormView({
     if (new Date(parsedEnd).getTime() <= new Date(parsedStart).getTime()) {
       return 'End time must be after start time.';
     }
-    return null;
-  }, [title, parsedStart, parsedEnd]);
+    const crossesMidnight = endParseBaseDate.getTime() !== startParseBaseDate.getTime();
+    if (crossesMidnight) return null;
+    return validateManualTaskTimes(start, end, startParseBaseDate, { existingTasks }).error;
+  }, [
+    title,
+    parsedStart,
+    parsedEnd,
+    start,
+    end,
+    startParseBaseDate,
+    endParseBaseDate,
+    existingTasks,
+  ]);
 
   const canSave = !validation && title.trim().length > 0 && !loading;
 
@@ -155,7 +172,7 @@ export function TaskFormView({
         </TaskFormSectionsProvider>
       </ScrollView>
 
-      <View className="absolute bottom-0 left-0 right-0 bg-paper px-4 pb-6 pt-3">
+      <StickyBottomBar className="px-4 pb-6 pt-3">
         <Button
           mode="contained"
           buttonColor={colors.accent}
@@ -168,7 +185,7 @@ export function TaskFormView({
         >
           Confirm schedule
         </Button>
-      </View>
+      </StickyBottomBar>
 
       <Snackbar visible={Boolean(error)} onDismiss={onDismissError} duration={4000}>
         {error}

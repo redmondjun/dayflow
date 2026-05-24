@@ -1,39 +1,47 @@
-import { useState } from 'react';
-import { Keyboard } from 'react-native';
 import {
   AISchedulePlannerSection,
   AIScheduleProvider,
   AIScheduleShell,
 } from '../components/aiSchedule';
 import type { AIScheduleContextValue } from '../components/aiSchedule';
-import { useAIScheduleState } from './useAIScheduleState';
+import { useAIScheduleState } from '../hooks/useAIScheduleState';
+import { useSchedulePreviewNavigation } from '../hooks/useSchedulePreviewNavigation';
+import { useTimePickerScrollLock } from '../hooks/useTimePickerScrollLock';
 import { SchedulePreviewView } from '../views/SchedulePreviewView';
 
 type Props = {
   onCancel: () => void;
   onOpenSettings: () => void;
   scenarioId?: string;
+  initialDraftAiScheduled?: boolean;
+  /** @deprecated Use initialDraftAiScheduled */
   initialAiEnabled?: boolean;
   autoOpenDraft?: boolean;
 };
 
 export function AIScheduleScreen(props: Props) {
-  const [isTimePickerInteracting, setIsTimePickerInteracting] = useState(false);
   const schedule = useAIScheduleState({
     isPreview: Boolean(props.scenarioId),
     scenarioId: props.scenarioId,
     onComplete: props.onCancel,
-    initialAiEnabled: props.initialAiEnabled,
+    initialDraftAiScheduled: props.initialDraftAiScheduled ?? props.initialAiEnabled,
     autoOpenDraft: props.autoOpenDraft ?? !props.scenarioId,
   });
+  const { scrollEnabled, onTimeInteractionStart, onTimeInteractionEnd } = useTimePickerScrollLock();
 
-  if (schedule.previewTasks.length > 0) {
+  useSchedulePreviewNavigation({
+    showingPreview: schedule.showingPreview,
+    onClearPreview: schedule.onClearPreview,
+  });
+
+  if (schedule.showingPreview) {
     return (
       <SchedulePreviewView
         tasks={schedule.previewTasks}
         loading={schedule.loading}
         error={schedule.storeError ?? schedule.localError}
         onDismissError={schedule.onDismissError}
+        onBack={schedule.onClearPreview}
         onConfirm={schedule.onConfirm}
       />
     );
@@ -43,8 +51,10 @@ export function AIScheduleScreen(props: Props) {
     localError: schedule.localError,
     storeError: schedule.storeError,
     onDismissError: schedule.onDismissError,
-    scrollEnabled: !isTimePickerInteracting,
-    aiEnabled: schedule.aiEnabled,
+    scrollEnabled,
+    aiAvailable: schedule.aiAvailable,
+    selectedRowAiScheduled: schedule.selectedRowAiScheduled,
+    draftAiScheduled: schedule.draftAiScheduled,
     taskRows: schedule.taskRows,
     selectedTaskId: schedule.selectedTaskId,
     selectedTaskStart: schedule.selectedTaskStart,
@@ -53,7 +63,7 @@ export function AIScheduleScreen(props: Props) {
     canSubmit: schedule.canSubmit,
     generating: schedule.generating,
     loading: schedule.loading,
-    onToggleAiEnabled: schedule.onToggleAiEnabled,
+    onToggleRowAiScheduled: schedule.onToggleRowAiScheduled,
     onSelectTaskRow: schedule.onSelectTaskRow,
     onChangeTaskTitle: schedule.onChangeTaskTitle,
     onAddTaskRow: schedule.onAddTaskRow,
@@ -63,11 +73,8 @@ export function AIScheduleScreen(props: Props) {
     onChangeSelectedEnd: schedule.onChangeSelectedEnd,
     onCancelTaskTimeEdit: schedule.onCancelTaskTimeEdit,
     onConfirmTaskTimeEdit: schedule.onConfirmTaskTimeEdit,
-    onTimeInteractionStart: () => {
-      Keyboard.dismiss();
-      setIsTimePickerInteracting(true);
-    },
-    onTimeInteractionEnd: () => setIsTimePickerInteracting(false),
+    onTimeInteractionStart,
+    onTimeInteractionEnd,
     onSubmit: schedule.onSubmit,
   };
 

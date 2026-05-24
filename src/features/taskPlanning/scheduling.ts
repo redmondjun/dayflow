@@ -1,4 +1,5 @@
 import type { Task, TaskInputRow } from '../../types/task';
+import { hasTaskRowTitle } from '../taskPlanning';
 import {
   addMinutes,
   formatInputTime,
@@ -6,10 +7,6 @@ import {
   parseTimeInput,
   roundUpToFiveMinutes,
 } from '../../utils/time';
-
-function hasTaskRowTitle(row: TaskInputRow) {
-  return Boolean(row.title?.trim());
-}
 
 export type ManualTaskTimeValidation = {
   error: string | null;

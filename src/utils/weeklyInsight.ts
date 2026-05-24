@@ -18,13 +18,23 @@ function getPeakDayPart(label: string): 'morning' | 'afternoon' | 'evening' {
   return 'evening';
 }
 
-export function buildWeeklyInsightSummary(tasks: Task[], now = new Date()): WeeklyInsightSummary {
+export function getTasksInLastSevenDays(tasks: Task[], now = new Date()): Task[] {
   const weekStart = new Date(now);
   weekStart.setDate(now.getDate() - 7);
-  const weekTasks = tasks.filter((task) => {
+  return tasks.filter((task) => {
     const start = new Date(task.startTime);
     return start >= weekStart && start <= now;
   });
+}
+
+export function hasRecentCompletedOrSkippedTasks(tasks: Task[], now = new Date()): boolean {
+  return getTasksInLastSevenDays(tasks, now).some(
+    (task) => task.status === 'completed' || task.status === 'skipped',
+  );
+}
+
+export function buildWeeklyInsightSummary(tasks: Task[], now = new Date()): WeeklyInsightSummary {
+  const weekTasks = getTasksInLastSevenDays(tasks, now);
 
   const total = weekTasks.length;
   const completed = weekTasks.filter((task) => task.status === 'completed').length;

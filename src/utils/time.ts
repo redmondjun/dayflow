@@ -128,6 +128,11 @@ export function formatDuration(totalMinutes: number): string {
   return `${hours}h ${minutes}m`;
 }
 
+export function formatScheduleSummary(taskCount: number, totalMinutes: number): string {
+  const taskLabel = taskCount === 1 ? '1 task' : `${taskCount} tasks`;
+  return `${taskLabel} · ${formatDuration(totalMinutes)}`;
+}
+
 export function durationBetween(startTime: string, endTime: string): number {
   return Math.max(
     0,
@@ -143,11 +148,21 @@ export function isSameLocalDay(a: Date, b: Date): boolean {
   );
 }
 
-export function sortByStartTime(tasks: Task[]): Task[] {
-  return [...tasks].sort(
+export function getLocalDayKey(day: Date): string {
+  const year = day.getFullYear();
+  const month = String(day.getMonth() + 1).padStart(2, '0');
+  const date = String(day.getDate()).padStart(2, '0');
+  return `${year}-${month}-${date}`;
+}
+
+export function sortByStartTime<T extends { startTime: string }>(items: T[]): T[] {
+  return [...items].sort(
     (a, b) => new Date(a.startTime).getTime() - new Date(b.startTime).getTime(),
   );
 }
+
+/** @deprecated Use sortByStartTime */
+export const sortGeneratedTasksByStartTime = sortByStartTime;
 
 export function getTodayTasks(tasks: Task[], now = new Date()): Task[] {
   return sortByStartTime(tasks.filter((task) => isSameLocalDay(new Date(task.startTime), now)));

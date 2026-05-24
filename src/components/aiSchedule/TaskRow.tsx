@@ -53,11 +53,20 @@ export function TaskRow({
       >
         {task.title || 'Add a task'}
       </Text>
-      <View className="rounded-full bg-warm4 px-[10px] py-[5px]">
-        <Text className="text-[9px] tracking-[-0.09px] text-warm">
-          {formatWheelTimeRange(task.startTime, task.endTime)}
-        </Text>
-      </View>
+      {task.aiScheduled ? (
+        <View
+          testID={`ai-schedule-ai-badge-${task.id}`}
+          className="rounded-full bg-[rgba(1,194,27,0.1)] px-[10px] py-[5px]"
+        >
+          <Text className="text-[9px] tracking-[-0.09px] text-[#01C21B]">AI</Text>
+        </View>
+      ) : task.startTime && task.endTime ? (
+        <View className="rounded-full bg-warm4 px-[10px] py-[5px]">
+          <Text className="text-[9px] tracking-[-0.09px] text-warm">
+            {formatWheelTimeRange(task.startTime, task.endTime)}
+          </Text>
+        </View>
+      ) : null}
     </Pressable>
   );
 }

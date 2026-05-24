@@ -2,6 +2,7 @@ import { Alert } from 'react-native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { Task } from '../types/task';
 import type { RootStackParamList } from '../navigation/types';
+import { isRouteScreenProps } from '../navigation/routeProps';
 import { useTaskStore } from '../store/taskStore';
 import { addMinutes } from '../utils/time';
 import { AIScheduleScreen } from './AIScheduleScreen';
@@ -17,10 +18,6 @@ type PreviewProps = {
 };
 
 type Props = RouteProps | PreviewProps;
-
-function isRouteProps(props: Props): props is RouteProps {
-  return 'navigation' in props;
-}
 
 function buildPreviewTask(scenarioId: PreviewProps['scenarioId']) {
   if (scenarioId !== 'task-edit') return null;
@@ -39,7 +36,7 @@ function toInitialTask(task: Task | null | undefined) {
 }
 
 export function TaskFormScreen(props: Props) {
-  const isRoute = isRouteProps(props);
+  const isRoute = isRouteScreenProps<RouteProps, PreviewProps>(props);
   const isPreview = !isRoute;
   const editingId =
     isRoute && props.route.name === 'EditTask' ? props.route.params.taskId : undefined;
@@ -60,7 +57,7 @@ export function TaskFormScreen(props: Props) {
         onCancel={onCancel}
         onOpenSettings={isRoute ? () => props.navigation.navigate('Settings') : props.onCancel}
         scenarioId={isPreview ? 'ai-empty-list' : undefined}
-        initialAiEnabled={createAiEnabled}
+        initialDraftAiScheduled={createAiEnabled}
       />
     );
   }
@@ -101,6 +98,7 @@ export function TaskFormScreen(props: Props) {
     <TaskFormView
       mode={mode}
       initialTask={initialTask}
+      existingTasks={editingId ? tasks.filter((task) => task.id !== editingId) : tasks}
       loading={isPreview ? false : loading}
       error={isPreview ? null : error}
       onDismissError={isPreview ? undefined : clearError}

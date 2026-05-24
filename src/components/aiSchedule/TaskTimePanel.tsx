@@ -11,11 +11,12 @@ type Props = {
 
 export function TaskTimePanel({ onConfirmAdd }: Props) {
   const {
-    aiEnabled,
+    aiAvailable,
+    selectedRowAiScheduled,
     selectedTaskStart,
     selectedTaskEnd,
     selectedTimeValidation,
-    onToggleAiEnabled,
+    onToggleRowAiScheduled,
     onChangeSelectedStart,
     onChangeSelectedEnd,
     onCancelTaskTimeEdit,
@@ -23,34 +24,44 @@ export function TaskTimePanel({ onConfirmAdd }: Props) {
     onTimeInteractionEnd,
   } = useAIScheduleTaskInput();
 
-  const hasTimeError = Boolean(!aiEnabled && selectedTimeValidation?.error);
+  const hasTimeError = Boolean(!selectedRowAiScheduled && selectedTimeValidation?.error);
   const { width: windowWidth } = useWindowDimensions();
   const pickerWidth = Math.min(305, windowWidth - 88);
 
   return (
     <View className="border-t border-warm3 px-5 py-[10px]">
-      <View className="flex-row items-center justify-between">
-        <Text className="text-[11px] font-medium tracking-[-0.11px] text-ink">AI Scheduling</Text>
-        <Switch
-          testID="ai-schedule-toggle"
-          value={aiEnabled}
-          onValueChange={onToggleAiEnabled}
-          trackColor={{ false: '#D8D3CB', true: '#01C21B' }}
-          thumbColor={colors.white}
-          ios_backgroundColor="#D8D3CB"
-        />
-      </View>
-
-      {aiEnabled ? (
-        <View className="mt-3 rounded-2xl border border-warm3 bg-[rgba(35,36,34,0.02)] px-4 py-3">
-          <Text className="text-[11px] leading-[18px] tracking-[-0.11px] text-warm">
-            Based on your preferences and routine, AI will automatically assign the optimal time
-            slot for this workout.
-          </Text>
-        </View>
-      ) : (
+      {aiAvailable ? (
         <>
-          <Text className="pb-1 pt-3 text-[11px] font-medium uppercase tracking-[-0.11px] text-ink">
+          <View className="flex-row items-center justify-between">
+            <Text className="text-[11px] font-medium tracking-[-0.11px] text-ink">
+              AI Scheduling
+            </Text>
+            <Switch
+              testID="ai-schedule-toggle"
+              value={selectedRowAiScheduled}
+              onValueChange={onToggleRowAiScheduled}
+              trackColor={{ false: '#D8D3CB', true: '#01C21B' }}
+              thumbColor={colors.white}
+              ios_backgroundColor="#D8D3CB"
+            />
+          </View>
+
+          {selectedRowAiScheduled ? (
+            <View className="mt-3 rounded-2xl border border-warm3 bg-[rgba(35,36,34,0.02)] px-4 py-3">
+              <Text className="text-[11px] leading-[18px] tracking-[-0.11px] text-warm">
+                Based on your preferences and routine, AI will automatically assign the optimal time
+                slot for this task.
+              </Text>
+            </View>
+          ) : null}
+        </>
+      ) : null}
+
+      {!selectedRowAiScheduled ? (
+        <>
+          <Text
+            className={`pb-1 text-[11px] font-medium uppercase tracking-[-0.11px] text-ink ${aiAvailable ? 'pt-3' : 'pt-0'}`}
+          >
             Start
           </Text>
           <TimeWheelPicker
@@ -92,7 +103,7 @@ export function TaskTimePanel({ onConfirmAdd }: Props) {
             </Text>
           ) : null}
         </>
-      )}
+      ) : null}
 
       <TaskTimeDropdownActions
         onCancel={onCancelTaskTimeEdit}

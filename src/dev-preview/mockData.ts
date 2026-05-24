@@ -73,6 +73,16 @@ export function makeCompletedHeavyTasks(): Task[] {
   ];
 }
 
+export function makeDayCompleteTasks(): Task[] {
+  return [
+    buildMockTask('Morning routine', atToday(7, 0), atToday(7, 45), 'completed'),
+    buildMockTask('Team standup', atToday(8, 0), atToday(8, 30), 'completed'),
+    buildMockTask('Deep work', atToday(9, 0), atToday(11, 0), 'completed'),
+    buildMockTask('Review notes', atToday(11, 15), atToday(11, 45), 'completed'),
+    buildMockTask('Lunch break', atToday(12, 0), atToday(12, 45), 'completed'),
+  ];
+}
+
 export function makeGeneratedPreviewTasks(): GeneratedTaskPreview[] {
   const firstStart = atToday(9, 0);
   const secondStart = addMinutes(firstStart, 50);

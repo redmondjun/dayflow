@@ -5,12 +5,12 @@ import { colors } from '../../theme/colors';
 import { plannerQuickAdd } from '../../features/taskPlanning';
 
 export function QuickAddSection() {
-  const { aiEnabled, onSelectQuickAdd, onSubmit, canSubmit, generating, loading } =
+  const { draftAiScheduled, onSelectQuickAdd, onSubmit, canSubmit, generating, loading } =
     useAIScheduleFooter();
 
   return (
     <>
-      {aiEnabled ? (
+      {draftAiScheduled ? (
         <View className="flex-row items-center gap-[7px] px-6 pt-4">
           <View className="h-1 w-1 rounded-full bg-[#01C21B]" />
           <Text className="text-[12px] tracking-[0.12px] text-ink2">

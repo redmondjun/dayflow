@@ -7,15 +7,28 @@ import { AIScheduleScreen } from './AIScheduleScreen';
 import { useTaskStore } from '../store/taskStore';
 import type { Task } from '../types/task';
 import * as scheduling from '../features/taskPlanning/scheduling';
+import { getActiveAiApiKey, getAiFeaturesEnabled } from '../services/apiKey';
 import { getOnboardingProfile } from '../services/onboardingProfile';
 import { resetDevDemoState, setDemoNowOverride } from '../services/devDemo';
 
 jest.mock('@react-navigation/native', () => ({
   useIsFocused: jest.fn(() => true),
+  useNavigation: jest.fn(() => ({
+    addListener: jest.fn(() => jest.fn()),
+    setOptions: jest.fn(),
+  })),
+  usePreventRemove: jest.fn(),
 }));
 
 jest.mock('../store/taskStore', () => ({
   useTaskStore: jest.fn(),
+}));
+
+jest.mock('../services/apiKey', () => ({
+  getActiveAiApiKey: jest.fn(),
+  getOpenAIApiKey: jest.fn(),
+  getGeminiApiKey: jest.fn(),
+  getAiFeaturesEnabled: jest.fn(),
 }));
 
 jest.mock('../services/onboardingProfile', () => ({
@@ -32,8 +45,15 @@ describe('AIScheduleScreen preview', () => {
 
   beforeEach(() => {
     jest.mocked(getOnboardingProfile).mockResolvedValue(null);
+    jest.mocked(getActiveAiApiKey).mockResolvedValue(null);
+    jest.mocked(getAiFeaturesEnabled).mockResolvedValue(true);
     resetDevDemoState();
   });
+
+  function mockAiAvailable() {
+    jest.mocked(getActiveAiApiKey).mockResolvedValue({ provider: 'openai', key: 'test-key' });
+    jest.mocked(getAiFeaturesEnabled).mockResolvedValue(true);
+  }
 
   function makeExistingTask(
     startHour: number,
@@ -74,7 +94,7 @@ describe('AIScheduleScreen preview', () => {
     })) as never;
   }
 
-  it('renders the dedicated task-complete preview screen for generated schedules', () => {
+  it('renders the AI schedule preview for generated schedules', () => {
     mockStore();
 
     render(
@@ -83,11 +103,49 @@ describe('AIScheduleScreen preview', () => {
       </PaperProvider>,
     );
 
-    expect(screen.getByText('All done for today.')).toBeOnTheScreen();
-    expect(screen.getByText('Completed')).toBeOnTheScreen();
-    expect(screen.getByText('3/3')).toBeOnTheScreen();
+    expect(screen.getByText('Your schedule')).toBeOnTheScreen();
+    expect(screen.getByText('is ready')).toBeOnTheScreen();
+    expect(screen.getByText('AI organized')).toBeOnTheScreen();
+    expect(screen.getByText('3 tasks · 2h 15m')).toBeOnTheScreen();
+    expect(screen.getByText('Schedule')).toBeOnTheScreen();
     expect(screen.getByText('Study React hooks')).toBeOnTheScreen();
-    expect(screen.getByText('Confirm schedule ->')).toBeOnTheScreen();
+    expect(screen.getByText('Gym session')).toBeOnTheScreen();
+    expect(screen.getByText('Groceries')).toBeOnTheScreen();
+    expect(screen.getByText('Confirm Schedule ->')).toBeOnTheScreen();
+  });
+
+  it('returns to the planner with task rows intact when preview back is pressed', () => {
+    const clearPreviewTasks = jest.fn();
+    jest.mocked(useTaskStore).mockReturnValue({
+      previewTasks: [],
+      setPreviewTasks: jest.fn(),
+      updatePreviewTask: jest.fn(),
+      clearPreviewTasks,
+      confirmPreviewTasks: jest.fn(),
+      addTasks: jest.fn(),
+      error: null,
+      clearError: jest.fn(),
+      loading: false,
+      todayTasks: () => [],
+    } as never);
+    jest.mocked(useTaskStore).getState = jest.fn(() => ({
+      todayTasks: () => [],
+    })) as never;
+
+    render(
+      <PaperProvider>
+        <AIScheduleScreen onCancel={jest.fn()} onOpenSettings={jest.fn()} scenarioId="ai-preview" />
+      </PaperProvider>,
+    );
+
+    expect(screen.getByText('Your schedule')).toBeOnTheScreen();
+    fireEvent.press(screen.getByTestId('schedule-preview-back'));
+
+    expect(screen.getByText('Plan your day')).toBeOnTheScreen();
+    expect(screen.getByText('Morning workout')).toBeOnTheScreen();
+    expect(screen.getByText('Study React')).toBeOnTheScreen();
+    expect(screen.getByText('Lunch Break')).toBeOnTheScreen();
+    expect(clearPreviewTasks).not.toHaveBeenCalled();
   });
 
   it('opens the draft dropdown and focuses the title when entering create flow', async () => {
@@ -141,8 +199,25 @@ describe('AIScheduleScreen preview', () => {
     focusSpy.mockRestore();
   });
 
-  it('shows Cancel and Add when AI scheduling is enabled', async () => {
+  it('hides the AI toggle when AI is unavailable', async () => {
     mockStore();
+
+    render(
+      <PaperProvider>
+        <AIScheduleScreen onCancel={jest.fn()} onOpenSettings={jest.fn()} />
+      </PaperProvider>,
+    );
+
+    await waitFor(() => {
+      expect(screen.getByTestId('ai-schedule-draft-input')).toBeOnTheScreen();
+    });
+    expect(screen.queryByTestId('ai-schedule-toggle')).not.toBeOnTheScreen();
+    expect(screen.getByText('Start')).toBeOnTheScreen();
+  });
+
+  it('shows per-row AI toggle and hides time wheels when AI is available and draft is AI-scheduled', async () => {
+    mockStore();
+    mockAiAvailable();
 
     render(
       <PaperProvider>
@@ -151,10 +226,94 @@ describe('AIScheduleScreen preview', () => {
     );
 
     await waitFor(() => {
-      expect(screen.getByTestId('ai-schedule-time-cancel')).toBeOnTheScreen();
+      expect(screen.getByTestId('ai-schedule-toggle')).toBeOnTheScreen();
     });
     expect(screen.queryByText('Start')).not.toBeOnTheScreen();
     expect(screen.getByTestId('ai-schedule-time-add')).toBeOnTheScreen();
+  });
+
+  it('defaults draft to manual scheduling when adding to an existing schedule', async () => {
+    mockStore(() => [makeExistingTask(9, 0, 10, 0)]);
+    mockAiAvailable();
+
+    render(
+      <PaperProvider>
+        <AIScheduleScreen onCancel={jest.fn()} onOpenSettings={jest.fn()} />
+      </PaperProvider>,
+    );
+
+    await waitFor(() => {
+      expect(screen.getByTestId('ai-schedule-draft-input')).toBeOnTheScreen();
+    });
+    expect(screen.getByTestId('ai-schedule-toggle').props.value).toBe(false);
+    expect(screen.getByText('Start')).toBeOnTheScreen();
+    expect(
+      screen.queryByText("No need to set time - we'll organize your day."),
+    ).not.toBeOnTheScreen();
+  });
+
+  it('defaults draft to AI scheduling when starting from an empty schedule', async () => {
+    mockStore();
+    mockAiAvailable();
+
+    render(
+      <PaperProvider>
+        <AIScheduleScreen onCancel={jest.fn()} onOpenSettings={jest.fn()} />
+      </PaperProvider>,
+    );
+
+    await waitFor(() => {
+      expect(screen.getByTestId('ai-schedule-toggle')).toBeOnTheScreen();
+    });
+    expect(screen.getByTestId('ai-schedule-toggle').props.value).toBe(true);
+    expect(screen.queryByText('Start')).not.toBeOnTheScreen();
+  });
+
+  it('does not show placeholder times on AI-scheduled committed rows', async () => {
+    mockStore();
+    mockAiAvailable();
+
+    render(
+      <PaperProvider>
+        <AIScheduleScreen onCancel={jest.fn()} onOpenSettings={jest.fn()} initialAiEnabled />
+      </PaperProvider>,
+    );
+
+    await waitFor(() => {
+      expect(screen.getByTestId('ai-schedule-draft-input')).toBeOnTheScreen();
+    });
+
+    fireEvent.changeText(screen.getByTestId('ai-schedule-draft-input'), 'Morning workout');
+    fireEvent.press(screen.getByTestId('ai-schedule-time-add'));
+
+    expect(screen.getByText('Morning workout')).toBeOnTheScreen();
+    expect(screen.getByText('AI')).toBeOnTheScreen();
+    expect(screen.queryByText(/\d:\d{2}\s(?:AM|PM)\s-\s\d:\d{2}\s(?:AM|PM)/)).not.toBeOnTheScreen();
+  });
+
+  it('toggles a committed row between AI and manual scheduling independently', async () => {
+    mockStore();
+    mockAiAvailable();
+
+    render(
+      <PaperProvider>
+        <AIScheduleScreen onCancel={jest.fn()} onOpenSettings={jest.fn()} scenarioId="default" />
+      </PaperProvider>,
+    );
+
+    fireEvent.press(screen.getByText('Morning workout'));
+    await waitFor(() => {
+      expect(screen.getByTestId('ai-schedule-toggle')).toBeOnTheScreen();
+    });
+
+    fireEvent(screen.getByTestId('ai-schedule-toggle'), 'valueChange', true);
+    expect(screen.queryByText('Start')).not.toBeOnTheScreen();
+
+    fireEvent(screen.getByTestId('ai-schedule-time-add'), 'press');
+    fireEvent.press(screen.getByText('Lunch Break'));
+
+    expect(screen.getByText('Start')).toBeOnTheScreen();
+    expect(screen.getByTestId('ai-schedule-toggle').props.value).toBe(false);
   });
 
   it('shows a delete button when a committed task is selected', () => {

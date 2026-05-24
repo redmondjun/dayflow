@@ -4,8 +4,11 @@ import type { RootStackParamList } from '../navigation/types';
 import { HomeScreen } from '../screens/HomeScreen';
 import { SettingsScreen } from '../screens/SettingsScreen';
 import { TaskFormScreen } from '../screens/TaskFormScreen';
+import { DayCompleteView } from '../views/DayCompleteView';
+import { makeDayCompleteTasks } from './mockData';
 import { OnboardingPreviewScreen } from './OnboardingPreviewScreen';
 import { previewScenarios } from './scenarios';
+import { SchedulePreviewPreviewScreen } from './SchedulePreviewPreviewScreen';
 import { WeeklyInsightPreviewScreen } from './WeeklyInsightPreviewScreen';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'PreviewScenario'>;
@@ -39,6 +42,14 @@ export function PreviewScenarioScreen({ navigation, route }: Props) {
     return (
       <TaskFormScreen scenarioId={scenario.id as 'task-create' | 'task-edit'} onCancel={onBack} />
     );
+  }
+
+  if (scenario.id === 'ai-schedule-preview') {
+    return <SchedulePreviewPreviewScreen onBack={onBack} />;
+  }
+
+  if (scenario.id === 'day-complete') {
+    return <DayCompleteView tasks={makeDayCompleteTasks()} onDismiss={onBack} />;
   }
 
   if (scenario.id.startsWith('weekly-')) {

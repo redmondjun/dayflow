@@ -4,6 +4,7 @@ import {
   bulkCreateTasks,
   createTask,
   deleteTask as deleteTaskFromDb,
+  deleteTasksForDay as deleteTasksForDayFromDb,
   initDb,
   loadTasks,
   updateTask as updateTaskInDb,
@@ -16,7 +17,13 @@ import {
   rescheduleFutureNotifications,
   scheduleTaskNotification,
 } from '../services/notifications';
-import { getCurrentTask, getTodayTasks, getUpcomingTasks, sortByStartTime } from '../utils/time';
+import {
+  getCurrentTask,
+  getTodayTasks,
+  getUpcomingTasks,
+  sortByStartTime,
+  sortGeneratedTasksByStartTime,
+} from '../utils/time';
 
 type TaskStore = {
   tasks: Task[];
@@ -33,6 +40,7 @@ type TaskStore = {
     input: Partial<NewTaskInput> & { status?: TaskStatus },
   ) => Promise<void>;
   deleteTask: (taskId: string) => Promise<void>;
+  deleteTasksForDay: (day: Date) => Promise<number>;
   markCompleted: (taskId: string) => Promise<void>;
   markSkipped: (taskId: string) => Promise<void>;
   setPreviewTasks: (tasks: GeneratedTaskPreview[]) => void;
@@ -65,6 +73,13 @@ async function runStoreAction(
       loading: false,
       error: error instanceof Error ? error.message : 'Something went wrong.',
     });
+  }
+}
+
+async function cancelAndClearNotification(taskId: string, notificationId?: string | null) {
+  await cancelTaskNotification(notificationId);
+  if (notificationId) {
+    await updateTaskNotificationId(taskId, null);
   }
 }
 
@@ -124,10 +139,7 @@ export const useTaskStore = create<TaskStore>((set, get) => ({
   updateTask: async (taskId, input) => {
     await runStoreAction(set, async () => {
       const existing = get().tasks.find((task) => task.id === taskId);
-      if (existing?.notificationId) {
-        await cancelTaskNotification(existing.notificationId);
-        await updateTaskNotificationId(existing.id, null);
-      }
+      await cancelAndClearNotification(taskId, existing?.notificationId);
 
       const updated = await updateTaskInDb(taskId, { ...input, notificationId: null });
       await scheduleTaskNotification(updated);
@@ -142,21 +154,31 @@ export const useTaskStore = create<TaskStore>((set, get) => ({
     });
   },
 
+  deleteTasksForDay: async (day) => {
+    let deletedCount = 0;
+    await runStoreAction(set, async () => {
+      const deleted = await deleteTasksForDayFromDb(day);
+      deletedCount = deleted.length;
+      for (const task of deleted) {
+        await cancelTaskNotification(task.notificationId);
+      }
+    });
+    return deletedCount;
+  },
+
   markCompleted: async (taskId) => {
     await runStoreAction(set, async () => {
       const existing = get().tasks.find((task) => task.id === taskId);
-      await cancelTaskNotification(existing?.notificationId);
-      const updated = await updateTaskStatus(taskId, 'completed');
-      if (updated.notificationId) await updateTaskNotificationId(taskId, null);
+      await cancelAndClearNotification(taskId, existing?.notificationId);
+      await updateTaskStatus(taskId, 'completed');
     });
   },
 
   markSkipped: async (taskId) => {
     await runStoreAction(set, async () => {
       const existing = get().tasks.find((task) => task.id === taskId);
-      await cancelTaskNotification(existing?.notificationId);
-      const updated = await updateTaskStatus(taskId, 'skipped');
-      if (updated.notificationId) await updateTaskNotificationId(taskId, null);
+      await cancelAndClearNotification(taskId, existing?.notificationId);
+      await updateTaskStatus(taskId, 'skipped');
     });
   },
 
@@ -174,13 +196,13 @@ export const useTaskStore = create<TaskStore>((set, get) => ({
 
   confirmPreviewTasks: async () => {
     await runStoreAction(set, async () => {
-      const previewTasks = get().previewTasks;
+      const previewTasks = sortGeneratedTasksByStartTime(get().previewTasks);
       const tasks = await bulkCreateTasks(
         previewTasks.map((task) => ({
           title: task.title,
           startTime: task.startTime,
           endTime: task.endTime,
-          aiGenerated: true,
+          aiGenerated: task.aiGenerated ?? false,
         })),
       );
       for (const task of tasks) {

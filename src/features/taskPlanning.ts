@@ -1,6 +1,7 @@
 import { makeGeneratedPreviewTasks } from '../dev-preview/mockData';
 import type { GeneratedTaskPreview, NewTaskInput, Task, TaskInputRow } from '../types/task';
-import { addMinutes, formatInputTime, parseTimeInput } from '../utils/time';
+import { addMinutes, formatInputTime, parseTimeInput, sortByStartTime } from '../utils/time';
+import { createId } from '../utils/id';
 import { findNextAvailableSlot } from './taskPlanning/scheduling';
 
 export const plannerQuickAdd = [
@@ -15,15 +16,16 @@ export const missingApiKeyMessage = 'Add an OpenAI or Gemini API key in Settings
 
 type PreviewSeed = {
   apiKey: string | null;
+  aiFeaturesEnabled: boolean;
   localError: string | null;
-  aiEnabled: boolean;
+  initialDraftAiScheduled: boolean;
   taskRows: TaskInputRow[];
   selectedTaskId: string | null;
   previewTasks: GeneratedTaskPreview[];
 };
 
-function createRowId() {
-  return `${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
+export function sortTaskInputs(inputs: NewTaskInput[]) {
+  return sortByStartTime(inputs);
 }
 
 export function getRoundedStartTime(): string {
@@ -40,6 +42,17 @@ export function hasTaskRowTitle(row: Pick<TaskInputRow, 'title'>): boolean {
   return taskRowTitle(row).trim().length > 0;
 }
 
+export function serializeTaskRowsForPreview(rows: TaskInputRow[]): string {
+  return JSON.stringify(
+    rows.filter(hasTaskRowTitle).map((row) => ({
+      title: row.title.trim(),
+      startTime: row.startTime,
+      endTime: row.endTime,
+      aiScheduled: Boolean(row.aiScheduled),
+    })),
+  );
+}
+
 export function normalizeTaskInputRow(row: TaskInputRow): TaskInputRow {
   return {
     ...row,
@@ -52,23 +65,28 @@ export function createTaskInputRow({
   startTime = getRoundedStartTime(),
   endTime,
   durationMinutes = 60,
+  aiScheduled = false,
   isDraft = false,
 }: {
   title?: string;
   startTime?: string;
   endTime?: string;
   durationMinutes?: number;
+  aiScheduled?: boolean;
   isDraft?: boolean;
 } = {}): TaskInputRow {
   return {
-    id: createRowId(),
+    id: createId(),
     title,
-    startTime,
+    startTime: aiScheduled ? '' : startTime,
     endTime:
-      endTime ??
-      formatInputTime(
-        addMinutes(parseTimeInput(startTime) ?? new Date().toISOString(), durationMinutes),
-      ),
+      aiScheduled || !startTime
+        ? ''
+        : (endTime ??
+          formatInputTime(
+            addMinutes(parseTimeInput(startTime) ?? new Date().toISOString(), durationMinutes),
+          )),
+    aiScheduled,
     isDraft,
   };
 }
@@ -84,7 +102,7 @@ export function createDraftTaskInputRow(
   previous?: TaskInputRow,
   title = '',
   options?: {
-    manualScheduling?: boolean;
+    aiScheduled?: boolean;
     existingTasks?: Task[];
     plannerRows?: TaskInputRow[];
     preferredStart?: string;
@@ -92,26 +110,31 @@ export function createDraftTaskInputRow(
     now?: Date;
   },
 ): TaskInputRow {
-  if (options?.manualScheduling) {
-    const slot = findNextAvailableSlot({
-      existingTasks: options.existingTasks ?? [],
-      plannerRows: options.plannerRows ?? (previous ? [previous] : []),
-      preferredStart: options.preferredStart,
-      durationMinutes: options.durationMinutes,
-      now: options.now,
-    });
-    return createTaskInputRow({
+  if (options?.aiScheduled) {
+    return {
+      id: createId(),
       title,
-      startTime: slot.startTime,
-      endTime: slot.endTime,
+      startTime: '',
+      endTime: '',
+      aiScheduled: true,
       isDraft: true,
-    });
+    };
   }
 
-  const startTime = previous
-    ? formatInputTime(addMinutes(parseTimeInput(previous.endTime) ?? new Date().toISOString(), 5))
-    : getRoundedStartTime();
-  return createTaskInputRow({ title, startTime, isDraft: true });
+  const slot = findNextAvailableSlot({
+    existingTasks: options?.existingTasks ?? [],
+    plannerRows: options?.plannerRows ?? (previous ? [previous] : []),
+    preferredStart: options?.preferredStart,
+    durationMinutes: options?.durationMinutes,
+    now: options?.now,
+  });
+  return createTaskInputRow({
+    title,
+    startTime: slot.startTime,
+    endTime: slot.endTime,
+    aiScheduled: false,
+    isDraft: true,
+  });
 }
 
 const previewSeedFactories: Record<string, () => PreviewSeed> = {
@@ -120,9 +143,10 @@ const previewSeedFactories: Record<string, () => PreviewSeed> = {
     const second = createNextTaskInputRow(first, 'label');
     const third = createTaskInputRow({ title: 'Lunch Break', startTime: '12:00' });
     return {
-      apiKey: null,
+      apiKey: 'preview-key',
+      aiFeaturesEnabled: true,
       localError: null,
-      aiEnabled: false,
+      initialDraftAiScheduled: false,
       taskRows: [first, second, third],
       selectedTaskId: null,
       previewTasks: [],
@@ -134,8 +158,9 @@ const previewSeedFactories: Record<string, () => PreviewSeed> = {
     const third = createTaskInputRow({ title: 'Lunch Break', startTime: '12:00' });
     return {
       apiKey: null,
+      aiFeaturesEnabled: true,
       localError: missingApiKeyMessage,
-      aiEnabled: true,
+      initialDraftAiScheduled: true,
       taskRows: [first, second, third],
       selectedTaskId: null,
       previewTasks: [],
@@ -145,8 +170,9 @@ const previewSeedFactories: Record<string, () => PreviewSeed> = {
     const first = createTaskInputRow({ title: '', startTime: '07:00' });
     return {
       apiKey: 'preview-key',
+      aiFeaturesEnabled: true,
       localError: null,
-      aiEnabled: false,
+      initialDraftAiScheduled: false,
       taskRows: [first],
       selectedTaskId: null,
       previewTasks: [],
@@ -158,8 +184,9 @@ const previewSeedFactories: Record<string, () => PreviewSeed> = {
     const third = createTaskInputRow({ title: 'Lunch Break', startTime: '12:00' });
     return {
       apiKey: 'preview-key',
+      aiFeaturesEnabled: true,
       localError: null,
-      aiEnabled: true,
+      initialDraftAiScheduled: true,
       taskRows: [first, second, third],
       selectedTaskId: null,
       previewTasks: makeGeneratedPreviewTasks(),
@@ -169,10 +196,4 @@ const previewSeedFactories: Record<string, () => PreviewSeed> = {
 
 export function getTaskPlanningPreviewSeed(scenarioId?: string) {
   return (previewSeedFactories[scenarioId ?? 'default'] ?? previewSeedFactories.default)();
-}
-
-export function sortTaskInputs(inputs: NewTaskInput[]) {
-  return [...inputs].sort(
-    (a, b) => new Date(a.startTime).getTime() - new Date(b.startTime).getTime(),
-  );
 }

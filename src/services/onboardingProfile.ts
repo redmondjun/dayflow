@@ -36,6 +36,7 @@ export function formatOnboardingProfileForPrompt(profile: OnboardingProfile | nu
   const lines = [
     formatStringAnswer('Name', profile.name),
     formatStringAnswer('Wake-up time', profile.wake),
+    formatStringAnswer('Bedtime', profile.sleep),
     formatStringAnswer('Work start time', profile.work),
     formatStringAnswer('Has fixed commitments', profile['commitment-presence']),
     formatCommitmentAnswer(profile['commitment-time']),

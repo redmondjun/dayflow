@@ -1,135 +1,58 @@
-import { useEffect, useMemo, useState } from 'react';
 import { RefreshControl, ScrollView, Text, View } from 'react-native';
 import { Button, Snackbar } from 'react-native-paper';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { CurrentTaskCard } from '../components/CurrentTaskCard';
+import { StickyBottomBar } from '../components/StickyBottomBar';
 import { TaskTimelineRow } from '../components/TaskTimelineRow';
-import { makeActiveDayTasks, makeCompletedHeavyTasks } from '../dev-preview/mockData';
-import { getDemoAdjustedTasks, getEffectiveNow, useDevDemoState } from '../services/devDemo';
-import { useTaskStore } from '../store/taskStore';
+import { useHomeScreenState, type HomeScreenViewProps } from '../hooks/useHomeScreenState';
 import { colors } from '../theme/colors';
-import type { Task } from '../types/task';
-import { formatDisplayDate, getCurrentTask, getUpcomingTasks } from '../utils/time';
+import { DayCompleteView } from './DayCompleteView';
 
-type RouteProps = {
-  onEditTask?: (taskId: string) => void;
-  onCreateTask: () => void;
-  onOpenSettings?: () => void;
-};
-
-type PreviewProps = {
-  scenarioId: 'home-empty' | 'home-active' | 'home-completed';
-  onBack: () => void;
-};
-
-type Props = RouteProps | PreviewProps;
-
-function isPreviewProps(props: Props): props is PreviewProps {
-  return 'scenarioId' in props;
-}
-
-function buildPreviewTasks(scenarioId: PreviewProps['scenarioId']): Task[] {
-  const previewTaskMap: Record<PreviewProps['scenarioId'], Task[]> = {
-    'home-empty': [],
-    'home-active': makeActiveDayTasks(),
-    'home-completed': makeCompletedHeavyTasks(),
-  };
-  return previewTaskMap[scenarioId];
-}
-
-function updatePreviewTaskStatus(
-  setPreviewTasks: React.Dispatch<React.SetStateAction<Task[]>>,
-  taskId: string,
-  status: Task['status'],
-) {
-  setPreviewTasks((tasks) =>
-    tasks.map((task) => (task.id === taskId ? { ...task, status } : task)),
-  );
-}
-
-export function HomeScreenView(props: Props) {
-  const isPreview = isPreviewProps(props);
-  const previewScenarioId = isPreview ? props.scenarioId : null;
-  const [tick, setTick] = useState(Date.now());
-  const { nowOverride } = useDevDemoState();
-  const [previewTasks, setPreviewTasks] = useState<Task[]>(
-    previewScenarioId ? buildPreviewTasks(previewScenarioId) : [],
-  );
+export function HomeScreenView(props: HomeScreenViewProps) {
   const {
-    loading,
-    error,
     clearError,
-    reloadTasks,
-    todayTasks,
-    currentTask,
-    upcomingTasks,
-    markCompleted,
-    markSkipped,
-  } = useTaskStore();
-
-  useEffect(() => {
-    const id = setInterval(() => setTick(Date.now()), 30000);
-    return () => clearInterval(id);
-  }, []);
-
-  useEffect(() => {
-    if (previewScenarioId) {
-      setPreviewTasks(buildPreviewTasks(previewScenarioId));
-    }
-  }, [previewScenarioId]);
-
-  const effectiveNow = useMemo(
-    () => (isPreview ? new Date(tick) : getEffectiveNow(new Date(tick))),
-    [isPreview, tick, nowOverride],
-  );
-  const date = formatDisplayDate(effectiveNow);
-  const tasks = isPreview
-    ? previewTasks
-    : getDemoAdjustedTasks(todayTasks(effectiveNow), effectiveNow);
-  const current = isPreview ? getCurrentTask(tasks, effectiveNow) : currentTask(effectiveNow);
-  const next = isPreview
-    ? getUpcomingTasks(tasks, effectiveNow)[0]
-    : upcomingTasks(effectiveNow)[0];
-  const routeOnEditTask = 'onEditTask' in props ? props.onEditTask : undefined;
-  const mode = isPreview
-    ? {
-        onHeaderPress: props.onBack,
-        refreshControl: undefined,
-        onCurrentComplete: current
-          ? () => updatePreviewTaskStatus(setPreviewTasks, current.id, 'completed')
-          : undefined,
-        onCurrentSkip: current
-          ? () => updatePreviewTaskStatus(setPreviewTasks, current.id, 'skipped')
-          : undefined,
-        onTaskPress: undefined,
-        onPrimaryAction: props.onBack,
-        onSecondaryAction: props.onBack,
-        showError: false,
-      }
-    : {
-        onHeaderPress: props.onOpenSettings,
-        refreshControl: (
-          <RefreshControl refreshing={loading} onRefresh={reloadTasks} tintColor={colors.ink} />
-        ),
-        onCurrentComplete: current ? () => markCompleted(current.id) : undefined,
-        onCurrentSkip: current ? () => markSkipped(current.id) : undefined,
-        onTaskPress: routeOnEditTask,
-        onPrimaryAction: props.onCreateTask,
-        showError: true,
-      };
-  const {
+    current,
+    date,
+    dayCompleteCandidate,
+    effectiveNow,
+    error,
+    next,
     onCurrentComplete,
     onCurrentSkip,
+    onDismissDayComplete,
     onHeaderPress,
     onPrimaryAction,
     onTaskPress,
-    refreshControl,
+    pullToRefresh,
     showError,
-  } = mode;
+    showingDayComplete,
+    tasks,
+  } = useHomeScreenState(props);
+
+  if (showingDayComplete && dayCompleteCandidate) {
+    return (
+      <DayCompleteView
+        tasks={dayCompleteCandidate.tasks}
+        completedDay={dayCompleteCandidate.day}
+        onDismiss={onDismissDayComplete}
+      />
+    );
+  }
 
   return (
     <SafeAreaView className="flex-1 bg-paper" edges={['top']}>
-      <ScrollView contentContainerClassName="pb-28 pt-3" refreshControl={refreshControl}>
+      <ScrollView
+        contentContainerClassName="pb-28 pt-3"
+        refreshControl={
+          pullToRefresh ? (
+            <RefreshControl
+              refreshing={pullToRefresh.loading}
+              onRefresh={pullToRefresh.onRefresh}
+              tintColor={colors.ink}
+            />
+          ) : undefined
+        }
+      >
         <View className="flex-row items-start justify-between gap-4 px-4 pb-7">
           <View>
             <Text className="text-[11px] font-normal uppercase text-warm">{date.weekday}</Text>
@@ -186,7 +109,7 @@ export function HomeScreenView(props: Props) {
         </View>
       </ScrollView>
 
-      <View className="absolute bottom-0 left-0 right-0 gap-2 bg-paper px-5 pb-7 pt-3">
+      <StickyBottomBar className="gap-2 px-5 pb-7 pt-3">
         <Button
           mode="contained"
           buttonColor={colors.ink}
@@ -196,7 +119,7 @@ export function HomeScreenView(props: Props) {
         >
           {tasks.length > 0 ? 'Add task' : 'Create Task'}
         </Button>
-      </View>
+      </StickyBottomBar>
 
       {showError ? (
         <Snackbar visible={Boolean(error)} onDismiss={clearError} duration={4000}>

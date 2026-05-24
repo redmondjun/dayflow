@@ -98,6 +98,7 @@ describe('onboardingProfile service', () => {
       formatOnboardingProfileForPrompt({
         name: 'Chris',
         wake: '7:00 AM',
+        sleep: '11:00 PM',
         work: '9:00 AM',
         'commitment-presence': 'Yes',
         'commitment-time': { option: 'Custom', startTime: '1:00 PM', endTime: '3:00 PM' },
@@ -109,6 +110,7 @@ describe('onboardingProfile service', () => {
       [
         '- Name: Chris',
         '- Wake-up time: 7:00 AM',
+        '- Bedtime: 11:00 PM',
         '- Work start time: 9:00 AM',
         '- Has fixed commitments: Yes',
         '- Fixed commitments: Custom, 1:00 PM - 3:00 PM',
