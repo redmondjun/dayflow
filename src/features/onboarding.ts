@@ -28,6 +28,12 @@ export const onboardingSteps: OnboardingStep[] = [
     helperLabel: 'Wake-up time',
   },
   {
+    id: 'sleep',
+    question: 'What time do you usually go to sleep?',
+    kind: 'time',
+    helperLabel: 'Bedtime',
+  },
+  {
     id: 'work',
     question: 'When do you usually start working?',
     kind: 'time',
@@ -74,6 +80,7 @@ export const onboardingSteps: OnboardingStep[] = [
 export const defaultOnboardingAnswers: Record<string, OnboardingAnswer> = {
   name: '',
   wake: '7:00 AM',
+  sleep: '11:00 PM',
   work: '9:00 AM',
 };
 

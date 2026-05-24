@@ -43,6 +43,7 @@ function completeOnboardingFlow() {
   answerName();
   fireEvent.press(screen.getByText('Next'));
   fireEvent.press(screen.getByText('Next'));
+  fireEvent.press(screen.getByText('Next'));
   fireEvent.press(screen.getByText('Yes'));
   fireEvent.press(screen.getByText('Next'));
   fireEvent.press(screen.getByText("I don't have fixed commitments"));
@@ -66,14 +67,17 @@ describe('OnboardingScreen', () => {
     saveOnboardingProfileMock.mockResolvedValue();
   });
 
-  it('walks through the full eight-step flow and saves the onboarding profile', async () => {
+  it('walks through the full nine-step flow and saves the onboarding profile', async () => {
     const { navigation } = renderOnboardingScreen();
 
     expect(screen.getByText("What's your name?")).toBeOnTheScreen();
-    expect(screen.getByText('1/8')).toBeOnTheScreen();
+    expect(screen.getByText('1/9')).toBeOnTheScreen();
     answerName();
 
     expect(screen.getByText('What time do you usually wake up?')).toBeOnTheScreen();
+    fireEvent.press(screen.getByText('Next'));
+
+    expect(screen.getByText('What time do you usually go to sleep?')).toBeOnTheScreen();
     fireEvent.press(screen.getByText('Next'));
 
     expect(screen.getByText('When do you usually start working?')).toBeOnTheScreen();
@@ -108,6 +112,7 @@ describe('OnboardingScreen', () => {
       expect.objectContaining({
         name: 'Chris',
         wake: '7:00 AM',
+        sleep: '11:00 PM',
         work: '9:00 AM',
         'commitment-presence': 'Yes',
         'commitment-time': { option: "I don't have fixed commitments" },
@@ -151,6 +156,7 @@ describe('OnboardingScreen', () => {
     answerName();
     fireEvent.press(screen.getByText('Next'));
     fireEvent.press(screen.getByText('Next'));
+    fireEvent.press(screen.getByText('Next'));
     fireEvent.press(screen.getByText('Yes'));
     fireEvent.press(screen.getByText('Next'));
     fireEvent.press(screen.getByText("I don't have fixed commitments"));
@@ -189,6 +195,7 @@ describe('OnboardingScreen', () => {
     answerName();
     fireEvent.press(screen.getByText('Next'));
     fireEvent.press(screen.getByText('Next'));
+    fireEvent.press(screen.getByText('Next'));
     fireEvent.press(screen.getByText('Yes'));
     fireEvent.press(screen.getByText('Next'));
     fireEvent.press(screen.getByText("I don't have fixed commitments"));
@@ -216,6 +223,7 @@ describe('OnboardingScreen', () => {
     renderOnboardingScreen();
 
     answerName();
+    fireEvent.press(screen.getByText('Next'));
     fireEvent.press(screen.getByText('Next'));
     fireEvent.press(screen.getByText('Next'));
 
@@ -267,6 +275,12 @@ describe('OnboardingScreen', () => {
     fireEvent.press(screen.getByText('Next'));
 
     expect(screen.getByText('What time do you usually wake up?')).toBeOnTheScreen();
+    expect(screen.UNSAFE_getByType(Button).props.buttonColor).toBe('#01B224');
+    expect(screen.UNSAFE_getByType(Button).props.textColor).toBe('#FFFFFF');
+
+    fireEvent.press(screen.getByText('Next'));
+
+    expect(screen.getByText('What time do you usually go to sleep?')).toBeOnTheScreen();
     expect(screen.UNSAFE_getByType(Button).props.buttonColor).toBe('#01B224');
     expect(screen.UNSAFE_getByType(Button).props.textColor).toBe('#FFFFFF');
 
@@ -469,6 +483,7 @@ describe('OnboardingScreen', () => {
       answerName();
       fireEvent.press(screen.getByText('Next'));
       fireEvent.press(screen.getByText('Next'));
+      fireEvent.press(screen.getByText('Next'));
       fireEvent.press(screen.getByText('Yes'));
       fireEvent.press(screen.getByText('Next'));
       fireEvent.press(screen.getByText('Custom'));
@@ -567,6 +582,7 @@ describe('OnboardingScreen', () => {
     fireEvent.press(screen.getByText('Next'));
     fireEvent.press(screen.getByText('Next'));
     fireEvent.press(screen.getByText('Next'));
+    fireEvent.press(screen.getByText('Next'));
 
     await waitFor(() => expect(screen.getByText('All set!')).toBeOnTheScreen());
     fireEvent.press(screen.getByText('Get Started'));
@@ -575,6 +591,7 @@ describe('OnboardingScreen', () => {
       expect.objectContaining({
         name: 'Alex',
         wake: '8:00 AM',
+        sleep: '11:00 PM',
         work: '7:00 AM',
         'commitment-presence': 'No',
         focus: 'Evening',
