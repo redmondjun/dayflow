@@ -155,17 +155,14 @@ export function getLocalDayKey(day: Date): string {
   return `${year}-${month}-${date}`;
 }
 
-export function sortByStartTime(tasks: Task[]): Task[] {
-  return [...tasks].sort(
+export function sortByStartTime<T extends { startTime: string }>(items: T[]): T[] {
+  return [...items].sort(
     (a, b) => new Date(a.startTime).getTime() - new Date(b.startTime).getTime(),
   );
 }
 
-export function sortGeneratedTasksByStartTime<T extends { startTime: string }>(tasks: T[]): T[] {
-  return [...tasks].sort(
-    (a, b) => new Date(a.startTime).getTime() - new Date(b.startTime).getTime(),
-  );
-}
+/** @deprecated Use sortByStartTime */
+export const sortGeneratedTasksByStartTime = sortByStartTime;
 
 export function getTodayTasks(tasks: Task[], now = new Date()): Task[] {
   return sortByStartTime(tasks.filter((task) => isSameLocalDay(new Date(task.startTime), now)));

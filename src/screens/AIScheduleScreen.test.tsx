@@ -7,7 +7,7 @@ import { AIScheduleScreen } from './AIScheduleScreen';
 import { useTaskStore } from '../store/taskStore';
 import type { Task } from '../types/task';
 import * as scheduling from '../features/taskPlanning/scheduling';
-import { getAiFeaturesEnabled, getGeminiApiKey, getOpenAIApiKey } from '../services/apiKey';
+import { getActiveAiApiKey, getAiFeaturesEnabled } from '../services/apiKey';
 import { getOnboardingProfile } from '../services/onboardingProfile';
 import { resetDevDemoState, setDemoNowOverride } from '../services/devDemo';
 
@@ -25,6 +25,7 @@ jest.mock('../store/taskStore', () => ({
 }));
 
 jest.mock('../services/apiKey', () => ({
+  getActiveAiApiKey: jest.fn(),
   getOpenAIApiKey: jest.fn(),
   getGeminiApiKey: jest.fn(),
   getAiFeaturesEnabled: jest.fn(),
@@ -44,6 +45,7 @@ describe('AIScheduleScreen preview', () => {
 
   beforeEach(() => {
     jest.mocked(getOnboardingProfile).mockResolvedValue(null);
+    jest.mocked(getActiveAiApiKey).mockResolvedValue(null);
     jest.mocked(getOpenAIApiKey).mockResolvedValue(null);
     jest.mocked(getGeminiApiKey).mockResolvedValue(null);
     jest.mocked(getAiFeaturesEnabled).mockResolvedValue(true);
@@ -51,7 +53,7 @@ describe('AIScheduleScreen preview', () => {
   });
 
   function mockAiAvailable() {
-    jest.mocked(getOpenAIApiKey).mockResolvedValue('test-key');
+    jest.mocked(getActiveAiApiKey).mockResolvedValue({ provider: 'openai', key: 'test-key' });
     jest.mocked(getAiFeaturesEnabled).mockResolvedValue(true);
   }
 

@@ -128,6 +128,61 @@ export function PillActionButton({
   );
 }
 
+export function CheckmarkIcon({
+  variant = 'hero-green',
+}: {
+  variant?: 'hero-green' | 'hero-accent' | 'small-green';
+}) {
+  if (variant === 'hero-accent') {
+    return (
+      <View className="h-[72px] w-[72px] items-center justify-center rounded-full border-[3px] border-ink bg-accent">
+        <View className="h-[36px] w-[42px]">
+          <View
+            className="absolute h-[3px] w-[24px] rounded-full bg-ink"
+            style={{ transform: [{ rotate: '45deg' }], left: 0, top: 22 }}
+          />
+          <View
+            className="absolute h-[3px] w-[36px] rounded-full bg-ink"
+            style={{ transform: [{ rotate: '-45deg' }], left: 14, top: 18 }}
+          />
+        </View>
+      </View>
+    );
+  }
+
+  if (variant === 'small-green') {
+    return (
+      <View className="h-[16px] w-[16px] items-center justify-center rounded-full border border-[#01C21B]">
+        <View className="h-[6px] w-[7px]">
+          <View
+            className="absolute h-[1.5px] w-[3px] rounded-full bg-[#01C21B]"
+            style={{ transform: [{ rotate: '45deg' }], left: 1, top: 4 }}
+          />
+          <View
+            className="absolute h-[1.5px] w-[6px] rounded-full bg-[#01C21B]"
+            style={{ transform: [{ rotate: '-45deg' }], left: 2, top: 3 }}
+          />
+        </View>
+      </View>
+    );
+  }
+
+  return (
+    <View className="h-[72px] w-[72px] items-center justify-center rounded-full border-2 border-[#01C21B]">
+      <View className="h-[28px] w-[30px]">
+        <View
+          className="absolute h-[2.5px] w-[12px] rounded-full bg-[#01C21B]"
+          style={{ transform: [{ rotate: '45deg' }], left: 3, top: 16 }}
+        />
+        <View
+          className="absolute h-[2.5px] w-[22px] rounded-full bg-[#01C21B]"
+          style={{ transform: [{ rotate: '-45deg' }], left: 10, top: 14 }}
+        />
+      </View>
+    </View>
+  );
+}
+
 export function CompletionState({
   title,
   body,
@@ -141,18 +196,7 @@ export function CompletionState({
 }) {
   return (
     <View className="flex-1 items-center justify-center bg-paper px-6">
-      <View className="h-[72px] w-[72px] items-center justify-center rounded-full border-[3px] border-ink bg-accent">
-        <View className="h-[36px] w-[42px]">
-          <View
-            className="absolute h-[3px] w-[24px] rounded-full bg-ink"
-            style={{ transform: [{ rotate: '45deg' }], left: 0, top: 22 }}
-          />
-          <View
-            className="absolute h-[3px] w-[36px] rounded-full bg-ink"
-            style={{ transform: [{ rotate: '-45deg' }], left: 14, top: 18 }}
-          />
-        </View>
-      </View>
+      <CheckmarkIcon variant="hero-accent" />
       <Text className="mt-8 text-[32px] font-bold tracking-[-0.6px] text-ink">{title}</Text>
       <Text className="mt-4 max-w-[280px] text-center text-base leading-7 text-warm">{body}</Text>
       <View className="mt-8 w-full">

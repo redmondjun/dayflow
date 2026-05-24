@@ -1,71 +1,22 @@
 import type { WeeklyInsightSummary } from '../types/insight';
 import type { Task } from '../types/task';
+import {
+  buildSchedulePrompt,
+  buildWeeklyInsightPrompt,
+  openAiScheduleSchema,
+  openAiWeeklyInsightSchema,
+} from './ai/prompts';
+import {
+  validateGeneratedTasks,
+  validateWeeklyInsight,
+  type AiGeneratedTask,
+  type AiWeeklyInsight,
+} from './ai/validators';
+
+export type { AiGeneratedTask, AiWeeklyInsight };
 
 const OPENAI_RESPONSES_URL = 'https://api.openai.com/v1/responses';
 const DEFAULT_MODEL = 'gpt-5-nano';
-
-export type AiGeneratedTask = {
-  title: string;
-  durationMinutes: number;
-};
-
-export type AiWeeklyInsight = Pick<WeeklyInsightSummary, 'patterns' | 'suggestions'>;
-
-const responseSchema = {
-  type: 'object',
-  additionalProperties: false,
-  required: ['tasks'],
-  properties: {
-    tasks: {
-      type: 'array',
-      items: {
-        type: 'object',
-        additionalProperties: false,
-        required: ['title', 'durationMinutes'],
-        properties: {
-          title: { type: 'string' },
-          durationMinutes: { type: 'integer' },
-        },
-      },
-    },
-  },
-};
-
-const weeklyInsightSchema = {
-  type: 'object',
-  additionalProperties: false,
-  required: ['patterns', 'suggestions'],
-  properties: {
-    patterns: {
-      type: 'array',
-      minItems: 1,
-      maxItems: 3,
-      items: {
-        type: 'object',
-        additionalProperties: false,
-        required: ['label', 'text'],
-        properties: {
-          label: { type: 'string' },
-          text: { type: 'string' },
-        },
-      },
-    },
-    suggestions: {
-      type: 'array',
-      minItems: 1,
-      maxItems: 3,
-      items: {
-        type: 'object',
-        additionalProperties: false,
-        required: ['text', 'action'],
-        properties: {
-          text: { type: 'string' },
-          action: { type: 'string' },
-        },
-      },
-    },
-  },
-};
 
 export async function generateScheduleFromText(
   apiKey: string,
@@ -94,7 +45,7 @@ export async function generateScheduleFromText(
         type: 'json_schema',
         name: 'dayflow_schedule',
         strict: true,
-        schema: responseSchema,
+        schema: openAiScheduleSchema,
       },
     },
   });
@@ -142,7 +93,7 @@ export async function generateWeeklyInsight(
         type: 'json_schema',
         name: 'dayflow_weekly_insight',
         strict: true,
-        schema: weeklyInsightSchema,
+        schema: openAiWeeklyInsightSchema,
       },
     },
   });
@@ -160,45 +111,6 @@ export async function generateWeeklyInsight(
   }
 
   return validateWeeklyInsight(parsed);
-}
-
-function buildSchedulePrompt(tasks: string[], userProfile?: string | null): string {
-  const taskList = tasks.map((task, index) => `${index + 1}. ${task}`).join('\n');
-  const profile = userProfile?.trim();
-
-  if (!profile) return `Create a schedule from these separate tasks:\n${taskList}`;
-
-  return `Create a personalized schedule using this user profile:\n${profile}\n\nSeparate tasks:\n${taskList}`;
-}
-
-function buildWeeklyInsightPrompt(
-  tasks: Task[],
-  summary: WeeklyInsightSummary,
-  userProfile?: string | null,
-): string {
-  const taskLines = tasks
-    .map((task, index) => {
-      const start = new Date(task.startTime).toISOString();
-      const end = new Date(task.endTime).toISOString();
-      return `${index + 1}. ${task.title} | ${task.status} | ${start} - ${end}`;
-    })
-    .join('\n');
-  const profile = userProfile?.trim();
-  const profileBlock = profile ? `\nUser profile:\n${profile}\n` : '';
-
-  return `Create weekly productivity insights from this data.
-${profileBlock}
-Summary:
-- Date range: ${summary.dateRange}
-- Headline: ${summary.headline}
-- Completion: ${summary.completionPercent}%
-- Skipped: ${summary.skippedPercent}%
-- Peak hour: ${summary.peakHourLabel}
-
-Tasks:
-${taskLines}
-
-Return exactly 1-3 patterns and 1-3 suggestions. Pattern labels should be short. Suggestion actions should be short button-like phrases.`;
 }
 
 export async function validateOpenAIApiKey(apiKey: string): Promise<void> {
@@ -288,85 +200,4 @@ function getResponseText(data: unknown): string | null {
 function getContentText(content: unknown): string | null {
   if (!content || typeof content !== 'object' || !('text' in content)) return null;
   return typeof content.text === 'string' ? content.text : null;
-}
-
-function validateGeneratedTasks(value: unknown): AiGeneratedTask[] {
-  if (!value || typeof value !== 'object' || !('tasks' in value)) {
-    throw new Error('AI response did not include tasks.');
-  }
-
-  const tasks = value.tasks;
-  if (!Array.isArray(tasks) || tasks.length === 0) {
-    throw new Error('AI response did not include any tasks.');
-  }
-
-  return tasks.map((task) => {
-    if (!task || typeof task !== 'object') {
-      throw new Error('AI response included an invalid task.');
-    }
-
-    if (!('title' in task) || typeof task.title !== 'string' || !task.title.trim()) {
-      throw new Error('AI response included a task without a title.');
-    }
-    if (
-      !('durationMinutes' in task) ||
-      typeof task.durationMinutes !== 'number' ||
-      !Number.isFinite(task.durationMinutes)
-    ) {
-      throw new Error('AI response included an invalid duration.');
-    }
-
-    return {
-      title: task.title.trim(),
-      durationMinutes: Math.round(task.durationMinutes),
-    };
-  });
-}
-
-function validateWeeklyInsight(value: unknown): AiWeeklyInsight {
-  if (!value || typeof value !== 'object') {
-    throw new Error('AI response did not include weekly insights.');
-  }
-
-  if (!('patterns' in value) || !Array.isArray(value.patterns)) {
-    throw new Error('AI response did not include patterns.');
-  }
-  if (!('suggestions' in value) || !Array.isArray(value.suggestions)) {
-    throw new Error('AI response did not include suggestions.');
-  }
-
-  const patterns = value.patterns.map((pattern) => {
-    if (!pattern || typeof pattern !== 'object') {
-      throw new Error('AI response included an invalid pattern.');
-    }
-    if (!('label' in pattern) || typeof pattern.label !== 'string' || !pattern.label.trim()) {
-      throw new Error('AI response included a pattern without a label.');
-    }
-    if (!('text' in pattern) || typeof pattern.text !== 'string' || !pattern.text.trim()) {
-      throw new Error('AI response included a pattern without text.');
-    }
-    return { label: pattern.label.trim(), text: pattern.text.trim() };
-  });
-
-  const suggestions = value.suggestions.map((suggestion) => {
-    if (!suggestion || typeof suggestion !== 'object') {
-      throw new Error('AI response included an invalid suggestion.');
-    }
-    if (!('text' in suggestion) || typeof suggestion.text !== 'string' || !suggestion.text.trim()) {
-      throw new Error('AI response included a suggestion without text.');
-    }
-    if (
-      !('action' in suggestion) ||
-      typeof suggestion.action !== 'string' ||
-      !suggestion.action.trim()
-    ) {
-      throw new Error('AI response included a suggestion without an action.');
-    }
-    return { text: suggestion.text.trim(), action: suggestion.action.trim() };
-  });
-
-  if (patterns.length === 0) throw new Error('AI response did not include any patterns.');
-  if (suggestions.length === 0) throw new Error('AI response did not include any suggestions.');
-
-  return { patterns, suggestions };
 }

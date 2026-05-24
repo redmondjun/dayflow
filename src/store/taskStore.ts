@@ -76,6 +76,13 @@ async function runStoreAction(
   }
 }
 
+async function cancelAndClearNotification(taskId: string, notificationId?: string | null) {
+  await cancelTaskNotification(notificationId);
+  if (notificationId) {
+    await updateTaskNotificationId(taskId, null);
+  }
+}
+
 export const useTaskStore = create<TaskStore>((set, get) => ({
   tasks: [],
   previewTasks: [],
@@ -132,10 +139,7 @@ export const useTaskStore = create<TaskStore>((set, get) => ({
   updateTask: async (taskId, input) => {
     await runStoreAction(set, async () => {
       const existing = get().tasks.find((task) => task.id === taskId);
-      if (existing?.notificationId) {
-        await cancelTaskNotification(existing.notificationId);
-        await updateTaskNotificationId(existing.id, null);
-      }
+      await cancelAndClearNotification(taskId, existing?.notificationId);
 
       const updated = await updateTaskInDb(taskId, { ...input, notificationId: null });
       await scheduleTaskNotification(updated);
@@ -165,18 +169,16 @@ export const useTaskStore = create<TaskStore>((set, get) => ({
   markCompleted: async (taskId) => {
     await runStoreAction(set, async () => {
       const existing = get().tasks.find((task) => task.id === taskId);
-      await cancelTaskNotification(existing?.notificationId);
-      const updated = await updateTaskStatus(taskId, 'completed');
-      if (updated.notificationId) await updateTaskNotificationId(taskId, null);
+      await cancelAndClearNotification(taskId, existing?.notificationId);
+      await updateTaskStatus(taskId, 'completed');
     });
   },
 
   markSkipped: async (taskId) => {
     await runStoreAction(set, async () => {
       const existing = get().tasks.find((task) => task.id === taskId);
-      await cancelTaskNotification(existing?.notificationId);
-      const updated = await updateTaskStatus(taskId, 'skipped');
-      if (updated.notificationId) await updateTaskNotificationId(taskId, null);
+      await cancelAndClearNotification(taskId, existing?.notificationId);
+      await updateTaskStatus(taskId, 'skipped');
     });
   },
 

@@ -6,18 +6,24 @@ import {
   getTaskPlanningPreviewSeed,
   missingApiKeyMessage,
   serializeTaskRowsForPreview,
-  sortTaskInputs,
 } from '../features/taskPlanning';
 import {
-  findNextAvailableSlot,
-  validateManualTaskTimes,
-} from '../features/taskPlanning/scheduling';
+  submitManualSchedule,
+  validateHybridManualRows,
+} from '../features/taskPlanning/submitSchedule';
+import { findNextAvailableSlot } from '../features/taskPlanning/scheduling';
 import {
   getTaskPlanningDefaultsFromProfile,
   type TaskPlanningDefaults,
 } from '../features/taskPlanning/profileDefaults';
-import { useTaskInputRows } from '../hooks/useTaskInputRows';
-import { getAiFeaturesEnabled, getGeminiApiKey, getOpenAIApiKey } from '../services/apiKey';
+import { useTaskInputRows } from './useTaskInputRows';
+import { useMountedRef } from './useMountedRef';
+import {
+  getActiveAiApiKey,
+  getAiFeaturesEnabled,
+  getGeminiApiKey,
+  getOpenAIApiKey,
+} from '../services/apiKey';
 import { getEffectiveNow, useDevDemoState } from '../services/devDemo';
 import { generateGeminiScheduleFromText } from '../services/gemini';
 import {
@@ -26,9 +32,8 @@ import {
 } from '../services/onboardingProfile';
 import { generateScheduleFromText } from '../services/openai';
 import { useTaskStore } from '../store/taskStore';
-import type { GeneratedTaskPreview, NewTaskInput, TaskInputRow } from '../types/task';
+import type { GeneratedTaskPreview, TaskInputRow } from '../types/task';
 import { buildHybridPreview } from '../utils/scheduling';
-import { parseTimeInput } from '../utils/time';
 
 type UseAIScheduleStateArgs = {
   isPreview: boolean;
@@ -80,6 +85,7 @@ export function useAIScheduleState({
   const [planningDefaults, setPlanningDefaults] = useState<TaskPlanningDefaults | null>(
     isPreview ? getTaskPlanningDefaultsFromProfile(null) : null,
   );
+  const mountedRef = useMountedRef();
 
   const aiAvailable = Boolean(apiKey) && aiFeaturesEnabled;
   const defaultDraftAiScheduled = isPreview ? initialState.initialDraftAiScheduled : aiAvailable;
@@ -115,21 +121,16 @@ export function useAIScheduleState({
   useEffect(() => {
     if (isPreview) return;
 
-    let mounted = true;
     getOnboardingProfile()
       .then((profile) => {
-        if (!mounted) return;
+        if (!mountedRef.current) return;
         setPlanningDefaults(getTaskPlanningDefaultsFromProfile(profile, effectiveNow));
       })
       .catch(() => {
-        if (!mounted) return;
+        if (!mountedRef.current) return;
         setPlanningDefaults(getTaskPlanningDefaultsFromProfile(null, effectiveNow));
       });
-
-    return () => {
-      mounted = false;
-    };
-  }, [effectiveNow, isPreview]);
+  }, [effectiveNow, isPreview, mountedRef]);
 
   useEffect(() => {
     if (!autoOpenDraft || didAutoOpenDraft.current) return;
@@ -159,9 +160,9 @@ export function useAIScheduleState({
   useEffect(() => {
     if (isPreview || !isFocused) return;
 
-    Promise.all([getOpenAIApiKey(), getGeminiApiKey(), getAiFeaturesEnabled()])
-      .then(([nextOpenAiApiKey, nextGeminiApiKey, nextAiFeaturesEnabled]) => {
-        setApiKey(nextOpenAiApiKey ?? nextGeminiApiKey);
+    Promise.all([getActiveAiApiKey(), getAiFeaturesEnabled()])
+      .then(([activeKey, nextAiFeaturesEnabled]) => {
+        setApiKey(activeKey?.key ?? null);
         setAiFeaturesEnabled(nextAiFeaturesEnabled);
       })
       .catch(() => {
@@ -237,36 +238,17 @@ export function useAIScheduleState({
 
   const saveManualSchedule = async () => {
     const manualRows = taskInput.titledRows.filter((row) => !row.aiScheduled);
-    if (manualRows.length === 0) {
-      setLocalError('Add at least one task first.');
+    const result = await submitManualSchedule({
+      manualRows,
+      existingTasks: getExistingTasks(),
+      now: effectiveNow,
+      addTasks,
+    });
+    if (result.error) {
+      setLocalError(result.error);
       return;
     }
-
-    const inputs: NewTaskInput[] = [];
-    const existingTasks = getExistingTasks();
-    for (const task of manualRows) {
-      const start = parseTimeInput(task.startTime, effectiveNow);
-      const end = parseTimeInput(task.endTime, effectiveNow);
-      const validation = validateManualTaskTimes(task.startTime, task.endTime, effectiveNow, {
-        existingTasks,
-        plannerRows: manualRows,
-        excludeRowId: task.id,
-      });
-      if (!start || !end || validation.error) {
-        setLocalError(validation.error ?? 'Each task needs a valid start and end time.');
-        return;
-      }
-      inputs.push({
-        title: task.title,
-        startTime: start,
-        endTime: end,
-        aiGenerated: false,
-        status: validation.willMarkCompleted ? 'completed' : 'scheduled',
-      });
-    }
-
     setLocalError(null);
-    await addTasks(sortTaskInputs(inputs));
     onComplete();
   };
 
@@ -280,24 +262,26 @@ export function useAIScheduleState({
       return;
     }
 
-    const existingTasks = getExistingTasks();
-    for (const task of manualRows) {
-      const validation = validateManualTaskTimes(task.startTime, task.endTime, effectiveNow, {
-        existingTasks,
-        plannerRows: manualRows,
-        excludeRowId: task.id,
-      });
-      if (validation.error) {
-        setLocalError(validation.error);
-        return;
-      }
+    const manualError = validateHybridManualRows(manualRows, getExistingTasks(), effectiveNow);
+    if (manualError) {
+      setLocalError(manualError);
+      return;
     }
 
-    const latestOpenAiApiKey = isPreview ? apiKey : await getOpenAIApiKey();
-    const latestGeminiApiKey = isPreview ? null : await getGeminiApiKey();
-    const latestApiKey = latestOpenAiApiKey ?? latestGeminiApiKey;
-    if (!isPreview) setApiKey(latestApiKey);
+    let latestOpenAiApiKey = apiKey;
+    let latestGeminiApiKey: string | null = null;
+    if (!isPreview) {
+      const [openAiKey, geminiKey, activeKey] = await Promise.all([
+        getOpenAIApiKey(),
+        getGeminiApiKey(),
+        getActiveAiApiKey(),
+      ]);
+      latestOpenAiApiKey = openAiKey;
+      latestGeminiApiKey = geminiKey;
+      setApiKey(activeKey?.key ?? null);
+    }
 
+    const latestApiKey = latestOpenAiApiKey ?? latestGeminiApiKey;
     if (aiRows.length > 0 && !latestApiKey) {
       setLocalError(missingApiKeyMessage);
       return;
@@ -326,7 +310,7 @@ export function useAIScheduleState({
 
       previewStore.writeTasks(
         buildHybridPreview(rows, aiDurations, {
-          existingTasks,
+          existingTasks: getExistingTasks(),
           now: effectiveNow,
           preferredStart: planningDefaults?.preferredStart ?? getRoundedStartTime(),
         }),

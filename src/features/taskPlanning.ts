@@ -1,6 +1,7 @@
 import { makeGeneratedPreviewTasks } from '../dev-preview/mockData';
 import type { GeneratedTaskPreview, NewTaskInput, Task, TaskInputRow } from '../types/task';
-import { addMinutes, formatInputTime, parseTimeInput } from '../utils/time';
+import { addMinutes, formatInputTime, parseTimeInput, sortByStartTime } from '../utils/time';
+import { createId } from '../utils/id';
 import { findNextAvailableSlot } from './taskPlanning/scheduling';
 
 export const plannerQuickAdd = [
@@ -23,8 +24,8 @@ type PreviewSeed = {
   previewTasks: GeneratedTaskPreview[];
 };
 
-function createRowId() {
-  return `${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
+export function sortTaskInputs(inputs: NewTaskInput[]) {
+  return sortByStartTime(inputs);
 }
 
 export function getRoundedStartTime(): string {
@@ -75,7 +76,7 @@ export function createTaskInputRow({
   isDraft?: boolean;
 } = {}): TaskInputRow {
   return {
-    id: createRowId(),
+    id: createId(),
     title,
     startTime: aiScheduled ? '' : startTime,
     endTime:
@@ -111,7 +112,7 @@ export function createDraftTaskInputRow(
 ): TaskInputRow {
   if (options?.aiScheduled) {
     return {
-      id: createRowId(),
+      id: createId(),
       title,
       startTime: '',
       endTime: '',
@@ -195,10 +196,4 @@ const previewSeedFactories: Record<string, () => PreviewSeed> = {
 
 export function getTaskPlanningPreviewSeed(scenarioId?: string) {
   return (previewSeedFactories[scenarioId ?? 'default'] ?? previewSeedFactories.default)();
-}
-
-export function sortTaskInputs(inputs: NewTaskInput[]) {
-  return [...inputs].sort(
-    (a, b) => new Date(a.startTime).getTime() - new Date(b.startTime).getTime(),
-  );
 }

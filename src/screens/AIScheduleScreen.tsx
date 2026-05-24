@@ -1,13 +1,12 @@
-import { useEffect, useState } from 'react';
-import { BackHandler, Keyboard } from 'react-native';
-import { useNavigation, usePreventRemove } from '@react-navigation/native';
 import {
   AISchedulePlannerSection,
   AIScheduleProvider,
   AIScheduleShell,
 } from '../components/aiSchedule';
 import type { AIScheduleContextValue } from '../components/aiSchedule';
-import { useAIScheduleState } from './useAIScheduleState';
+import { useAIScheduleState } from '../hooks/useAIScheduleState';
+import { useSchedulePreviewNavigation } from '../hooks/useSchedulePreviewNavigation';
+import { useTimePickerScrollLock } from '../hooks/useTimePickerScrollLock';
 import { SchedulePreviewView } from '../views/SchedulePreviewView';
 
 type Props = {
@@ -21,8 +20,6 @@ type Props = {
 };
 
 export function AIScheduleScreen(props: Props) {
-  const navigation = useNavigation();
-  const [isTimePickerInteracting, setIsTimePickerInteracting] = useState(false);
   const schedule = useAIScheduleState({
     isPreview: Boolean(props.scenarioId),
     scenarioId: props.scenarioId,
@@ -30,31 +27,14 @@ export function AIScheduleScreen(props: Props) {
     initialDraftAiScheduled: props.initialDraftAiScheduled ?? props.initialAiEnabled,
     autoOpenDraft: props.autoOpenDraft ?? !props.scenarioId,
   });
+  const { scrollEnabled, onTimeInteractionStart, onTimeInteractionEnd } = useTimePickerScrollLock();
 
-  const showingPreview = schedule.showingPreview;
-
-  usePreventRemove(showingPreview, () => {
-    schedule.onClearPreview();
+  useSchedulePreviewNavigation({
+    showingPreview: schedule.showingPreview,
+    onClearPreview: schedule.onClearPreview,
   });
 
-  useEffect(() => {
-    navigation.setOptions({
-      gestureEnabled: !showingPreview,
-    });
-  }, [navigation, showingPreview]);
-
-  useEffect(() => {
-    if (!showingPreview) return undefined;
-
-    const subscription = BackHandler.addEventListener('hardwareBackPress', () => {
-      schedule.onClearPreview();
-      return true;
-    });
-
-    return () => subscription.remove();
-  }, [schedule.onClearPreview, showingPreview]);
-
-  if (showingPreview) {
+  if (schedule.showingPreview) {
     return (
       <SchedulePreviewView
         tasks={schedule.previewTasks}
@@ -71,7 +51,7 @@ export function AIScheduleScreen(props: Props) {
     localError: schedule.localError,
     storeError: schedule.storeError,
     onDismissError: schedule.onDismissError,
-    scrollEnabled: !isTimePickerInteracting,
+    scrollEnabled,
     aiAvailable: schedule.aiAvailable,
     selectedRowAiScheduled: schedule.selectedRowAiScheduled,
     draftAiScheduled: schedule.draftAiScheduled,
@@ -93,11 +73,8 @@ export function AIScheduleScreen(props: Props) {
     onChangeSelectedEnd: schedule.onChangeSelectedEnd,
     onCancelTaskTimeEdit: schedule.onCancelTaskTimeEdit,
     onConfirmTaskTimeEdit: schedule.onConfirmTaskTimeEdit,
-    onTimeInteractionStart: () => {
-      Keyboard.dismiss();
-      setIsTimePickerInteracting(true);
-    },
-    onTimeInteractionEnd: () => setIsTimePickerInteracting(false),
+    onTimeInteractionStart,
+    onTimeInteractionEnd,
     onSubmit: schedule.onSubmit,
   };
 

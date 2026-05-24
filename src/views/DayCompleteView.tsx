@@ -1,41 +1,16 @@
 import { ScrollView, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { PillActionButton } from '../components/LightScreenPrimitives';
+import { CheckmarkIcon, PillActionButton } from '../components/LightScreenPrimitives';
+import { StickyBottomBar } from '../components/StickyBottomBar';
 import type { Task } from '../types/task';
 import { colors } from '../theme/colors';
 import { formatDisplayTime, formatSchedulePreviewDate } from '../utils/time';
 
-function CompletionCheckmark() {
-  return (
-    <View className="h-[72px] w-[72px] items-center justify-center rounded-full border-2 border-[#01C21B]">
-      <View className="h-[28px] w-[30px]">
-        <View
-          className="absolute h-[2.5px] w-[12px] rounded-full bg-[#01C21B]"
-          style={{ transform: [{ rotate: '45deg' }], left: 3, top: 16 }}
-        />
-        <View
-          className="absolute h-[2.5px] w-[22px] rounded-full bg-[#01C21B]"
-          style={{ transform: [{ rotate: '-45deg' }], left: 10, top: 14 }}
-        />
-      </View>
-    </View>
-  );
-}
-
 function CompletedTaskRow({ task }: { task: Task }) {
   return (
     <View className="flex-row items-center border-t border-warm3 px-4 py-4">
-      <View className="mr-3 h-[16px] w-[16px] items-center justify-center rounded-full border border-[#01C21B]">
-        <View className="h-[6px] w-[7px]">
-          <View
-            className="absolute h-[1.5px] w-[3px] rounded-full bg-[#01C21B]"
-            style={{ transform: [{ rotate: '45deg' }], left: 1, top: 4 }}
-          />
-          <View
-            className="absolute h-[1.5px] w-[6px] rounded-full bg-[#01C21B]"
-            style={{ transform: [{ rotate: '-45deg' }], left: 2, top: 3 }}
-          />
-        </View>
+      <View className="mr-3">
+        <CheckmarkIcon variant="small-green" />
       </View>
       <Text className="flex-1 text-[14px] tracking-[-0.14px] text-warm">{task.title}</Text>
       <Text className="text-[13px] tracking-[-0.13px] text-warm2">
@@ -63,7 +38,7 @@ export function DayCompleteView({ tasks, completedDay, onDismiss }: Props) {
           </View>
 
           <View className="pt-10">
-            <CompletionCheckmark />
+            <CheckmarkIcon variant="hero-green" />
           </View>
 
           <Text className="pt-8 text-center text-[31px] font-bold tracking-[-1.2px] text-ink">
@@ -89,7 +64,7 @@ export function DayCompleteView({ tasks, completedDay, onDismiss }: Props) {
         </View>
       </ScrollView>
 
-      <View className="absolute bottom-0 left-0 right-0 bg-paper px-4 pb-6 pt-3">
+      <StickyBottomBar className="px-4 pb-6 pt-3">
         <PillActionButton
           label="Done"
           onPress={onDismiss}
@@ -97,7 +72,7 @@ export function DayCompleteView({ tasks, completedDay, onDismiss }: Props) {
           textColor={colors.ink}
           labelStyle={{ fontSize: 15, fontWeight: '700', lineHeight: 15, letterSpacing: -0.15 }}
         />
-      </View>
+      </StickyBottomBar>
     </SafeAreaView>
   );
 }

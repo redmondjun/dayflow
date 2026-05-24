@@ -1,10 +1,11 @@
 import { ScrollView, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { CompletionState, PillActionButton } from '../components/LightScreenPrimitives';
+import { StickyBottomBar } from '../components/StickyBottomBar';
 import { OnboardingStepContent } from '../components/OnboardingStepContent';
 import { defaultOnboardingAnswers, type OnboardingAnswer } from '../features/onboarding';
 import { OnboardingFlowHeader } from './OnboardingFlowHeader';
-import { useOnboardingFlow } from './useOnboardingFlow';
+import { useOnboardingFlow } from '../hooks/useOnboardingFlow';
 
 type Props = {
   initialAnswers?: Record<string, OnboardingAnswer>;
@@ -74,7 +75,7 @@ export function OnboardingFlowView({
         />
       </ScrollView>
 
-      <View className="absolute bottom-0 left-0 right-0 bg-paper px-6 pb-7 pt-5">
+      <StickyBottomBar className="px-6 pb-7 pt-5">
         {saveError ? (
           <Text className="mb-3 text-center text-sm text-danger">{saveError}</Text>
         ) : null}
@@ -87,7 +88,7 @@ export function OnboardingFlowView({
           labelStyle={{ fontSize: 15, fontWeight: '700', lineHeight: 15, letterSpacing: -0.15 }}
           onPress={goNext}
         />
-      </View>
+      </StickyBottomBar>
     </SafeAreaView>
   );
 }

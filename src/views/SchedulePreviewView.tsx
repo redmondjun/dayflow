@@ -2,13 +2,15 @@ import { Pressable, ScrollView, Text, View } from 'react-native';
 import { Snackbar } from 'react-native-paper';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { PillActionButton } from '../components/LightScreenPrimitives';
+import { StickyBottomBar } from '../components/StickyBottomBar';
+import { TimelineConnector } from '../components/TimelineConnector';
 import type { GeneratedTaskPreview } from '../types/task';
 import { colors } from '../theme/colors';
 import {
   formatDisplayTime,
   formatDuration,
   formatScheduleSummary,
-  sortGeneratedTasksByStartTime,
+  sortByStartTime,
 } from '../utils/time';
 
 function PreviewScheduleRow({
@@ -22,27 +24,9 @@ function PreviewScheduleRow({
 }) {
   return (
     <View className="min-h-[74px] flex-row">
-      <View className="w-14 items-center">
-        <View
-          style={{
-            position: 'absolute',
-            top: 0,
-            height: '50%',
-            width: 2,
-            backgroundColor: isFirst ? 'transparent' : 'rgba(35,36,34,0.10)',
-          }}
-        />
-        <View
-          style={{
-            position: 'absolute',
-            top: '50%',
-            height: '50%',
-            width: 2,
-            backgroundColor: isLast ? 'transparent' : 'rgba(35,36,34,0.10)',
-          }}
-        />
-        <View className="absolute top-1/2 h-[10px] w-[10px] -translate-y-1/2 rounded-full bg-ink" />
-      </View>
+      <TimelineConnector isFirst={isFirst} isLast={isLast}>
+        <View className="h-[10px] w-[10px] rounded-full bg-ink" />
+      </TimelineConnector>
 
       <View className="flex-1 flex-row items-center justify-between py-[15px] pl-1 pr-6">
         <View className="min-w-0 flex-1">
@@ -80,7 +64,7 @@ export function SchedulePreviewView({
   onBack,
   onConfirm,
 }: Props) {
-  const sortedTasks = sortGeneratedTasksByStartTime(tasks);
+  const sortedTasks = sortByStartTime(tasks);
   const totalMinutes = sortedTasks.reduce((sum, task) => sum + task.durationMinutes, 0);
 
   return (
@@ -129,7 +113,7 @@ export function SchedulePreviewView({
         ))}
       </ScrollView>
 
-      <View className="absolute bottom-0 left-0 right-0 bg-paper px-6 pb-7 pt-5">
+      <StickyBottomBar className="px-6 pb-7 pt-5">
         <PillActionButton
           testID="schedule-preview-confirm"
           label="Confirm Schedule ->"
@@ -139,7 +123,7 @@ export function SchedulePreviewView({
           textColor={colors.white}
           labelStyle={{ fontSize: 15, fontWeight: '700', lineHeight: 15, letterSpacing: -0.15 }}
         />
-      </View>
+      </StickyBottomBar>
 
       <Snackbar visible={Boolean(error)} onDismiss={onDismissError} duration={5000}>
         {error}

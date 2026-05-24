@@ -3,6 +3,7 @@ import { View } from 'react-native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { MainTabBar, type MainTabId } from '../components/MainTabBar';
 import type { RootStackParamList } from '../navigation/types';
+import { hasNavigation } from '../navigation/routeProps';
 import { MyPageScreen } from '../screens/MyPageScreen';
 import { WeeklyInsightScreen } from '../screens/WeeklyInsightScreen';
 import { HomeScreenView } from '../views/HomeScreenView';
@@ -15,12 +16,8 @@ type PreviewProps = {
 
 type Props = RouteProps | PreviewProps;
 
-function isRouteProps(props: Props): props is RouteProps {
-  return 'navigation' in props;
-}
-
 export function HomeScreen(props: Props) {
-  const isRoute = isRouteProps(props);
+  const isRoute = hasNavigation(props);
   const [activeTab, setActiveTab] = useState<MainTabId>('main');
 
   return (
