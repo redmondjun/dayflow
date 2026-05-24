@@ -148,6 +148,13 @@ export function isSameLocalDay(a: Date, b: Date): boolean {
   );
 }
 
+export function getLocalDayKey(day: Date): string {
+  const year = day.getFullYear();
+  const month = String(day.getMonth() + 1).padStart(2, '0');
+  const date = String(day.getDate()).padStart(2, '0');
+  return `${year}-${month}-${date}`;
+}
+
 export function sortByStartTime(tasks: Task[]): Task[] {
   return [...tasks].sort(
     (a, b) => new Date(a.startTime).getTime() - new Date(b.startTime).getTime(),

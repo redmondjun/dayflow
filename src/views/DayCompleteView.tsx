@@ -47,17 +47,18 @@ function CompletedTaskRow({ task }: { task: Task }) {
 
 type Props = {
   tasks: Task[];
+  completedDay?: Date;
   onDismiss: () => void;
 };
 
-export function DayCompleteView({ tasks, onDismiss }: Props) {
+export function DayCompleteView({ tasks, completedDay, onDismiss }: Props) {
   return (
     <SafeAreaView className="flex-1 bg-paper" edges={['top', 'bottom']}>
       <ScrollView contentContainerClassName="flex-grow px-6 pb-32 pt-12">
         <View className="items-center">
           <View className="rounded-full bg-warm4 px-[14px] py-[6px]">
             <Text className="text-[13px] tracking-[-0.13px] text-warm2">
-              {formatSchedulePreviewDate()}
+              {formatSchedulePreviewDate(completedDay)}
             </Text>
           </View>
 

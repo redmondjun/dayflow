@@ -4,11 +4,17 @@ import { Button, Snackbar } from 'react-native-paper';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { CurrentTaskCard } from '../components/CurrentTaskCard';
 import { TaskTimelineRow } from '../components/TaskTimelineRow';
+import { resolveDayCompleteCandidate } from '../features/dayComplete';
 import { makeActiveDayTasks, makeCompletedHeavyTasks } from '../dev-preview/mockData';
 import { getDemoAdjustedTasks, getEffectiveNow, useDevDemoState } from '../services/devDemo';
+import {
+  getDayCompleteDismissedDate,
+  saveDayCompleteDismissedDate,
+} from '../services/dayCompleteDismissal';
 import { useTaskStore } from '../store/taskStore';
 import { colors } from '../theme/colors';
 import type { Task } from '../types/task';
+import { DayCompleteView } from './DayCompleteView';
 import { formatDisplayDate, getCurrentTask, getUpcomingTasks } from '../utils/time';
 
 type RouteProps = {
@@ -60,12 +66,15 @@ export function HomeScreenView(props: Props) {
     error,
     clearError,
     reloadTasks,
+    tasks: storeTasks,
     todayTasks,
     currentTask,
     upcomingTasks,
     markCompleted,
     markSkipped,
   } = useTaskStore();
+  const [dismissedDayKey, setDismissedDayKey] = useState<string | null>(null);
+  const [dismissalLoaded, setDismissalLoaded] = useState(isPreview);
 
   useEffect(() => {
     const id = setInterval(() => setTick(Date.now()), 30000);
@@ -78,9 +87,41 @@ export function HomeScreenView(props: Props) {
     }
   }, [previewScenarioId]);
 
+  useEffect(() => {
+    if (isPreview) return;
+
+    let mounted = true;
+    setDismissalLoaded(false);
+    getDayCompleteDismissedDate()
+      .then((value) => {
+        if (mounted) setDismissedDayKey(value);
+      })
+      .finally(() => {
+        if (mounted) setDismissalLoaded(true);
+      });
+
+    return () => {
+      mounted = false;
+    };
+  }, [isPreview, nowOverride]);
+
   const effectiveNow = useMemo(
     () => (isPreview ? new Date(tick) : getEffectiveNow(new Date(tick))),
     [isPreview, tick, nowOverride],
+  );
+  const adjustedStoreTasks = useMemo(
+    () => (isPreview ? [] : getDemoAdjustedTasks(storeTasks, effectiveNow)),
+    [effectiveNow, isPreview, storeTasks, nowOverride],
+  );
+  const dayCompleteCandidate = useMemo(
+    () => (isPreview ? null : resolveDayCompleteCandidate(adjustedStoreTasks, effectiveNow)),
+    [adjustedStoreTasks, effectiveNow, isPreview],
+  );
+  const showingDayComplete = Boolean(
+    !isPreview &&
+    dismissalLoaded &&
+    dayCompleteCandidate &&
+    dayCompleteCandidate.dayKey !== dismissedDayKey,
   );
   const date = formatDisplayDate(effectiveNow);
   const tasks = isPreview
@@ -126,6 +167,19 @@ export function HomeScreenView(props: Props) {
     refreshControl,
     showError,
   } = mode;
+
+  if (showingDayComplete && dayCompleteCandidate) {
+    return (
+      <DayCompleteView
+        tasks={dayCompleteCandidate.tasks}
+        completedDay={dayCompleteCandidate.day}
+        onDismiss={async () => {
+          await saveDayCompleteDismissedDate(dayCompleteCandidate.dayKey);
+          setDismissedDayKey(dayCompleteCandidate.dayKey);
+        }}
+      />
+    );
+  }
 
   return (
     <SafeAreaView className="flex-1 bg-paper" edges={['top']}>
