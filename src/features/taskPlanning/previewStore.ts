@@ -10,7 +10,7 @@ type PreviewStoreArgs = {
   onComplete: () => void;
   setPreviewTasks: (tasks: GeneratedTaskPreview[]) => void;
   updatePreviewTask: (taskId: string, patch: Partial<GeneratedTaskPreview>) => void;
-  clearPreviewTasks: () => void;
+  dismissPreview: () => void;
   confirmPreviewTasks: () => Promise<void>;
   clearError: () => void;
 };
@@ -24,7 +24,7 @@ export function createTaskPlanningPreviewStore({
   onComplete,
   setPreviewTasks,
   updatePreviewTask,
-  clearPreviewTasks,
+  dismissPreview,
   confirmPreviewTasks,
   clearError,
 }: PreviewStoreArgs) {
@@ -40,7 +40,7 @@ export function createTaskPlanningPreviewStore({
         setLocalPreviewTasks((tasks) =>
           tasks.map((task) => (task.id === taskId ? { ...task, durationMinutes: duration } : task)),
         ),
-      clear: () => setLocalPreviewTasks([]),
+      clear: dismissPreview,
       confirm: async () => onComplete(),
       dismissError: () => setLocalError(null),
     };
@@ -52,7 +52,7 @@ export function createTaskPlanningPreviewStore({
     updateTitle: (taskId: string, title: string) => updatePreviewTask(taskId, { title }),
     updateDuration: (taskId: string, duration: number) =>
       updatePreviewTask(taskId, { durationMinutes: duration }),
-    clear: clearPreviewTasks,
+    clear: dismissPreview,
     confirm: async () => {
       await confirmPreviewTasks();
       onComplete();

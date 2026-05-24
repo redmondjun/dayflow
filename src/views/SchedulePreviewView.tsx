@@ -4,7 +4,12 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { PillActionButton } from '../components/LightScreenPrimitives';
 import type { GeneratedTaskPreview } from '../types/task';
 import { colors } from '../theme/colors';
-import { formatDisplayTime, formatDuration, formatScheduleSummary } from '../utils/time';
+import {
+  formatDisplayTime,
+  formatDuration,
+  formatScheduleSummary,
+  sortGeneratedTasksByStartTime,
+} from '../utils/time';
 
 function PreviewScheduleRow({
   task,
@@ -75,7 +80,8 @@ export function SchedulePreviewView({
   onBack,
   onConfirm,
 }: Props) {
-  const totalMinutes = tasks.reduce((sum, task) => sum + task.durationMinutes, 0);
+  const sortedTasks = sortGeneratedTasksByStartTime(tasks);
+  const totalMinutes = sortedTasks.reduce((sum, task) => sum + task.durationMinutes, 0);
 
   return (
     <SafeAreaView className="flex-1 bg-paper" edges={['top', 'bottom']}>
@@ -102,7 +108,7 @@ export function SchedulePreviewView({
               </Text>
             </View>
             <Text className="text-[13px] font-medium tracking-[0.26px] text-warm">
-              {formatScheduleSummary(tasks.length, totalMinutes)}
+              {formatScheduleSummary(sortedTasks.length, totalMinutes)}
             </Text>
           </View>
         </View>
@@ -113,12 +119,12 @@ export function SchedulePreviewView({
           </Text>
         </View>
 
-        {tasks.map((task, index) => (
+        {sortedTasks.map((task, index) => (
           <PreviewScheduleRow
             key={task.id}
             task={task}
             isFirst={index === 0}
-            isLast={index === tasks.length - 1}
+            isLast={index === sortedTasks.length - 1}
           />
         ))}
       </ScrollView>

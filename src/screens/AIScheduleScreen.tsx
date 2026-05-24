@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { BackHandler, Keyboard } from 'react-native';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, usePreventRemove } from '@react-navigation/native';
 import {
   AISchedulePlannerSection,
   AIScheduleProvider,
@@ -14,6 +14,8 @@ type Props = {
   onCancel: () => void;
   onOpenSettings: () => void;
   scenarioId?: string;
+  initialDraftAiScheduled?: boolean;
+  /** @deprecated Use initialDraftAiScheduled */
   initialAiEnabled?: boolean;
   autoOpenDraft?: boolean;
 };
@@ -25,22 +27,21 @@ export function AIScheduleScreen(props: Props) {
     isPreview: Boolean(props.scenarioId),
     scenarioId: props.scenarioId,
     onComplete: props.onCancel,
-    initialAiEnabled: props.initialAiEnabled,
+    initialDraftAiScheduled: props.initialDraftAiScheduled ?? props.initialAiEnabled,
     autoOpenDraft: props.autoOpenDraft ?? !props.scenarioId,
   });
 
-  const showingPreview = schedule.previewTasks.length > 0;
+  const showingPreview = schedule.showingPreview;
+
+  usePreventRemove(showingPreview, () => {
+    schedule.onClearPreview();
+  });
 
   useEffect(() => {
-    if (!showingPreview) return undefined;
-
-    const unsubscribe = navigation.addListener('beforeRemove', (event) => {
-      event.preventDefault();
-      schedule.onClearPreview();
+    navigation.setOptions({
+      gestureEnabled: !showingPreview,
     });
-
-    return unsubscribe;
-  }, [navigation, schedule.onClearPreview, showingPreview]);
+  }, [navigation, showingPreview]);
 
   useEffect(() => {
     if (!showingPreview) return undefined;
@@ -71,7 +72,9 @@ export function AIScheduleScreen(props: Props) {
     storeError: schedule.storeError,
     onDismissError: schedule.onDismissError,
     scrollEnabled: !isTimePickerInteracting,
-    aiEnabled: schedule.aiEnabled,
+    aiAvailable: schedule.aiAvailable,
+    selectedRowAiScheduled: schedule.selectedRowAiScheduled,
+    draftAiScheduled: schedule.draftAiScheduled,
     taskRows: schedule.taskRows,
     selectedTaskId: schedule.selectedTaskId,
     selectedTaskStart: schedule.selectedTaskStart,
@@ -80,7 +83,7 @@ export function AIScheduleScreen(props: Props) {
     canSubmit: schedule.canSubmit,
     generating: schedule.generating,
     loading: schedule.loading,
-    onToggleAiEnabled: schedule.onToggleAiEnabled,
+    onToggleRowAiScheduled: schedule.onToggleRowAiScheduled,
     onSelectTaskRow: schedule.onSelectTaskRow,
     onChangeTaskTitle: schedule.onChangeTaskTitle,
     onAddTaskRow: schedule.onAddTaskRow,

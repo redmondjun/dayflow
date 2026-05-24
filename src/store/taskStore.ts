@@ -17,7 +17,13 @@ import {
   rescheduleFutureNotifications,
   scheduleTaskNotification,
 } from '../services/notifications';
-import { getCurrentTask, getTodayTasks, getUpcomingTasks, sortByStartTime } from '../utils/time';
+import {
+  getCurrentTask,
+  getTodayTasks,
+  getUpcomingTasks,
+  sortByStartTime,
+  sortGeneratedTasksByStartTime,
+} from '../utils/time';
 
 type TaskStore = {
   tasks: Task[];
@@ -188,13 +194,13 @@ export const useTaskStore = create<TaskStore>((set, get) => ({
 
   confirmPreviewTasks: async () => {
     await runStoreAction(set, async () => {
-      const previewTasks = get().previewTasks;
+      const previewTasks = sortGeneratedTasksByStartTime(get().previewTasks);
       const tasks = await bulkCreateTasks(
         previewTasks.map((task) => ({
           title: task.title,
           startTime: task.startTime,
           endTime: task.endTime,
-          aiGenerated: true,
+          aiGenerated: task.aiGenerated ?? false,
         })),
       );
       for (const task of tasks) {

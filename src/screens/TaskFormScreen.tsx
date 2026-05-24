@@ -60,7 +60,7 @@ export function TaskFormScreen(props: Props) {
         onCancel={onCancel}
         onOpenSettings={isRoute ? () => props.navigation.navigate('Settings') : props.onCancel}
         scenarioId={isPreview ? 'ai-empty-list' : undefined}
-        initialAiEnabled={createAiEnabled}
+        initialDraftAiScheduled={createAiEnabled}
       />
     );
   }

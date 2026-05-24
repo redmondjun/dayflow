@@ -5,10 +5,19 @@ import {
   getRoundedStartTime,
   getTaskPlanningPreviewSeed,
   missingApiKeyMessage,
+  serializeTaskRowsForPreview,
   sortTaskInputs,
 } from '../features/taskPlanning';
+import {
+  findNextAvailableSlot,
+  validateManualTaskTimes,
+} from '../features/taskPlanning/scheduling';
+import {
+  getTaskPlanningDefaultsFromProfile,
+  type TaskPlanningDefaults,
+} from '../features/taskPlanning/profileDefaults';
 import { useTaskInputRows } from '../hooks/useTaskInputRows';
-import { getGeminiApiKey, getOpenAIApiKey } from '../services/apiKey';
+import { getAiFeaturesEnabled, getGeminiApiKey, getOpenAIApiKey } from '../services/apiKey';
 import { getEffectiveNow, useDevDemoState } from '../services/devDemo';
 import { generateGeminiScheduleFromText } from '../services/gemini';
 import {
@@ -18,27 +27,25 @@ import {
 import { generateScheduleFromText } from '../services/openai';
 import { useTaskStore } from '../store/taskStore';
 import type { GeneratedTaskPreview, NewTaskInput, TaskInputRow } from '../types/task';
-import { makeSequentialPreview } from '../utils/scheduling';
+import { buildHybridPreview } from '../utils/scheduling';
 import { parseTimeInput } from '../utils/time';
-import { validateManualTaskTimes } from '../features/taskPlanning/scheduling';
-import {
-  getTaskPlanningDefaultsFromProfile,
-  type TaskPlanningDefaults,
-} from '../features/taskPlanning/profileDefaults';
 
 type UseAIScheduleStateArgs = {
   isPreview: boolean;
   scenarioId?: string;
   onComplete: () => void;
-  initialAiEnabled?: boolean;
+  initialDraftAiScheduled?: boolean;
   autoOpenDraft?: boolean;
+  /** @deprecated Use initialDraftAiScheduled */
+  initialAiEnabled?: boolean;
 };
 
 function getLiveCreateState() {
   return {
     apiKey: null as string | null,
+    aiFeaturesEnabled: false,
     localError: null as string | null,
-    aiEnabled: false,
+    initialDraftAiScheduled: false,
     taskRows: [] as TaskInputRow[],
     selectedTaskId: null as string | null,
     previewTasks: [] as GeneratedTaskPreview[],
@@ -49,21 +56,33 @@ export function useAIScheduleState({
   isPreview,
   scenarioId,
   onComplete,
+  initialDraftAiScheduled: initialDraftAiScheduledProp = false,
   initialAiEnabled,
   autoOpenDraft = false,
 }: UseAIScheduleStateArgs) {
+  const initialDraftAiScheduled = initialAiEnabled ?? initialDraftAiScheduledProp;
   const isFocused = useIsFocused();
   const { nowOverride } = useDevDemoState();
   const effectiveNow = useMemo(() => getEffectiveNow(), [nowOverride]);
   const initialState = isPreview ? getTaskPlanningPreviewSeed(scenarioId) : getLiveCreateState();
   const [apiKey, setApiKey] = useState<string | null>(initialState.apiKey);
-  const [aiEnabled, setAiEnabled] = useState(initialAiEnabled ?? initialState.aiEnabled);
+  const [aiFeaturesEnabled, setAiFeaturesEnabled] = useState(initialState.aiFeaturesEnabled);
+  const [aiSettingsLoaded, setAiSettingsLoaded] = useState(isPreview);
   const [generating, setGenerating] = useState(false);
   const [localError, setLocalError] = useState<string | null>(initialState.localError);
   const [localPreviewTasks, setLocalPreviewTasks] = useState(initialState.previewTasks);
+  const [previewVisible, setPreviewVisible] = useState(initialState.previewTasks.length > 0);
+  const cachedPreviewSignatureRef = useRef<string | null>(
+    initialState.previewTasks.length > 0
+      ? serializeTaskRowsForPreview(initialState.taskRows.filter((row) => row.title?.trim()))
+      : null,
+  );
   const [planningDefaults, setPlanningDefaults] = useState<TaskPlanningDefaults | null>(
     isPreview ? getTaskPlanningDefaultsFromProfile(null) : null,
   );
+
+  const aiAvailable = Boolean(apiKey) && aiFeaturesEnabled;
+  const defaultDraftAiScheduled = isPreview ? initialState.initialDraftAiScheduled : aiAvailable;
 
   const {
     previewTasks: storePreviewTasks,
@@ -77,16 +96,15 @@ export function useAIScheduleState({
     loading,
   } = useTaskStore();
 
-  const manualScheduling = !aiEnabled;
   const getExistingTasks = useCallback(() => {
     if (isPreview) return [];
     return useTaskStore.getState().todayTasks(effectiveNow);
   }, [effectiveNow, isPreview]);
 
-  const { setTaskRows, setSelectedTaskId, ...taskInput } = useTaskInputRows({
+  const { setTaskRows, setSelectedTaskId, updateTaskRow, ...taskInput } = useTaskInputRows({
     initialRows: initialState.taskRows,
     initialSelectedTaskId: initialState.selectedTaskId,
-    manualScheduling,
+    defaultDraftAiScheduled,
     getExistingTasks,
     planningDefaults: planningDefaults ?? undefined,
     now: effectiveNow,
@@ -115,38 +133,60 @@ export function useAIScheduleState({
 
   useEffect(() => {
     if (!autoOpenDraft || didAutoOpenDraft.current) return;
-    if (!isPreview && planningDefaults === null) return;
+    if (!isPreview && (planningDefaults === null || !aiSettingsLoaded)) return;
     didAutoOpenDraft.current = true;
     taskInput.addTaskRow();
-  }, [autoOpenDraft, isPreview, planningDefaults, taskInput.addTaskRow]);
+  }, [aiSettingsLoaded, autoOpenDraft, isPreview, planningDefaults, taskInput.addTaskRow]);
 
   useEffect(() => {
     if (!isPreview || !scenarioId) return;
 
     const nextSeed = getTaskPlanningPreviewSeed(scenarioId);
     setApiKey(nextSeed.apiKey);
-    setAiEnabled(initialAiEnabled ?? nextSeed.aiEnabled);
+    setAiFeaturesEnabled(nextSeed.aiFeaturesEnabled);
     setTaskRows(nextSeed.taskRows);
     setSelectedTaskId(nextSeed.selectedTaskId);
     setGenerating(false);
     setLocalError(nextSeed.localError);
     setLocalPreviewTasks(nextSeed.previewTasks);
-  }, [initialAiEnabled, isPreview, scenarioId]);
+    setPreviewVisible(nextSeed.previewTasks.length > 0);
+    cachedPreviewSignatureRef.current =
+      nextSeed.previewTasks.length > 0
+        ? serializeTaskRowsForPreview(nextSeed.taskRows.filter((row) => row.title?.trim()))
+        : null;
+  }, [isPreview, scenarioId]);
 
   useEffect(() => {
     if (isPreview || !isFocused) return;
 
-    Promise.all([getOpenAIApiKey(), getGeminiApiKey()])
-      .then(([nextOpenAiApiKey, nextGeminiApiKey]) => {
+    Promise.all([getOpenAIApiKey(), getGeminiApiKey(), getAiFeaturesEnabled()])
+      .then(([nextOpenAiApiKey, nextGeminiApiKey, nextAiFeaturesEnabled]) => {
         setApiKey(nextOpenAiApiKey ?? nextGeminiApiKey);
+        setAiFeaturesEnabled(nextAiFeaturesEnabled);
       })
-      .catch(() => setApiKey(null));
+      .catch(() => {
+        setApiKey(null);
+        setAiFeaturesEnabled(false);
+      })
+      .finally(() => setAiSettingsLoaded(true));
   }, [isFocused, isPreview]);
 
   useEffect(() => {
     if (isPreview) return undefined;
-    return () => clearPreviewTasks();
+    return () => {
+      clearPreviewTasks();
+      cachedPreviewSignatureRef.current = null;
+    };
   }, [clearPreviewTasks, isPreview]);
+
+  const dismissPreview = useCallback(() => {
+    setPreviewVisible(false);
+  }, []);
+
+  const previewInputSignature = useMemo(
+    () => serializeTaskRowsForPreview(taskInput.titledRows),
+    [taskInput.titledRows],
+  );
 
   const previewStore = createTaskPlanningPreviewStore({
     isPreview,
@@ -157,37 +197,59 @@ export function useAIScheduleState({
     onComplete,
     setPreviewTasks,
     updatePreviewTask,
-    clearPreviewTasks,
+    dismissPreview,
     confirmPreviewTasks,
     clearError,
   });
 
   const previewTasks = isPreview ? localPreviewTasks : storePreviewTasks;
+  const showingPreview = previewVisible && previewTasks.length > 0;
   const activeStoreError = isPreview ? null : storeError;
   const activeLoading = isPreview ? false : loading;
-  const firstScheduledStart =
-    taskInput.expandedTask?.startTime ||
-    taskInput.titledRows[0]?.startTime ||
-    planningDefaults?.preferredStart ||
-    getRoundedStartTime();
+  const selectedRowAiScheduled = Boolean(aiAvailable && taskInput.expandedTask?.aiScheduled);
+  const draftAiScheduled = Boolean(aiAvailable && taskInput.draftTask?.aiScheduled);
   const canConfirmPreview =
     previewTasks.length > 0 &&
     previewTasks.every((task) => task.title.trim() && task.durationMinutes >= 10);
 
+  const toggleRowAiScheduled = (value: boolean) => {
+    const row = taskInput.expandedTask;
+    if (!row || !aiAvailable) return;
+
+    if (value) {
+      updateTaskRow(row.id, { aiScheduled: true, startTime: '', endTime: '' });
+      return;
+    }
+
+    const slot = findNextAvailableSlot({
+      existingTasks: getExistingTasks(),
+      plannerRows: taskInput.committedRows.filter((committed) => committed.id !== row.id),
+      preferredStart: planningDefaults?.preferredStart,
+      durationMinutes: planningDefaults?.durationMinutes,
+      now: effectiveNow,
+    });
+    updateTaskRow(row.id, {
+      aiScheduled: false,
+      startTime: slot.startTime,
+      endTime: slot.endTime,
+    });
+  };
+
   const saveManualSchedule = async () => {
-    if (taskInput.titledRows.length === 0) {
+    const manualRows = taskInput.titledRows.filter((row) => !row.aiScheduled);
+    if (manualRows.length === 0) {
       setLocalError('Add at least one task first.');
       return;
     }
 
     const inputs: NewTaskInput[] = [];
     const existingTasks = getExistingTasks();
-    for (const task of taskInput.titledRows) {
+    for (const task of manualRows) {
       const start = parseTimeInput(task.startTime, effectiveNow);
       const end = parseTimeInput(task.endTime, effectiveNow);
       const validation = validateManualTaskTimes(task.startTime, task.endTime, effectiveNow, {
         existingTasks,
-        plannerRows: taskInput.titledRows,
+        plannerRows: manualRows,
         excludeRowId: task.id,
       });
       if (!start || !end || validation.error) {
@@ -208,53 +270,69 @@ export function useAIScheduleState({
     onComplete();
   };
 
-  const generateSchedule = async () => {
+  const generateHybridSchedule = async () => {
+    const rows = taskInput.titledRows;
+    const aiRows = rows.filter((row) => row.aiScheduled);
+    const manualRows = rows.filter((row) => !row.aiScheduled);
+
+    if (rows.length === 0) {
+      setLocalError('Add at least one task first.');
+      return;
+    }
+
+    const existingTasks = getExistingTasks();
+    for (const task of manualRows) {
+      const validation = validateManualTaskTimes(task.startTime, task.endTime, effectiveNow, {
+        existingTasks,
+        plannerRows: manualRows,
+        excludeRowId: task.id,
+      });
+      if (validation.error) {
+        setLocalError(validation.error);
+        return;
+      }
+    }
+
     const latestOpenAiApiKey = isPreview ? apiKey : await getOpenAIApiKey();
     const latestGeminiApiKey = isPreview ? null : await getGeminiApiKey();
     const latestApiKey = latestOpenAiApiKey ?? latestGeminiApiKey;
     if (!isPreview) setApiKey(latestApiKey);
 
-    if (!latestApiKey) {
+    if (aiRows.length > 0 && !latestApiKey) {
       setLocalError(missingApiKeyMessage);
-      return;
-    }
-    if (taskInput.titledRows.length === 0) {
-      setLocalError('Add at least one task first.');
-      return;
-    }
-
-    const parsedStartTime = parseTimeInput(firstScheduledStart, effectiveNow);
-    if (!parsedStartTime) {
-      setLocalError('Use a valid start time before generating.');
       return;
     }
 
     setGenerating(true);
     setLocalError(null);
     try {
-      if (isPreview) {
-        previewStore.writeTasks(
-          makeSequentialPreview(
-            taskInput.titledRows.map((task, index) => ({
-              title: task.title.trim(),
-              durationMinutes: initialState.previewTasks[index]?.durationMinutes ?? 45,
-            })),
-            parsedStartTime,
-          ),
-        );
-      } else {
+      let aiDurations = aiRows.map((row, index) => ({
+        title: row.title.trim(),
+        durationMinutes: initialState.previewTasks[index]?.durationMinutes ?? 45,
+      }));
+
+      if (aiRows.length > 0 && !isPreview) {
         const onboardingProfile = await getOnboardingProfile();
         const formattedProfile = formatOnboardingProfileForPrompt(onboardingProfile);
-        const titles = taskInput.titledRows.map((task) => task.title.trim());
-        const generated = latestOpenAiApiKey
+        const titles = aiRows.map((row) => row.title.trim());
+        aiDurations = latestOpenAiApiKey
           ? await generateScheduleFromText(latestOpenAiApiKey, titles, formattedProfile)
           : await generateGeminiScheduleFromText(
               latestGeminiApiKey ?? '',
               titles,
               formattedProfile,
             );
-        previewStore.writeTasks(makeSequentialPreview(generated, parsedStartTime));
       }
+
+      previewStore.writeTasks(
+        buildHybridPreview(rows, aiDurations, {
+          existingTasks,
+          now: effectiveNow,
+          preferredStart: planningDefaults?.preferredStart ?? getRoundedStartTime(),
+        }),
+      );
+      cachedPreviewSignatureRef.current = previewInputSignature;
+      setPreviewVisible(true);
     } catch (err) {
       setLocalError(err instanceof Error ? err.message : 'Failed to generate a schedule.');
     } finally {
@@ -262,19 +340,38 @@ export function useAIScheduleState({
     }
   };
 
+  const onSubmit = () => {
+    const hasAiRows = taskInput.titledRows.some((row) => row.aiScheduled);
+    if (!hasAiRows) {
+      return saveManualSchedule();
+    }
+
+    const hasCachedPreview =
+      previewTasks.length > 0 && cachedPreviewSignatureRef.current === previewInputSignature;
+    if (hasCachedPreview) {
+      setPreviewVisible(true);
+      return;
+    }
+
+    return generateHybridSchedule();
+  };
+
   return {
     apiKeyPresent: Boolean(apiKey),
-    aiEnabled,
+    aiAvailable,
     generating,
     localError,
     storeError: activeStoreError,
     loading: activeLoading,
     previewTasks,
+    showingPreview,
     canSubmit: taskInput.titledRows.length > 0 && !generating && !activeLoading,
     canConfirmPreview,
+    selectedRowAiScheduled,
+    draftAiScheduled,
     onDismissError: previewStore.dismissError,
-    onToggleAiEnabled: setAiEnabled,
-    onSubmit: () => (aiEnabled ? generateSchedule() : saveManualSchedule()),
+    onToggleRowAiScheduled: toggleRowAiScheduled,
+    onSubmit,
     onClearPreview: previewStore.clear,
     onChangePreviewTitle: previewStore.updateTitle,
     onChangePreviewDuration: (taskId: string, rawValue: string) => {

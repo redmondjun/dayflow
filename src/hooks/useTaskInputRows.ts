@@ -16,7 +16,7 @@ import { addMinutes, formatInputTime, parseTimeInput } from '../utils/time';
 type UseTaskInputRowsArgs = {
   initialRows: TaskInputRow[];
   initialSelectedTaskId: string | null;
-  manualScheduling?: boolean;
+  defaultDraftAiScheduled?: boolean;
   getExistingTasks?: () => Task[];
   planningDefaults?: TaskPlanningDefaults;
   now?: Date;
@@ -28,15 +28,13 @@ function normalizeRows(rows: TaskInputRow[]) {
 
 function buildDraftRowOptions(
   rows: TaskInputRow[],
-  manualScheduling: boolean,
+  aiScheduled: boolean,
   getExistingTasks?: () => Task[],
   planningDefaults?: TaskPlanningDefaults,
   now?: Date,
 ) {
-  if (!manualScheduling) return undefined;
-
   return {
-    manualScheduling: true,
+    aiScheduled,
     existingTasks: getExistingTasks?.() ?? [],
     plannerRows: rows.filter((row) => !row.isDraft && hasTaskRowTitle(row)),
     preferredStart: planningDefaults?.preferredStart,
@@ -48,7 +46,7 @@ function buildDraftRowOptions(
 export function useTaskInputRows({
   initialRows,
   initialSelectedTaskId,
-  manualScheduling = false,
+  defaultDraftAiScheduled = false,
   getExistingTasks,
   planningDefaults,
   now = new Date(),
@@ -78,13 +76,13 @@ export function useTaskInputRows({
       ),
     );
   const selectedTimeValidation: ManualTaskTimeValidation | null = useMemo(() => {
-    if (!manualScheduling || !expandedTask) return null;
+    if (!expandedTask || expandedTask.aiScheduled) return null;
     return validateManualTaskTimes(expandedTask.startTime, expandedTask.endTime, now, {
       existingTasks: getExistingTasks?.() ?? [],
       plannerRows: committedRows,
       excludeRowId: expandedTask.id,
     });
-  }, [committedRows, expandedTask, getExistingTasks, manualScheduling, now]);
+  }, [committedRows, expandedTask, getExistingTasks, now]);
 
   const updateTaskRow = (taskId: string, patch: Partial<TaskInputRow>) => {
     setTaskRows((rows) =>
@@ -134,7 +132,7 @@ export function useTaskInputRows({
   const confirmTaskTimeEdit = () => {
     if (!expandedTask) return false;
 
-    if (manualScheduling && selectedTimeValidation?.error) {
+    if (!expandedTask.aiScheduled && selectedTimeValidation?.error) {
       return false;
     }
 
@@ -157,7 +155,7 @@ export function useTaskInputRows({
         '',
         buildDraftRowOptions(
           withoutDraft,
-          manualScheduling,
+          defaultDraftAiScheduled,
           getExistingTasks,
           planningDefaults,
           now,
@@ -179,7 +177,13 @@ export function useTaskInputRows({
       const next = createDraftTaskInputRow(
         rows.at(-1),
         title,
-        buildDraftRowOptions(rows, manualScheduling, getExistingTasks, planningDefaults, now),
+        buildDraftRowOptions(
+          rows,
+          defaultDraftAiScheduled,
+          getExistingTasks,
+          planningDefaults,
+          now,
+        ),
       );
       setSelectedTaskId(next.id);
       return [...rows, next];
@@ -226,11 +230,16 @@ export function useTaskInputRows({
     selectQuickAdd,
     cancelTaskTimeEdit,
     confirmTaskTimeEdit,
+    updateTaskRow,
     changeSelectedStart: (value: string) => {
-      if (expandedTask) updateTaskRow(expandedTask.id, { startTime: value });
+      if (expandedTask && !expandedTask.aiScheduled) {
+        updateTaskRow(expandedTask.id, { startTime: value });
+      }
     },
     changeSelectedEnd: (value: string) => {
-      if (expandedTask) updateTaskRow(expandedTask.id, { endTime: value });
+      if (expandedTask && !expandedTask.aiScheduled) {
+        updateTaskRow(expandedTask.id, { endTime: value });
+      }
     },
   };
 }

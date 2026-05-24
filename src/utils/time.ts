@@ -154,6 +154,12 @@ export function sortByStartTime(tasks: Task[]): Task[] {
   );
 }
 
+export function sortGeneratedTasksByStartTime<T extends { startTime: string }>(tasks: T[]): T[] {
+  return [...tasks].sort(
+    (a, b) => new Date(a.startTime).getTime() - new Date(b.startTime).getTime(),
+  );
+}
+
 export function getTodayTasks(tasks: Task[], now = new Date()): Task[] {
   return sortByStartTime(tasks.filter((task) => isSameLocalDay(new Date(task.startTime), now)));
 }
