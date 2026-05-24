@@ -128,6 +128,11 @@ export function formatDuration(totalMinutes: number): string {
   return `${hours}h ${minutes}m`;
 }
 
+export function formatScheduleSummary(taskCount: number, totalMinutes: number): string {
+  const taskLabel = taskCount === 1 ? '1 task' : `${taskCount} tasks`;
+  return `${taskLabel} · ${formatDuration(totalMinutes)}`;
+}
+
 export function durationBetween(startTime: string, endTime: string): number {
   return Math.max(
     0,

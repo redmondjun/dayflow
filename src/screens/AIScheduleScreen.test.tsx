@@ -12,6 +12,9 @@ import { resetDevDemoState, setDemoNowOverride } from '../services/devDemo';
 
 jest.mock('@react-navigation/native', () => ({
   useIsFocused: jest.fn(() => true),
+  useNavigation: jest.fn(() => ({
+    addListener: jest.fn(() => jest.fn()),
+  })),
 }));
 
 jest.mock('../store/taskStore', () => ({
@@ -74,7 +77,7 @@ describe('AIScheduleScreen preview', () => {
     })) as never;
   }
 
-  it('renders the dedicated task-complete preview screen for generated schedules', () => {
+  it('renders the AI schedule preview for generated schedules', () => {
     mockStore();
 
     render(
@@ -83,11 +86,33 @@ describe('AIScheduleScreen preview', () => {
       </PaperProvider>,
     );
 
-    expect(screen.getByText('All done for today.')).toBeOnTheScreen();
-    expect(screen.getByText('Completed')).toBeOnTheScreen();
-    expect(screen.getByText('3/3')).toBeOnTheScreen();
+    expect(screen.getByText('Your schedule')).toBeOnTheScreen();
+    expect(screen.getByText('is ready')).toBeOnTheScreen();
+    expect(screen.getByText('AI organized')).toBeOnTheScreen();
+    expect(screen.getByText('3 tasks · 2h 15m')).toBeOnTheScreen();
+    expect(screen.getByText('Schedule')).toBeOnTheScreen();
     expect(screen.getByText('Study React hooks')).toBeOnTheScreen();
-    expect(screen.getByText('Confirm schedule ->')).toBeOnTheScreen();
+    expect(screen.getByText('Gym session')).toBeOnTheScreen();
+    expect(screen.getByText('Groceries')).toBeOnTheScreen();
+    expect(screen.getByText('Confirm Schedule ->')).toBeOnTheScreen();
+  });
+
+  it('returns to the planner with task rows intact when preview back is pressed', () => {
+    mockStore();
+
+    render(
+      <PaperProvider>
+        <AIScheduleScreen onCancel={jest.fn()} onOpenSettings={jest.fn()} scenarioId="ai-preview" />
+      </PaperProvider>,
+    );
+
+    expect(screen.getByText('Your schedule')).toBeOnTheScreen();
+    fireEvent.press(screen.getByTestId('schedule-preview-back'));
+
+    expect(screen.getByText('Plan your day')).toBeOnTheScreen();
+    expect(screen.getByText('Morning workout')).toBeOnTheScreen();
+    expect(screen.getByText('Study React')).toBeOnTheScreen();
+    expect(screen.getByText('Lunch Break')).toBeOnTheScreen();
   });
 
   it('opens the draft dropdown and focuses the title when entering create flow', async () => {

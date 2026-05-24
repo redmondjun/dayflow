@@ -1,5 +1,6 @@
-import { useState } from 'react';
-import { Keyboard } from 'react-native';
+import { useEffect, useState } from 'react';
+import { BackHandler, Keyboard } from 'react-native';
+import { useNavigation } from '@react-navigation/native';
 import {
   AISchedulePlannerSection,
   AIScheduleProvider,
@@ -18,6 +19,7 @@ type Props = {
 };
 
 export function AIScheduleScreen(props: Props) {
+  const navigation = useNavigation();
   const [isTimePickerInteracting, setIsTimePickerInteracting] = useState(false);
   const schedule = useAIScheduleState({
     isPreview: Boolean(props.scenarioId),
@@ -27,13 +29,38 @@ export function AIScheduleScreen(props: Props) {
     autoOpenDraft: props.autoOpenDraft ?? !props.scenarioId,
   });
 
-  if (schedule.previewTasks.length > 0) {
+  const showingPreview = schedule.previewTasks.length > 0;
+
+  useEffect(() => {
+    if (!showingPreview) return undefined;
+
+    const unsubscribe = navigation.addListener('beforeRemove', (event) => {
+      event.preventDefault();
+      schedule.onClearPreview();
+    });
+
+    return unsubscribe;
+  }, [navigation, schedule.onClearPreview, showingPreview]);
+
+  useEffect(() => {
+    if (!showingPreview) return undefined;
+
+    const subscription = BackHandler.addEventListener('hardwareBackPress', () => {
+      schedule.onClearPreview();
+      return true;
+    });
+
+    return () => subscription.remove();
+  }, [schedule.onClearPreview, showingPreview]);
+
+  if (showingPreview) {
     return (
       <SchedulePreviewView
         tasks={schedule.previewTasks}
         loading={schedule.loading}
         error={schedule.storeError ?? schedule.localError}
         onDismissError={schedule.onDismissError}
+        onBack={schedule.onClearPreview}
         onConfirm={schedule.onConfirm}
       />
     );
