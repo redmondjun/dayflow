@@ -90,7 +90,7 @@ export function useWeeklyAiInsight({
     }
 
     void loadAiInsight();
-  }, [aiSettingsVersion, baseSummary, effectiveNow, tasks, weeklyPreviewEnabled, mountedRef]);
+  }, [aiSettingsVersion, baseSummary, effectiveNow, tasks, weeklyPreviewEnabled]);
 
   return { patterns, suggestions };
 }

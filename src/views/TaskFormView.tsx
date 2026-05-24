@@ -102,8 +102,19 @@ export function TaskFormView({
     if (new Date(parsedEnd).getTime() <= new Date(parsedStart).getTime()) {
       return 'End time must be after start time.';
     }
-    return validateManualTaskTimes(start, end, new Date(), { existingTasks }).error;
-  }, [title, parsedStart, parsedEnd, start, end, existingTasks]);
+    const crossesMidnight = endParseBaseDate.getTime() !== startParseBaseDate.getTime();
+    if (crossesMidnight) return null;
+    return validateManualTaskTimes(start, end, startParseBaseDate, { existingTasks }).error;
+  }, [
+    title,
+    parsedStart,
+    parsedEnd,
+    start,
+    end,
+    startParseBaseDate,
+    endParseBaseDate,
+    existingTasks,
+  ]);
 
   const canSave = !validation && title.trim().length > 0 && !loading;
 

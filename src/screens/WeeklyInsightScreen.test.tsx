@@ -53,6 +53,7 @@ jest.mock('../services/devDemo', () => ({
 }));
 
 jest.mock('../utils/weeklyInsight', () => ({
+  ...jest.requireActual('../utils/weeklyInsight'),
   buildWeeklyInsightSummary: jest.fn(),
 }));
 
@@ -157,6 +158,9 @@ function renderEmbeddedWeeklyInsight() {
   return { onOptimizeTomorrow };
 }
 
+const emptyTaskState = { tasks: [] as typeof completedTasks };
+const scheduledTaskState = { tasks: scheduledTasks };
+
 describe('WeeklyInsightScreen', () => {
   const useTaskStoreMock = useTaskStore as unknown as jest.Mock;
   const buildWeeklyInsightSummaryMock = jest.mocked(buildWeeklyInsightSummary);
@@ -185,8 +189,8 @@ describe('WeeklyInsightScreen', () => {
     useDevDemoStateMock.mockReturnValue({ nowOverride: null, weeklyPreviewEnabled: false });
     subscribeAiSettingsChangesMock.mockClear();
     useTaskStoreMock.mockImplementation((selector: unknown) => {
-      if (typeof selector !== 'function') return { tasks: [] };
-      return selector({ tasks: [] });
+      if (typeof selector !== 'function') return emptyTaskState;
+      return selector(emptyTaskState);
     });
   });
 
@@ -266,8 +270,9 @@ describe('WeeklyInsightScreen', () => {
     getAiSuggestionEnabledMock.mockResolvedValueOnce(false);
     getActiveAiApiKeyMock.mockResolvedValueOnce({ provider: 'openai', key: 'sk-live' });
     useTaskStoreMock.mockImplementation((selector: unknown) => {
-      if (typeof selector !== 'function') return { tasks: completedTasks };
-      return selector({ tasks: completedTasks });
+      const state = { tasks: completedTasks };
+      if (typeof selector !== 'function') return state;
+      return selector(state);
     });
 
     renderWeeklyInsightScreen();
@@ -282,8 +287,8 @@ describe('WeeklyInsightScreen', () => {
   it('does not request AI weekly insights without recent completed or skipped tasks', async () => {
     getActiveAiApiKeyMock.mockResolvedValueOnce({ provider: 'openai', key: 'sk-live' });
     useTaskStoreMock.mockImplementation((selector: unknown) => {
-      if (typeof selector !== 'function') return { tasks: scheduledTasks };
-      return selector({ tasks: scheduledTasks });
+      if (typeof selector !== 'function') return scheduledTaskState;
+      return selector(scheduledTaskState);
     });
 
     renderWeeklyInsightScreen();
@@ -298,8 +303,9 @@ describe('WeeklyInsightScreen', () => {
   it('uses AI weekly insight patterns and suggestions when enabled with an API key', async () => {
     getActiveAiApiKeyMock.mockResolvedValueOnce({ provider: 'openai', key: 'sk-live' });
     useTaskStoreMock.mockImplementation((selector: unknown) => {
-      if (typeof selector !== 'function') return { tasks: completedTasks };
-      return selector({ tasks: completedTasks });
+      const state = { tasks: completedTasks };
+      if (typeof selector !== 'function') return state;
+      return selector(state);
     });
     generateWeeklyInsightMock.mockResolvedValueOnce({
       patterns: [{ label: 'AI Pattern', text: 'Morning blocks are strongest.' }],
@@ -324,8 +330,9 @@ describe('WeeklyInsightScreen', () => {
   it('uses Gemini weekly insight patterns and suggestions when only a Gemini key is saved', async () => {
     getActiveAiApiKeyMock.mockResolvedValueOnce({ provider: 'google', key: 'gemini-live' });
     useTaskStoreMock.mockImplementation((selector: unknown) => {
-      if (typeof selector !== 'function') return { tasks: completedTasks };
-      return selector({ tasks: completedTasks });
+      const state = { tasks: completedTasks };
+      if (typeof selector !== 'function') return state;
+      return selector(state);
     });
     generateGeminiWeeklyInsightMock.mockResolvedValueOnce({
       patterns: [{ label: 'Gemini Pattern', text: 'Gemini found stronger mornings.' }],
@@ -353,8 +360,9 @@ describe('WeeklyInsightScreen', () => {
       .mockResolvedValueOnce({ provider: 'openai', key: 'sk-live' })
       .mockResolvedValue({ provider: 'openai', key: 'sk-live' });
     useTaskStoreMock.mockImplementation((selector: unknown) => {
-      if (typeof selector !== 'function') return { tasks: completedTasks };
-      return selector({ tasks: completedTasks });
+      const state = { tasks: completedTasks };
+      if (typeof selector !== 'function') return state;
+      return selector(state);
     });
     generateWeeklyInsightMock.mockResolvedValueOnce({
       patterns: [{ label: 'Reloaded AI', text: 'AI settings were refreshed.' }],
@@ -381,8 +389,9 @@ describe('WeeklyInsightScreen', () => {
     ) => void = () => {};
     getActiveAiApiKeyMock.mockResolvedValue({ provider: 'openai', key: 'sk-live' });
     useTaskStoreMock.mockImplementation((selector: unknown) => {
-      if (typeof selector !== 'function') return { tasks: completedTasks };
-      return selector({ tasks: completedTasks });
+      const state = { tasks: completedTasks };
+      if (typeof selector !== 'function') return state;
+      return selector(state);
     });
     generateWeeklyInsightMock.mockImplementationOnce(
       () =>
@@ -415,8 +424,9 @@ describe('WeeklyInsightScreen', () => {
   it('uses actual weekly data when rendered inside the home tab', async () => {
     getActiveAiApiKeyMock.mockResolvedValueOnce({ provider: 'openai', key: 'sk-live' });
     useTaskStoreMock.mockImplementation((selector: unknown) => {
-      if (typeof selector !== 'function') return { tasks: completedTasks };
-      return selector({ tasks: completedTasks });
+      const state = { tasks: completedTasks };
+      if (typeof selector !== 'function') return state;
+      return selector(state);
     });
     generateWeeklyInsightMock.mockResolvedValueOnce({
       patterns: [{ label: 'Home Tab AI', text: 'Home tab uses real tasks.' }],

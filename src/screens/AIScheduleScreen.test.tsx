@@ -46,8 +46,6 @@ describe('AIScheduleScreen preview', () => {
   beforeEach(() => {
     jest.mocked(getOnboardingProfile).mockResolvedValue(null);
     jest.mocked(getActiveAiApiKey).mockResolvedValue(null);
-    jest.mocked(getOpenAIApiKey).mockResolvedValue(null);
-    jest.mocked(getGeminiApiKey).mockResolvedValue(null);
     jest.mocked(getAiFeaturesEnabled).mockResolvedValue(true);
     resetDevDemoState();
   });
