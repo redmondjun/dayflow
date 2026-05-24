@@ -4,6 +4,7 @@ import { createTaskPlanningPreviewStore } from '../features/taskPlanning/preview
 import {
   getRoundedStartTime,
   getTaskPlanningPreviewSeed,
+  hasTaskRowTitle,
   missingApiKeyMessage,
   serializeTaskRowsForPreview,
 } from '../features/taskPlanning';
@@ -117,6 +118,11 @@ export function useAIScheduleState({
     now: effectiveNow,
   });
 
+  const committedTitledRows = useMemo(
+    () => taskInput.committedRows.filter(hasTaskRowTitle),
+    [taskInput.committedRows],
+  );
+
   const didAutoOpenDraft = useRef(false);
 
   useEffect(() => {
@@ -186,8 +192,8 @@ export function useAIScheduleState({
   }, []);
 
   const previewInputSignature = useMemo(
-    () => serializeTaskRowsForPreview(taskInput.titledRows),
-    [taskInput.titledRows],
+    () => serializeTaskRowsForPreview(committedTitledRows),
+    [committedTitledRows],
   );
 
   const previewStore = createTaskPlanningPreviewStore({
@@ -238,7 +244,7 @@ export function useAIScheduleState({
   };
 
   const saveManualSchedule = async () => {
-    const manualRows = taskInput.titledRows.filter((row) => !row.aiScheduled);
+    const manualRows = committedTitledRows.filter((row) => !row.aiScheduled);
     const result = await submitManualSchedule({
       manualRows,
       existingTasks: getExistingTasks(),
@@ -254,7 +260,7 @@ export function useAIScheduleState({
   };
 
   const generateHybridSchedule = async () => {
-    const rows = taskInput.titledRows;
+    const rows = committedTitledRows;
     const aiRows = rows.filter((row) => row.aiScheduled);
     const manualRows = rows.filter((row) => !row.aiScheduled);
 
@@ -322,7 +328,7 @@ export function useAIScheduleState({
   };
 
   const onSubmit = () => {
-    const hasAiRows = taskInput.titledRows.some((row) => row.aiScheduled);
+    const hasAiRows = committedTitledRows.some((row) => row.aiScheduled);
     if (!hasAiRows) {
       return saveManualSchedule();
     }
@@ -346,7 +352,7 @@ export function useAIScheduleState({
     loading: activeLoading,
     previewTasks,
     showingPreview,
-    canSubmit: taskInput.titledRows.length > 0 && !generating && !activeLoading,
+    canSubmit: committedTitledRows.length > 0 && !generating && !activeLoading,
     canConfirmPreview,
     selectedRowAiScheduled,
     draftAiScheduled,

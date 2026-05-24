@@ -1,4 +1,5 @@
-import { Pressable, ScrollView, Text, View } from 'react-native';
+import { Pressable, ScrollView, Text } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import type { WeeklyInsightSummary } from '../types/insight';
 import {
   WeeklyInsightFooter,
@@ -17,13 +18,13 @@ type Props = {
 
 export function WeeklyInsightView({ summary, onOptimizeTomorrow, onBack }: Props) {
   return (
-    <View className="flex-1 bg-paper">
-      <ScrollView contentContainerClassName={`pb-8 ${onBack ? 'pt-16' : 'pt-5'}`}>
+    <SafeAreaView className="flex-1 bg-paper" edges={['top']}>
+      <ScrollView contentContainerClassName={`pb-8 ${onBack ? 'pt-4' : 'pt-3'}`}>
         {onBack ? (
           <Pressable
             onPress={onBack}
             testID="weekly-insight-back"
-            className="mb-4 h-11 w-11 items-start justify-center px-6"
+            className="mb-7 h-11 w-11 items-start justify-center px-6"
           >
             <Text className="text-[28px] leading-none text-ink">‹</Text>
           </Pressable>
@@ -35,6 +36,6 @@ export function WeeklyInsightView({ summary, onOptimizeTomorrow, onBack }: Props
         <WeeklyInsightSuggestions summary={summary} />
         <WeeklyInsightFooter summary={summary} onOptimizeTomorrow={onOptimizeTomorrow} />
       </ScrollView>
-    </View>
+    </SafeAreaView>
   );
 }

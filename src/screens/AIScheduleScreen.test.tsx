@@ -173,6 +173,24 @@ describe('AIScheduleScreen preview', () => {
     focusSpy.mockRestore();
   });
 
+  it('keeps Confirm Schedule disabled until a task is committed', async () => {
+    mockStore();
+
+    render(
+      <PaperProvider>
+        <AIScheduleScreen onCancel={jest.fn()} onOpenSettings={jest.fn()} />
+      </PaperProvider>,
+    );
+
+    await waitFor(() => {
+      expect(screen.getByTestId('ai-schedule-draft-input')).toBeOnTheScreen();
+    });
+    expect(screen.getByTestId('ai-schedule-submit')).toBeDisabled();
+
+    fireEvent.changeText(screen.getByTestId('ai-schedule-draft-input'), 'Morning walk');
+    expect(screen.getByTestId('ai-schedule-submit')).toBeDisabled();
+  });
+
   it('keeps the dropdown closed until the add-row button is pressed when auto-open is disabled', async () => {
     mockStore();
 

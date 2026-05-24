@@ -37,8 +37,8 @@ export function QuickAddSection() {
           onPress={onSubmit}
           disabled={!canSubmit}
           loading={generating || loading}
-          buttonColor="#01C21B"
-          textColor={colors.ink}
+          buttonColor={canSubmit ? '#01C21B' : undefined}
+          textColor={canSubmit ? colors.ink : undefined}
           labelStyle={{ fontSize: 15, fontWeight: '700', lineHeight: 15, letterSpacing: -0.15 }}
         />
       </View>
