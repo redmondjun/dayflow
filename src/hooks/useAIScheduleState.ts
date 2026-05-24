@@ -18,12 +18,7 @@ import {
 } from '../features/taskPlanning/profileDefaults';
 import { useTaskInputRows } from './useTaskInputRows';
 import { useMountedRef } from './useMountedRef';
-import {
-  getActiveAiApiKey,
-  getAiFeaturesEnabled,
-  getGeminiApiKey,
-  getOpenAIApiKey,
-} from '../services/apiKey';
+import { getActiveAiApiKey, getAiFeaturesEnabled } from '../services/apiKey';
 import { getEffectiveNow, useDevDemoState } from '../services/devDemo';
 import { generateGeminiScheduleFromText } from '../services/gemini';
 import {
@@ -277,13 +272,9 @@ export function useAIScheduleState({
     let latestOpenAiApiKey = apiKey;
     let latestGeminiApiKey: string | null = null;
     if (!isPreview) {
-      const [openAiKey, geminiKey, activeKey] = await Promise.all([
-        getOpenAIApiKey(),
-        getGeminiApiKey(),
-        getActiveAiApiKey(),
-      ]);
-      latestOpenAiApiKey = openAiKey;
-      latestGeminiApiKey = geminiKey;
+      const activeKey = await getActiveAiApiKey();
+      latestOpenAiApiKey = activeKey?.provider === 'openai' ? activeKey.key : null;
+      latestGeminiApiKey = activeKey?.provider === 'google' ? activeKey.key : null;
       setApiKey(activeKey?.key ?? null);
     }
 

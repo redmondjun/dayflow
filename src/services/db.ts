@@ -1,7 +1,6 @@
 import * as SQLite from 'expo-sqlite';
 import type { NewTaskInput, Task, TaskStatus } from '../types/task';
 import { createId } from '../utils/id';
-import { isSameLocalDay } from '../utils/time';
 
 const DB_NAME = 'dayflow.db';
 
@@ -228,11 +227,17 @@ export async function deleteTask(taskId: string): Promise<void> {
 }
 
 export async function deleteTasksForDay(day: Date): Promise<Task[]> {
+  const startOfDay = new Date(day);
+  startOfDay.setHours(0, 0, 0, 0);
+  const endOfDay = new Date(day);
+  endOfDay.setHours(23, 59, 59, 999);
+
   const db = await getDb();
-  const rows = await db.getAllAsync<TaskRow>('SELECT * FROM tasks ORDER BY start_time ASC');
-  const toDelete = rows
-    .map(rowToTask)
-    .filter((task) => isSameLocalDay(new Date(task.startTime), day));
+  const rows = await db.getAllAsync<TaskRow>(
+    'SELECT * FROM tasks WHERE start_time >= ? AND start_time <= ? ORDER BY start_time ASC',
+    [startOfDay.toISOString(), endOfDay.toISOString()],
+  );
+  const toDelete = rows.map(rowToTask);
 
   if (toDelete.length === 0) return [];
 
