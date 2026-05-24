@@ -8,6 +8,7 @@ type Props = {
   title: string;
   totalSteps: number;
   onBack: () => void;
+  canExit?: boolean;
 };
 
 export function OnboardingFlowHeader({
@@ -17,16 +18,19 @@ export function OnboardingFlowHeader({
   title,
   totalSteps,
   onBack,
+  canExit = false,
 }: Props) {
+  const showBack = stepIndex > 0 || canExit;
+
   return (
     <>
       <View className="flex-row items-center gap-3 px-6">
         <Pressable
           onPress={onBack}
-          disabled={stepIndex === 0}
+          disabled={!showBack}
           testID="onboarding-back-button"
           className={`h-[34px] w-[34px] items-center justify-center rounded-full ${
-            stepIndex === 0 ? 'opacity-0' : 'bg-warm3'
+            showBack ? 'bg-warm3' : 'opacity-0'
           }`}
         >
           <Text className="text-2xl text-ink">‹</Text>

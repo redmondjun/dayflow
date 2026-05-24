@@ -1,4 +1,4 @@
-import { ScrollView, View } from 'react-native';
+import { Pressable, ScrollView, Text, View } from 'react-native';
 import type { WeeklyInsightSummary } from '../types/insight';
 import {
   WeeklyInsightFooter,
@@ -12,12 +12,22 @@ import {
 type Props = {
   summary: WeeklyInsightSummary;
   onOptimizeTomorrow: () => void;
+  onBack?: () => void;
 };
 
-export function WeeklyInsightView({ summary, onOptimizeTomorrow }: Props) {
+export function WeeklyInsightView({ summary, onOptimizeTomorrow, onBack }: Props) {
   return (
     <View className="flex-1 bg-paper">
-      <ScrollView contentContainerClassName="pb-8 pt-5">
+      <ScrollView contentContainerClassName={`pb-8 ${onBack ? 'pt-16' : 'pt-5'}`}>
+        {onBack ? (
+          <Pressable
+            onPress={onBack}
+            testID="weekly-insight-back"
+            className="mb-4 h-11 w-11 items-start justify-center px-6"
+          >
+            <Text className="text-[28px] leading-none text-ink">‹</Text>
+          </Pressable>
+        ) : null}
         <WeeklyInsightHeader summary={summary} />
         <WeeklyInsightHeadline summary={summary} />
         <WeeklyInsightStats summary={summary} />

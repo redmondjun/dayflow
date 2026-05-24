@@ -5,6 +5,7 @@ import { WeeklyInsightView } from '../views/WeeklyInsightView';
 type Props = {
   scenarioId: 'weekly-empty' | 'weekly-data';
   onOptimizeTomorrow: () => void;
+  onBack?: () => void;
 };
 
 function buildPreviewSummary(scenarioId: Props['scenarioId']) {
@@ -16,11 +17,12 @@ function buildPreviewSummary(scenarioId: Props['scenarioId']) {
   };
 }
 
-export function WeeklyInsightPreviewScreen({ scenarioId, onOptimizeTomorrow }: Props) {
+export function WeeklyInsightPreviewScreen({ scenarioId, onOptimizeTomorrow, onBack }: Props) {
   return (
     <WeeklyInsightView
       summary={buildPreviewSummary(scenarioId)}
       onOptimizeTomorrow={onOptimizeTomorrow}
+      onBack={onBack}
     />
   );
 }

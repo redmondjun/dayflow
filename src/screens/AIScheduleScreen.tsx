@@ -76,6 +76,7 @@ export function AIScheduleScreen(props: Props) {
     onTimeInteractionStart,
     onTimeInteractionEnd,
     onSubmit: schedule.onSubmit,
+    onCancel: props.onCancel,
   };
 
   return (

@@ -44,6 +44,7 @@ export function OnboardingScreen({ navigation, route }: Props) {
     <OnboardingFlowView
       initialAnswers={initialAnswers}
       onFinish={() => navigation.navigate('Home')}
+      onExit={editMode ? () => navigation.goBack() : undefined}
       onSubmit={saveOnboardingProfile}
     />
   );

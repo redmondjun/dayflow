@@ -1,4 +1,4 @@
-import { Text, View } from 'react-native';
+import { Pressable, Text, View } from 'react-native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { RootStackParamList } from '../navigation/types';
 import { HomeScreen } from '../screens/HomeScreen';
@@ -19,8 +19,17 @@ export function PreviewScenarioScreen({ navigation, route }: Props) {
 
   if (!scenario) {
     return (
-      <View className="flex-1 items-center justify-center bg-paper px-6">
-        <Text className="text-lg font-semibold text-ink">Unknown preview scenario.</Text>
+      <View className="flex-1 bg-paper px-6 pt-16">
+        <Pressable
+          onPress={onBack}
+          testID="preview-scenario-back"
+          className="mb-7 h-11 w-11 items-start justify-center"
+        >
+          <Text className="text-[28px] leading-none text-ink">‹</Text>
+        </Pressable>
+        <View className="flex-1 items-center justify-center">
+          <Text className="text-lg font-semibold text-ink">Unknown preview scenario.</Text>
+        </View>
       </View>
     );
   }
@@ -57,6 +66,7 @@ export function PreviewScenarioScreen({ navigation, route }: Props) {
       <WeeklyInsightPreviewScreen
         scenarioId={scenario.id as 'weekly-empty' | 'weekly-data'}
         onOptimizeTomorrow={onBack}
+        onBack={onBack}
       />
     );
   }

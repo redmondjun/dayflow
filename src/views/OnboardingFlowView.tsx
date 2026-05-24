@@ -64,6 +64,7 @@ export function OnboardingFlowView({
           title={step.question}
           totalSteps={steps.length}
           onBack={goBack}
+          canExit={Boolean(onExit)}
         />
 
         <OnboardingStepContent

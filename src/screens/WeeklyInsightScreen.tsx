@@ -33,11 +33,15 @@ export function WeeklyInsightScreen(props: Props) {
   const onOptimizeTomorrow = isRouteScreenProps<RouteProps, EmbeddedProps>(props)
     ? () => props.navigation.navigate('CreateTask', { aiEnabled: true })
     : props.onOptimizeTomorrow;
+  const onBack = isRouteScreenProps<RouteProps, EmbeddedProps>(props)
+    ? () => props.navigation.goBack()
+    : undefined;
 
   return (
     <WeeklyInsightView
       summary={{ ...baseSummary, patterns, suggestions }}
       onOptimizeTomorrow={onOptimizeTomorrow}
+      onBack={onBack}
     />
   );
 }

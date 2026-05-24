@@ -31,6 +31,7 @@ export type AIScheduleContextValue = {
   onTimeInteractionStart: () => void;
   onTimeInteractionEnd: () => void;
   onSubmit: () => void;
+  onCancel: () => void;
 };
 
 const AIScheduleContext = createContext<AIScheduleContextValue | null>(null);
