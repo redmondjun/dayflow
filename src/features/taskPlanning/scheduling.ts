@@ -1,9 +1,10 @@
 import type { Task, TaskInputRow } from '../../types/task';
 import { hasTaskRowTitle } from '../taskPlanning';
+import { isFuturePlanningDay, type SchedulingContext } from './planningDay';
 import {
   addMinutes,
   formatInputTime,
-  getTodayTasks,
+  getTasksForDay,
   parseTimeInput,
   roundUpToFiveMinutes,
 } from '../../utils/time';
@@ -19,13 +20,9 @@ type TimeInterval = {
   endMs: number;
 };
 
-function toInterval(
-  startTime: string,
-  endTime: string,
-  baseDate = new Date(),
-): TimeInterval | null {
-  const start = parseTimeInput(startTime, baseDate);
-  const end = parseTimeInput(endTime, baseDate);
+function toInterval(startTime: string, endTime: string, planningDay: Date): TimeInterval | null {
+  const start = parseTimeInput(startTime, planningDay);
+  const end = parseTimeInput(endTime, planningDay);
   if (!start || !end) return null;
 
   const startMs = new Date(start).getTime();
@@ -49,17 +46,17 @@ function intervalsOverlap(a: TimeInterval, b: TimeInterval) {
 function collectExistingIntervals(
   existingTasks: Task[],
   plannerRows: TaskInputRow[],
-  now = new Date(),
+  planningDay: Date,
   excludeRowId?: string,
 ): TimeInterval[] {
-  const intervals = getTodayTasks(existingTasks, now)
+  const intervals = getTasksForDay(existingTasks, planningDay)
     .filter((task) => task.status === 'scheduled')
     .map((task) => taskToInterval(task))
     .filter((interval): interval is TimeInterval => interval !== null);
 
   for (const row of plannerRows) {
     if (row.id === excludeRowId || row.isDraft || !hasTaskRowTitle(row)) continue;
-    const interval = toInterval(row.startTime, row.endTime, now);
+    const interval = toInterval(row.startTime, row.endTime, planningDay);
     if (interval) intervals.push(interval);
   }
 
@@ -73,19 +70,48 @@ function findOverlappingInterval(
     existingTasks = [],
     plannerRows = [],
     excludeRowId,
-    now = new Date(),
+    context,
   }: {
     existingTasks?: Task[];
     plannerRows?: TaskInputRow[];
     excludeRowId?: string;
-    now?: Date;
-  } = {},
+    context: SchedulingContext;
+  },
 ): boolean {
-  const candidate = toInterval(startTime, endTime, now);
+  const candidate = toInterval(startTime, endTime, context.planningDay);
   if (!candidate) return false;
 
-  const blocking = collectExistingIntervals(existingTasks, plannerRows, now, excludeRowId);
+  const blocking = collectExistingIntervals(
+    existingTasks,
+    plannerRows,
+    context.planningDay,
+    excludeRowId,
+  );
   return blocking.some((interval) => intervalsOverlap(candidate, interval));
+}
+
+function getEarliestCandidateStart(context: SchedulingContext, preferredStart?: string): Date {
+  const { planningDay, referenceNow } = context;
+  const isFuture = isFuturePlanningDay(planningDay, referenceNow);
+  let candidateStart: Date;
+
+  if (preferredStart) {
+    const preferred = parseTimeInput(preferredStart, planningDay);
+    candidateStart = preferred
+      ? roundUpToFiveMinutes(new Date(preferred))
+      : roundUpToFiveMinutes(referenceNow);
+  } else {
+    candidateStart = roundUpToFiveMinutes(referenceNow);
+  }
+
+  if (!isFuture) {
+    const floor = roundUpToFiveMinutes(referenceNow);
+    if (candidateStart.getTime() < floor.getTime()) {
+      candidateStart = floor;
+    }
+  }
+
+  return candidateStart;
 }
 
 export function findNextAvailableSlot({
@@ -94,26 +120,18 @@ export function findNextAvailableSlot({
   durationMinutes = 60,
   gapMinutes = 5,
   preferredStart,
-  now = new Date(),
+  context,
 }: {
   existingTasks?: Task[];
   plannerRows?: TaskInputRow[];
   durationMinutes?: number;
   gapMinutes?: number;
   preferredStart?: string;
-  now?: Date;
+  context: SchedulingContext;
 }): { startTime: string; endTime: string } {
-  const intervals = collectExistingIntervals(existingTasks, plannerRows, now);
-  const roundedNow = roundUpToFiveMinutes(now);
-  let candidateStart = roundedNow;
-
-  if (preferredStart) {
-    const preferred = parseTimeInput(preferredStart, now);
-    if (preferred) {
-      const preferredDate = roundUpToFiveMinutes(new Date(preferred));
-      candidateStart = preferredDate.getTime() < roundedNow.getTime() ? roundedNow : preferredDate;
-    }
-  }
+  const { planningDay } = context;
+  const intervals = collectExistingIntervals(existingTasks, plannerRows, planningDay);
+  let candidateStart = getEarliestCandidateStart(context, preferredStart);
 
   while (true) {
     const candidateEnd = new Date(addMinutes(candidateStart, durationMinutes));
@@ -137,15 +155,16 @@ export function findNextAvailableSlot({
 export function validateManualTaskTimes(
   startTime: string,
   endTime: string,
-  now = new Date(),
+  context: SchedulingContext,
   options?: {
     existingTasks?: Task[];
     plannerRows?: TaskInputRow[];
     excludeRowId?: string;
   },
 ): ManualTaskTimeValidation {
-  const start = parseTimeInput(startTime, now);
-  const end = parseTimeInput(endTime, now);
+  const { planningDay, referenceNow } = context;
+  const start = parseTimeInput(startTime, planningDay);
+  const end = parseTimeInput(endTime, planningDay);
 
   if (!start || !end) {
     return {
@@ -157,7 +176,6 @@ export function validateManualTaskTimes(
 
   const startMs = new Date(start).getTime();
   const endMs = new Date(end).getTime();
-  const nowMs = now.getTime();
 
   if (endMs <= startMs) {
     return {
@@ -173,7 +191,7 @@ export function validateManualTaskTimes(
       existingTasks: options.existingTasks,
       plannerRows: options.plannerRows,
       excludeRowId: options.excludeRowId,
-      now,
+      context,
     })
   ) {
     return {
@@ -183,20 +201,24 @@ export function validateManualTaskTimes(
     };
   }
 
-  if (endMs <= nowMs) {
-    return {
-      error: null,
-      pastNotice: 'This task is entirely in the past and will be saved as completed.',
-      willMarkCompleted: true,
-    };
-  }
+  if (!isFuturePlanningDay(planningDay, referenceNow)) {
+    const nowMs = referenceNow.getTime();
 
-  if (startMs < nowMs) {
-    return {
-      error: null,
-      pastNotice: 'This task already started and will be saved as completed.',
-      willMarkCompleted: true,
-    };
+    if (endMs <= nowMs) {
+      return {
+        error: null,
+        pastNotice: 'This task is entirely in the past and will be saved as completed.',
+        willMarkCompleted: true,
+      };
+    }
+
+    if (startMs < nowMs) {
+      return {
+        error: null,
+        pastNotice: 'This task already started and will be saved as completed.',
+        willMarkCompleted: true,
+      };
+    }
   }
 
   return {

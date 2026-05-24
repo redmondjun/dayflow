@@ -13,6 +13,7 @@ import {
 import { StickyBottomBar } from '../components/StickyBottomBar';
 import { getRoundedStartTime } from '../features/taskPlanning';
 import { validateManualTaskTimes } from '../features/taskPlanning/scheduling';
+import { schedulingContextForDay } from '../features/taskPlanning/planningDay';
 import { colors } from '../theme/colors';
 import type { Task, TaskStatus } from '../types/task';
 import {
@@ -104,7 +105,12 @@ export function TaskFormView({
     }
     const crossesMidnight = endParseBaseDate.getTime() !== startParseBaseDate.getTime();
     if (crossesMidnight) return null;
-    return validateManualTaskTimes(start, end, startParseBaseDate, { existingTasks }).error;
+    return validateManualTaskTimes(
+      start,
+      end,
+      schedulingContextForDay(startParseBaseDate, new Date()),
+      { existingTasks },
+    ).error;
   }, [
     title,
     parsedStart,

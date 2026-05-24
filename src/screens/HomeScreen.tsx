@@ -4,6 +4,8 @@ import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { MainTabBar, type MainTabId } from '../components/MainTabBar';
 import type { RootStackParamList } from '../navigation/types';
 import { isRouteScreenProps } from '../navigation/routeProps';
+import { getTomorrowKey } from '../features/taskPlanning/planningDay';
+import { getEffectiveNow } from '../services/devDemo';
 import { MyPageScreen } from '../screens/MyPageScreen';
 import { WeeklyInsightScreen } from '../screens/WeeklyInsightScreen';
 import { HomeScreenView } from '../views/HomeScreenView';
@@ -27,7 +29,9 @@ export function HomeScreen(props: Props) {
           isRoute ? (
             <HomeScreenView
               onEditTask={(taskId) => props.navigation.navigate('EditTask', { taskId })}
-              onCreateTask={() => props.navigation.navigate('CreateTask')}
+              onCreateTask={(planningDayKey) =>
+                props.navigation.navigate('CreateTask', { planningDayKey })
+              }
             />
           ) : (
             <HomeScreenView scenarioId={props.scenarioId} onBack={props.onBack} />
@@ -36,7 +40,11 @@ export function HomeScreen(props: Props) {
           <WeeklyInsightScreen
             onOptimizeTomorrow={
               isRoute
-                ? () => props.navigation.navigate('CreateTask', { aiEnabled: true })
+                ? () =>
+                    props.navigation.navigate('CreateTask', {
+                      aiEnabled: true,
+                      planningDayKey: getTomorrowKey(getEffectiveNow()),
+                    })
                 : props.onBack
             }
           />

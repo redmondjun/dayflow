@@ -1,13 +1,70 @@
 import type { WeeklyInsightSummary } from '../../types/insight';
 import type { Task } from '../../types/task';
+import type { ScheduleGenerationContext } from '../../features/taskPlanning/profileScheduling';
 
-export function buildSchedulePrompt(tasks: string[], userProfile?: string | null): string {
-  const taskList = tasks.map((task, index) => `${index + 1}. ${task}`).join('\n');
-  const profile = userProfile?.trim();
+function formatTimeWindow(window: { start: string; end: string; label: string }): string {
+  return `${window.label}: ${window.start}–${window.end}`;
+}
 
-  if (!profile) return `Create a schedule from these separate tasks:\n${taskList}`;
+export function buildSchedulePrompt(
+  tasks: string[],
+  scheduleContext?: ScheduleGenerationContext | null,
+): string {
+  const taskList = tasks.map((task) => `- ${task}`).join('\n');
+  const context = scheduleContext ?? null;
 
-  return `Create a personalized schedule using this user profile:\n${profile}\n\nSeparate tasks:\n${taskList}`;
+  const lines = [
+    'Create a realistic daily schedule for the tasks below.',
+    'The user may have listed tasks in random order — ignore input order.',
+    'Assign each task a logical start time and realistic duration.',
+    '',
+    `Planning day: ${context?.planningDayLabel ?? 'Today'}`,
+    `Earliest allowed start: ${context?.earliestStart ?? '09:00'}`,
+  ];
+
+  if (context?.latestEnd) {
+    lines.push(`Latest meaningful activity end: ${context.latestEnd}`);
+  }
+  if (context?.focusWindow) {
+    lines.push(
+      `Focus window (place demanding/deep work here): ${formatTimeWindow(context.focusWindow)}`,
+    );
+  }
+  if (context?.commitmentWindows?.length) {
+    lines.push(
+      'Blocked commitment windows (do not schedule discretionary tasks here):',
+      ...context.commitmentWindows.map((window) => `- ${formatTimeWindow(window)}`),
+    );
+  }
+  if (context?.freeTimeBudget) {
+    lines.push(
+      `Free time budget: ${context.freeTimeBudget.label} (${context.freeTimeBudget.minMinutes}–${context.freeTimeBudget.maxMinutes} total minutes for discretionary tasks)`,
+      'Keep the sum of discretionary task durations within this budget.',
+    );
+  }
+  if (context?.scheduleGoal) {
+    lines.push(`Schedule goal: ${context.scheduleGoal}`);
+  }
+
+  lines.push(
+    '',
+    'Rules:',
+    '- Reorder tasks into a realistic day; do not preserve input order.',
+    '- Do not stack all tasks back-to-back from wake time — spread across the day.',
+    '- Place breakfast in the morning, lunch midday (~11:30–13:30), dinner in the evening (~17:30–21:00).',
+    '- Place sleep/bedtime routines late evening, before bedtime when provided.',
+    '- Use 24-hour HH:MM times in 5-minute steps; no overlapping tasks.',
+    '- Return tasks sorted by startTime ascending.',
+    '',
+    'Tasks (order does not matter):',
+    taskList,
+  );
+
+  if (context?.userProfile?.trim()) {
+    lines.push('', 'User profile:', context.userProfile.trim());
+  }
+
+  return lines.join('\n');
 }
 
 export function buildWeeklyInsightPrompt(
@@ -50,10 +107,11 @@ export const openAiScheduleSchema = {
       items: {
         type: 'object',
         additionalProperties: false,
-        required: ['title', 'durationMinutes'],
+        required: ['title', 'durationMinutes', 'startTime'],
         properties: {
           title: { type: 'string' },
           durationMinutes: { type: 'integer' },
+          startTime: { type: 'string' },
         },
       },
     },
@@ -104,10 +162,11 @@ export const geminiScheduleSchema = {
       type: 'array',
       items: {
         type: 'object',
-        required: ['title', 'durationMinutes'],
+        required: ['title', 'durationMinutes', 'startTime'],
         properties: {
           title: { type: 'string' },
           durationMinutes: { type: 'integer' },
+          startTime: { type: 'string' },
         },
       },
     },
@@ -146,3 +205,5 @@ export const geminiWeeklyInsightSchema = {
     },
   },
 };
+
+export type { ScheduleGenerationContext };

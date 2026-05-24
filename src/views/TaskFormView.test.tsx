@@ -105,7 +105,7 @@ describe('TaskFormView', () => {
     fireEvent.press(screen.getByText('Confirm schedule'));
     expect(screen.getByText('Duration: 45m')).toBeOnTheScreen();
 
-    fireEvent.press(screen.getByText('x'));
+    fireEvent.press(screen.getByTestId('task-form-delete-button'));
     expect(onDelete).toHaveBeenCalledTimes(1);
   });
 

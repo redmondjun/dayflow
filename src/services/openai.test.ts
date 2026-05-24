@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, jest } from '@jest/globals';
 import { generateScheduleFromText, generateWeeklyInsight, validateOpenAIApiKey } from './openai';
+import type { ScheduleGenerationContext } from './ai/prompts';
 import type { WeeklyInsightSummary } from '../types/insight';
 import type { Task } from '../types/task';
 
@@ -46,6 +47,14 @@ const weeklyTasks: Task[] = [
   },
 ];
 
+const scheduleContext: ScheduleGenerationContext = {
+  planningDayLabel: 'Today, May 23',
+  earliestStart: '07:00',
+  focusWindow: { start: '17:00', end: '21:00', label: 'Evening' },
+  freeTimeBudget: { minMinutes: 60, maxMinutes: 120, label: '1-2 hours' },
+  userProfile: '- Wake-up time: 7:00 AM\n- Focus best: Evening',
+};
+
 describe('openai service', () => {
   const fetchMock = jest.fn() as jest.MockedFunction<typeof fetch>;
 
@@ -73,7 +82,7 @@ describe('openai service', () => {
         status: 200,
         jsonValue: {
           output_text: JSON.stringify({
-            tasks: [{ title: 'Study React', durationMinutes: 45 }],
+            tasks: [{ title: 'Study React', durationMinutes: 45, startTime: '09:00' }],
           }),
         },
       }),
@@ -85,30 +94,34 @@ describe('openai service', () => {
     const request = fetchMock.mock.calls[0]?.[1] as RequestInit | undefined;
     expect(typeof request?.body).toBe('string');
     const body = JSON.parse(String(request?.body));
-    expect(body.input[1].content).toContain('1. Study React');
-    expect(body.input[1].content).toContain('2. Gym');
+    expect(body.input[1].content).toContain('- Study React');
+    expect(body.input[1].content).toContain('- Gym');
+    expect(body.input[1].content).toContain('ignore input order');
   });
 
-  it('includes onboarding profile context when generating a schedule', async () => {
+  it('includes scheduling context when generating a schedule', async () => {
     fetchMock.mockResolvedValueOnce(
       createMockResponse({
         ok: true,
         status: 200,
         jsonValue: {
           output_text: JSON.stringify({
-            tasks: [{ title: 'Study React', durationMinutes: 45 }],
+            tasks: [{ title: 'Study React', durationMinutes: 45, startTime: '18:00' }],
           }),
         },
       }),
     );
 
-    await generateScheduleFromText('sk-live', ['Study React'], '- Wake-up time: 7:00 AM');
+    await generateScheduleFromText('sk-live', ['Study React'], scheduleContext);
 
     const request = fetchMock.mock.calls[0]?.[1] as RequestInit | undefined;
     const body = JSON.parse(String(request?.body));
-    expect(body.input[1].content).toContain('Create a personalized schedule');
+    expect(body.input[1].content).toContain(
+      'Focus window (place demanding/deep work here): Evening: 17:00–21:00',
+    );
+    expect(body.input[1].content).toContain('Free time budget: 1-2 hours');
     expect(body.input[1].content).toContain('- Wake-up time: 7:00 AM');
-    expect(body.input[1].content).toContain('1. Study React');
+    expect(body.input[1].content).toContain('- Study React');
   });
 
   it('maps 401 to the invalid key message', async () => {

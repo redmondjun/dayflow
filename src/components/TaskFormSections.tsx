@@ -1,6 +1,7 @@
 import { createContext, useContext } from 'react';
 import { Pressable, Text, TextInput as RNTextInput, View } from 'react-native';
 import { Button } from 'react-native-paper';
+import { TaskRowRemoveButton } from './aiSchedule/TaskRowRemoveButton';
 import { PlannerHeader, QuickAddChip } from './LightScreenPrimitives';
 import { TimeWheelPicker } from './TimeWheelPicker';
 import { colors } from '../theme/colors';
@@ -100,9 +101,17 @@ export function TaskTimeFields() {
           <View className="rounded-full bg-[rgba(35,36,34,0.07)] px-[10px] py-[5px]">
             <Text className="text-[10px] tracking-[-0.1px] text-ink">{timeRangeLabel}</Text>
           </View>
-          <Pressable onPress={mode === 'edit' ? onDelete : onClearTitle}>
-            <Text className="text-[12px] text-warm">x</Text>
-          </Pressable>
+          {mode === 'edit' && onDelete ? (
+            <TaskRowRemoveButton testID="task-form-delete-button" onPress={onDelete} size="lg" />
+          ) : (
+            <Pressable
+              testID="task-form-clear-title-button"
+              onPress={onClearTitle}
+              className="h-[30px] w-[30px] items-center justify-center rounded-full bg-warm4"
+            >
+              <Text className="text-[14px] font-semibold text-warm">x</Text>
+            </Pressable>
+          )}
         </View>
 
         <View className="px-5 py-[10px]">

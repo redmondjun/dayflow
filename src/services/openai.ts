@@ -5,6 +5,7 @@ import {
   buildWeeklyInsightPrompt,
   openAiScheduleSchema,
   openAiWeeklyInsightSchema,
+  type ScheduleGenerationContext,
 } from './ai/prompts';
 import {
   validateGeneratedTasks,
@@ -18,10 +19,13 @@ export type { AiGeneratedTask, AiWeeklyInsight };
 const OPENAI_RESPONSES_URL = 'https://api.openai.com/v1/responses';
 const DEFAULT_MODEL = 'gpt-5-nano';
 
+const SCHEDULE_SYSTEM_PROMPT =
+  'You are a scheduling assistant. Build a realistic daily schedule with logical start times and durations for each task. Use the user profile windows and constraints. Return structured data only.';
+
 export async function generateScheduleFromText(
   apiKey: string,
   taskTitles: string[],
-  userProfile?: string | null,
+  scheduleContext?: ScheduleGenerationContext | null,
 ): Promise<AiGeneratedTask[]> {
   const tasks = taskTitles.map((title) => title.trim()).filter(Boolean);
   if (!apiKey.trim()) throw new Error('Add your OpenAI API key in Settings first.');
@@ -32,12 +36,11 @@ export async function generateScheduleFromText(
     input: [
       {
         role: 'system',
-        content:
-          'You are a scheduling assistant. Convert separate user tasks into a clear sequential schedule. Estimate realistic durations in minutes. Return structured data only.',
+        content: SCHEDULE_SYSTEM_PROMPT,
       },
       {
         role: 'user',
-        content: buildSchedulePrompt(tasks, userProfile),
+        content: buildSchedulePrompt(tasks, scheduleContext),
       },
     ],
     text: {

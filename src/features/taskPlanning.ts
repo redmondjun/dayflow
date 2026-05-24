@@ -2,6 +2,7 @@ import { makeGeneratedPreviewTasks } from '../dev-preview/mockData';
 import type { GeneratedTaskPreview, NewTaskInput, Task, TaskInputRow } from '../types/task';
 import { addMinutes, formatInputTime, parseTimeInput, sortByStartTime } from '../utils/time';
 import { createId } from '../utils/id';
+import type { SchedulingContext } from './taskPlanning/planningDay';
 import { findNextAvailableSlot } from './taskPlanning/scheduling';
 
 export const plannerQuickAdd = [
@@ -28,8 +29,8 @@ export function sortTaskInputs(inputs: NewTaskInput[]) {
   return sortByStartTime(inputs);
 }
 
-export function getRoundedStartTime(): string {
-  const date = new Date();
+export function getRoundedStartTime(now = new Date()): string {
+  const date = new Date(now);
   date.setMinutes(Math.ceil(date.getMinutes() / 5) * 5, 0, 0);
   return formatInputTime(date);
 }
@@ -107,7 +108,7 @@ export function createDraftTaskInputRow(
     plannerRows?: TaskInputRow[];
     preferredStart?: string;
     durationMinutes?: number;
-    now?: Date;
+    context?: SchedulingContext;
   },
 ): TaskInputRow {
   if (options?.aiScheduled) {
@@ -121,12 +122,16 @@ export function createDraftTaskInputRow(
     };
   }
 
+  const context = options?.context ?? {
+    planningDay: new Date(),
+    referenceNow: new Date(),
+  };
   const slot = findNextAvailableSlot({
     existingTasks: options?.existingTasks ?? [],
     plannerRows: options?.plannerRows ?? (previous ? [previous] : []),
     preferredStart: options?.preferredStart,
     durationMinutes: options?.durationMinutes,
-    now: options?.now,
+    context,
   });
   return createTaskInputRow({
     title,

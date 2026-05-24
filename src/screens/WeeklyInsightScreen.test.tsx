@@ -16,6 +16,7 @@ import { useTaskStore } from '../store/taskStore';
 import { buildWeeklyInsightSummary } from '../utils/weeklyInsight';
 import { WeeklyInsightPreviewScreen } from '../dev-preview/WeeklyInsightPreviewScreen';
 import { useDevDemoState } from '../services/devDemo';
+import { getTomorrowKey } from '../features/taskPlanning/planningDay';
 import { WeeklyInsightScreen } from './WeeklyInsightScreen';
 
 const mockAiSettingsListeners = new Set<() => void>();
@@ -229,7 +230,10 @@ describe('WeeklyInsightScreen', () => {
 
     fireEvent.press(screen.getByText("Optimize tomorrow's schedule ->"));
 
-    expect(navigation.navigate).toHaveBeenCalledWith('CreateTask', { aiEnabled: true });
+    expect(navigation.navigate).toHaveBeenCalledWith('CreateTask', {
+      aiEnabled: true,
+      planningDayKey: getTomorrowKey(new Date()),
+    });
   });
 
   it('hides patterns and suggestions when preview has no weekly data', () => {

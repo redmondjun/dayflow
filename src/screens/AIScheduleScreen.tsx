@@ -14,6 +14,7 @@ type Props = {
   onOpenSettings: () => void;
   scenarioId?: string;
   initialDraftAiScheduled?: boolean;
+  initialPlanningDayKey?: string;
   /** @deprecated Use initialDraftAiScheduled */
   initialAiEnabled?: boolean;
   autoOpenDraft?: boolean;
@@ -25,6 +26,7 @@ export function AIScheduleScreen(props: Props) {
     scenarioId: props.scenarioId,
     onComplete: props.onCancel,
     initialDraftAiScheduled: props.initialDraftAiScheduled ?? props.initialAiEnabled,
+    initialPlanningDayKey: props.initialPlanningDayKey,
     autoOpenDraft: props.autoOpenDraft ?? !props.scenarioId,
   });
   const { scrollEnabled, onTimeInteractionStart, onTimeInteractionEnd } = useTimePickerScrollLock();
@@ -55,6 +57,11 @@ export function AIScheduleScreen(props: Props) {
     aiAvailable: schedule.aiAvailable,
     selectedRowAiScheduled: schedule.selectedRowAiScheduled,
     draftAiScheduled: schedule.draftAiScheduled,
+    planningDayKey: schedule.planningDayKey,
+    setPlanningDayKey: schedule.setPlanningDayKey,
+    planningDay: schedule.planningDay,
+    effectiveNow: schedule.effectiveNow,
+    isFuturePlanningDay: schedule.isFuturePlanningDay,
     taskRows: schedule.taskRows,
     selectedTaskId: schedule.selectedTaskId,
     selectedTaskStart: schedule.selectedTaskStart,

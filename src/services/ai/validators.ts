@@ -1,8 +1,20 @@
 import type { WeeklyInsightSummary } from '../../types/insight';
 
+const START_TIME_PATTERN = /^(\d{1,2}):(\d{2})$/;
+
+export function isValidScheduleStartTime(value: string): boolean {
+  const match = START_TIME_PATTERN.exec(value.trim());
+  if (!match) return false;
+
+  const hours = Number(match[1]);
+  const minutes = Number(match[2]);
+  return hours >= 0 && hours <= 23 && minutes >= 0 && minutes <= 59;
+}
+
 export type AiGeneratedTask = {
   title: string;
   durationMinutes: number;
+  startTime: string;
 };
 
 export type AiWeeklyInsight = Pick<WeeklyInsightSummary, 'patterns' | 'suggestions'>;
@@ -32,10 +44,18 @@ export function validateGeneratedTasks(value: unknown): AiGeneratedTask[] {
     ) {
       throw new Error('AI response included an invalid duration.');
     }
+    if (
+      !('startTime' in task) ||
+      typeof task.startTime !== 'string' ||
+      !isValidScheduleStartTime(task.startTime)
+    ) {
+      throw new Error('AI response included an invalid start time.');
+    }
 
     return {
       title: task.title.trim(),
       durationMinutes: Math.round(task.durationMinutes),
+      startTime: task.startTime.trim(),
     };
   });
 }

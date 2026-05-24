@@ -1,15 +1,11 @@
 import type { Task } from '../types/task';
-import { getLocalDayKey, getTodayTasks, isSameLocalDay } from '../utils/time';
+import { getLocalDayKey, getTasksForDay, isSameLocalDay } from '../utils/time';
 
 export type DayCompleteCandidate = {
   day: Date;
   dayKey: string;
   tasks: Task[];
 };
-
-function getTasksForDay(tasks: Task[], day: Date): Task[] {
-  return getTodayTasks(tasks, day);
-}
 
 function isDayWrappedUp(tasks: Task[]): boolean {
   if (tasks.length === 0) return false;

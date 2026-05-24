@@ -17,8 +17,11 @@ import {
   rescheduleFutureNotifications,
   scheduleTaskNotification,
 } from '../services/notifications';
+import type { PlanningDayKey } from '../features/taskPlanning/planningDay';
+import { resolvePlanningDay } from '../features/taskPlanning/planningDay';
 import {
   getCurrentTask,
+  getTasksForDay,
   getTodayTasks,
   getUpcomingTasks,
   sortByStartTime,
@@ -49,6 +52,7 @@ type TaskStore = {
   confirmPreviewTasks: () => Promise<void>;
   clearError: () => void;
   todayTasks: (now?: Date) => Task[];
+  tasksForDay: (dayKey: PlanningDayKey, now?: Date) => Task[];
   currentTask: (now?: Date) => Task | undefined;
   upcomingTasks: (now?: Date) => Task[];
 };
@@ -215,6 +219,8 @@ export const useTaskStore = create<TaskStore>((set, get) => ({
   clearError: () => set({ error: null }),
 
   todayTasks: (now) => getTodayTasks(get().tasks, now),
+  tasksForDay: (dayKey, now = new Date()) =>
+    getTasksForDay(get().tasks, resolvePlanningDay(dayKey, now)),
   currentTask: (now) => getCurrentTask(get().todayTasks(now), now),
   upcomingTasks: (now) => getUpcomingTasks(get().todayTasks(now), now),
 }));
