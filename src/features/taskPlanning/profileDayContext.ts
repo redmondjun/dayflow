@@ -2,6 +2,15 @@ import type { OnboardingProfile } from '../../services/onboardingProfile';
 import type { OnboardingAnswer } from '../onboarding';
 
 export const WEEKDAY_LABELS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'] as const;
+export const LONG_WEEKDAY_LABELS = [
+  'Sunday',
+  'Monday',
+  'Tuesday',
+  'Wednesday',
+  'Thursday',
+  'Friday',
+  'Saturday',
+] as const;
 export const WEEKDAY_OPTIONS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'] as const;
 export const DEFAULT_WORK_DAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri'] as const;
 export const DEFAULT_WORK_DAYS_VALUE = DEFAULT_WORK_DAYS.join(',');
@@ -27,7 +36,7 @@ export type PlanningDayKind = {
 };
 
 export function parseWorkDays(value: unknown): string[] {
-  if (typeof value === 'string' && value.trim()) {
+  if (typeof value === 'string') {
     return value
       .split(',')
       .map((day) => day.trim())
@@ -82,7 +91,7 @@ export function getPlanningDayKind(
   const dayLabel = WEEKDAY_LABELS[planningDay.getDay()];
   const workDay = isWorkDay(profile, planningDay);
   const weekend = isWeekendDay(planningDay);
-  const longWeekday = planningDay.toLocaleDateString('en-US', { weekday: 'long' });
+  const longWeekday = LONG_WEEKDAY_LABELS[planningDay.getDay()];
 
   const typeDescription = workDay
     ? 'work day'

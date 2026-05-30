@@ -16,7 +16,17 @@ describe('profileDayContext', () => {
 
   it('parses stored work days', () => {
     expect(parseWorkDays('Mon,Wed,Fri')).toEqual(['Mon', 'Wed', 'Fri']);
+    expect(parseWorkDays('')).toEqual([]);
     expect(parseWorkDays(undefined)).toEqual(['Mon', 'Tue', 'Wed', 'Thu', 'Fri']);
+  });
+
+  it('treats no selected work days as non-work days', () => {
+    const profile: OnboardingProfile = {
+      'work-days': '',
+    };
+
+    expect(isWorkDay(profile, monday)).toBe(false);
+    expect(isWorkDay(profile, saturday)).toBe(false);
   });
 
   it('defaults missing profile fields for migration', () => {
