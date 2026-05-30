@@ -20,14 +20,14 @@ export const DURATION_PRESETS = [
   { label: '4h', minutes: 240 },
 ] as const;
 
-function splitDurationMinutes(totalMinutes: number) {
-  const clamped = Math.max(0, Math.min(MAX_TASK_DURATION_MINUTES, Math.round(totalMinutes)));
+export function splitDurationMinutes(totalMinutes: number) {
+  const roundedTotal = Math.round(totalMinutes / 5) * 5;
+  const clamped = Math.max(0, Math.min(MAX_TASK_DURATION_MINUTES, roundedTotal));
   const hours = Math.min(maxHour, Math.floor(clamped / 60));
   const minutes = clamped - hours * 60;
-  const minute = String(Math.round(minutes / 5) * 5).padStart(2, '0');
   return {
     hours: String(hours),
-    minutes: minuteOptions.includes(minute) ? minute : '00',
+    minutes: String(minutes).padStart(2, '0'),
   };
 }
 

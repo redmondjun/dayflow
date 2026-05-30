@@ -60,6 +60,7 @@ export function TaskTimePanel({ onConfirmAdd }: Props) {
         placeholder="Add details (optional)"
         placeholderTextColor={colors.warm}
         multiline
+        style={{ textAlignVertical: 'top' }}
         className="min-h-[56px] rounded-2xl border border-warm3 bg-white px-4 py-3 text-[13px] tracking-[-0.13px] text-ink"
       />
 

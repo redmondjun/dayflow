@@ -65,7 +65,8 @@ export async function initDb(): Promise<void> {
       actual_end_time TEXT,
       notification_id TEXT,
       description TEXT,
-      category TEXT
+      category TEXT,
+      estimated_duration_minutes INTEGER
     );
 
     CREATE INDEX IF NOT EXISTS idx_tasks_start_time ON tasks(start_time);

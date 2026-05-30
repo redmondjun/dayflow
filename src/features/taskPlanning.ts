@@ -109,7 +109,7 @@ export function createTaskInputRow({
       endTime:
         endTime ??
         formatInputTime(
-          addMinutes(parseTimeInput(startTime, day) ?? new Date().toISOString(), durationMinutes),
+          addMinutes(parseTimeInput(startTime, day) ?? day.toISOString(), durationMinutes),
         ),
       durationMinutes,
       timeInputMode,
@@ -133,7 +133,7 @@ export function createTaskInputRow({
 
 export function createNextTaskInputRow(previous?: TaskInputRow, title = ''): TaskInputRow {
   const startTime = previous
-    ? formatInputTime(addMinutes(parseTimeInput(previous.endTime) ?? new Date().toISOString(), 5))
+    ? formatInputTime(addMinutes(parseTimeInput(previous.endTime) ?? previous.endTime, 5))
     : getRoundedStartTime();
   return createTaskInputRow({ title, startTime });
 }

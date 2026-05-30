@@ -203,6 +203,7 @@ export function TaskDescriptionField() {
         placeholder="Add details (optional)"
         placeholderTextColor={colors.warm}
         multiline
+        style={{ textAlignVertical: 'top' }}
         className="min-h-[72px] rounded-2xl border border-warm3 bg-paper px-4 py-3 text-[13px] tracking-[-0.13px] text-ink"
       />
     </View>
