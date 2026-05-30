@@ -243,7 +243,11 @@ export function useAIScheduleState({
     if (!row || !aiAvailable) return;
 
     if (value) {
-      updateTaskRow(row.id, { aiScheduled: true, startTime: '', endTime: '' });
+      updateTaskRow(row.id, {
+        aiScheduled: true,
+        startTime: '',
+        endTime: '',
+      });
       return;
     }
 
@@ -251,13 +255,20 @@ export function useAIScheduleState({
       existingTasks: getExistingTasks(),
       plannerRows: taskInput.committedRows.filter((committed) => committed.id !== row.id),
       preferredStart: planningDefaults?.preferredStart,
-      durationMinutes: planningDefaults?.durationMinutes,
+      durationMinutes:
+        row.estimatedDurationMinutes ?? row.durationMinutes ?? planningDefaults?.durationMinutes,
       context: schedulingContext,
     });
     updateTaskRow(row.id, {
       aiScheduled: false,
       startTime: slot.startTime,
       endTime: slot.endTime,
+      durationMinutes:
+        row.durationMinutes ??
+        row.estimatedDurationMinutes ??
+        planningDefaults?.durationMinutes ??
+        60,
+      timeInputMode: row.timeInputMode ?? 'duration',
     });
   };
 
@@ -329,10 +340,18 @@ export function useAIScheduleState({
           schedulingContext,
           formattedProfile,
         );
-        const titles = aiRows.map((row) => row.title.trim());
+        const scheduleTasks = aiRows.map((row) => ({
+          title: row.title.trim(),
+          description: row.description?.trim() || null,
+          estimatedDurationMinutes: row.estimatedDurationMinutes ?? null,
+        }));
         aiSchedule = latestOpenAiApiKey
-          ? await generateScheduleFromText(latestOpenAiApiKey, titles, scheduleContext)
-          : await generateGeminiScheduleFromText(latestGeminiApiKey ?? '', titles, scheduleContext);
+          ? await generateScheduleFromText(latestOpenAiApiKey, scheduleTasks, scheduleContext)
+          : await generateGeminiScheduleFromText(
+              latestGeminiApiKey ?? '',
+              scheduleTasks,
+              scheduleContext,
+            );
       }
 
       previewStore.writeTasks(
@@ -374,6 +393,7 @@ export function useAIScheduleState({
     localError,
     storeError: activeStoreError,
     loading: activeLoading,
+    isSubmitting: generating || loading,
     previewTasks,
     showingPreview,
     canSubmit: committedTitledRows.length > 0 && !generating && !activeLoading,
@@ -400,14 +420,29 @@ export function useAIScheduleState({
     selectedTaskId: taskInput.selectedTaskId,
     selectedTaskStart: taskInput.selectedTaskStart,
     selectedTaskEnd: taskInput.selectedTaskEnd,
+    selectedTaskDuration: taskInput.selectedTaskDuration,
+    selectedTimeInputMode: taskInput.selectedTimeInputMode,
+    selectedTaskDescription: taskInput.expandedTask?.description ?? null,
+    selectedTaskEstimatedDuration: taskInput.expandedTask?.estimatedDurationMinutes ?? null,
     selectedTimeValidation: taskInput.selectedTimeValidation,
     onSelectTaskRow: taskInput.selectTaskRow,
     onChangeTaskTitle: taskInput.changeTaskTitle,
+    onCommitTitleMemory: taskInput.commitTitleMemory,
     onAddTaskRow: taskInput.addTaskRow,
     onRemoveSelectedTaskRow: taskInput.removeSelectedTaskRow,
     onSelectQuickAdd: taskInput.selectQuickAdd,
     onChangeSelectedStart: taskInput.changeSelectedStart,
     onChangeSelectedEnd: taskInput.changeSelectedEnd,
+    onChangeSelectedDuration: taskInput.changeSelectedDuration,
+    onChangeSelectedTimeInputMode: taskInput.changeSelectedTimeInputMode,
+    onChangeDescription: (value: string) => {
+      const row = taskInput.expandedTask;
+      if (row) taskInput.changeDescription(row.id, value);
+    },
+    onChangeEstimatedDuration: (minutes: number) => {
+      const row = taskInput.expandedTask;
+      if (row) taskInput.changeEstimatedDuration(row.id, minutes > 0 ? minutes : null);
+    },
     onCancelTaskTimeEdit: taskInput.cancelTaskTimeEdit,
     onConfirmTaskTimeEdit: taskInput.confirmTaskTimeEdit,
   };

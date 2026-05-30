@@ -6,6 +6,7 @@ import {
   geminiScheduleSchema,
   geminiWeeklyInsightSchema,
   type ScheduleGenerationContext,
+  type ScheduleTaskInput,
 } from './ai/prompts';
 import {
   validateGeneratedTasks,
@@ -24,12 +25,18 @@ const SCHEDULE_SYSTEM_PROMPT =
 
 export async function generateGeminiScheduleFromText(
   apiKey: string,
-  taskTitles: string[],
+  tasks: ScheduleTaskInput[],
   scheduleContext?: ScheduleGenerationContext | null,
 ): Promise<AiGeneratedTask[]> {
-  const tasks = taskTitles.map((title) => title.trim()).filter(Boolean);
+  const normalizedTasks = tasks
+    .map((task) => ({
+      title: task.title.trim(),
+      description: task.description?.trim() || null,
+      estimatedDurationMinutes: task.estimatedDurationMinutes ?? null,
+    }))
+    .filter((task) => task.title.length > 0);
   if (!apiKey.trim()) throw new Error('Add your Gemini API key in Settings first.');
-  if (tasks.length === 0) throw new Error('Add at least one task first.');
+  if (normalizedTasks.length === 0) throw new Error('Add at least one task first.');
 
   const response = await postGeminiGenerateContent(apiKey, {
     systemInstruction: {
@@ -42,7 +49,7 @@ export async function generateGeminiScheduleFromText(
     contents: [
       {
         role: 'user',
-        parts: [{ text: buildSchedulePrompt(tasks, scheduleContext) }],
+        parts: [{ text: buildSchedulePrompt(normalizedTasks, scheduleContext) }],
       },
     ],
     generationConfig: {

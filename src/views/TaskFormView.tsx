@@ -1,8 +1,9 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { ScrollView, TextInput as RNTextInput, View } from 'react-native';
+import { ScrollView, TextInput as RNTextInput } from 'react-native';
 import { Button, Snackbar } from 'react-native-paper';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import {
+  TaskDescriptionField,
   TaskDurationNotice,
   TaskFormHeader,
   TaskQuickAddSection,
@@ -12,12 +13,19 @@ import {
 } from '../components/TaskFormSections';
 import { StickyBottomBar } from '../components/StickyBottomBar';
 import { getRoundedStartTime } from '../features/taskPlanning';
+import { syncManualRowTimes } from '../features/taskPlanning/manualTime';
 import { validateManualTaskTimes } from '../features/taskPlanning/scheduling';
+import {
+  findRememberedEstimatedDuration,
+  findRememberedTaskDescription,
+} from '../features/taskPlanning/taskTitleMemory';
 import { schedulingContextForDay } from '../features/taskPlanning/planningDay';
 import { colors } from '../theme/colors';
-import type { Task, TaskStatus } from '../types/task';
+import type { ManualTimeInputMode, Task, TaskStatus } from '../types/task';
+import { clampDuration } from '../utils/scheduling';
 import {
   addMinutes,
+  durationBetween,
   formatDuration,
   formatInputTime,
   formatWheelTimeRange,
@@ -33,11 +41,16 @@ export type TaskFormSubmit = {
   status: TaskStatus;
   startTime: string;
   endTime: string;
+  description: string | null;
+  estimatedDurationMinutes: number | null;
 };
 
 type Props = {
   mode: 'create' | 'edit';
-  initialTask?: Pick<Task, 'title' | 'startTime' | 'endTime' | 'status'>;
+  initialTask?: Pick<
+    Task,
+    'title' | 'startTime' | 'endTime' | 'status' | 'description' | 'estimatedDurationMinutes'
+  >;
   existingTasks?: Task[];
   loading: boolean;
   error: string | null;
@@ -55,6 +68,16 @@ function getDefaultTimes() {
   };
 }
 
+function initialDurationMinutes(initialTask?: Props['initialTask']): number {
+  if (initialTask?.estimatedDurationMinutes != null) {
+    return clampDuration(initialTask.estimatedDurationMinutes);
+  }
+  if (initialTask?.startTime && initialTask?.endTime) {
+    return clampDuration(durationBetween(initialTask.startTime, initialTask.endTime));
+  }
+  return 45;
+}
+
 export function TaskFormView({
   mode,
   initialTask,
@@ -69,33 +92,45 @@ export function TaskFormView({
   const { title: initialTitle, startTime, endTime, status: initialStatus } = initialTask || {};
   const defaults = getDefaultTimes();
   const [title, setTitle] = useState(initialTitle ?? '');
+  const [description, setDescription] = useState(initialTask?.description ?? '');
   const [start, setStart] = useState(
     startTime ? formatInputTime(startTime) : formatInputTime(defaults.start),
   );
   const [end, setEnd] = useState(
     endTime ? formatInputTime(endTime) : formatInputTime(defaults.end),
   );
+  const [durationMinutes, setDurationMinutes] = useState(initialDurationMinutes(initialTask));
+  const [timeInputMode, setTimeInputMode] = useState<ManualTimeInputMode>('duration');
   const [status, setStatus] = useState<TaskStatus>(initialStatus ?? 'scheduled');
   const [isTimePickerInteracting, setIsTimePickerInteracting] = useState(false);
   const titleInputRef = useRef<RNTextInput>(null);
   const startParseBaseDate = startTime ? new Date(startTime) : defaults.start;
   const endParseBaseDate = endTime ? new Date(endTime) : defaults.end;
+  const schedulingContext = schedulingContextForDay(startParseBaseDate, new Date());
 
   useEffect(() => {
     const nextDefaults = getDefaultTimes();
     setTitle(initialTitle ?? '');
+    setDescription(initialTask?.description ?? '');
     setStart(startTime ? formatInputTime(startTime) : formatInputTime(nextDefaults.start));
     setEnd(endTime ? formatInputTime(endTime) : formatInputTime(nextDefaults.end));
+    setDurationMinutes(initialDurationMinutes(initialTask));
+    setTimeInputMode('duration');
     setStatus(initialStatus ?? 'scheduled');
-  }, [initialTitle, startTime, endTime, initialStatus]);
+  }, [initialTask, initialTitle, startTime, endTime, initialStatus]);
 
-  const parsedStart = parseTimeInput(start, startParseBaseDate);
-  const parsedEnd = parseTimeInput(end, endParseBaseDate);
-  const duration =
-    parsedStart && parsedEnd
-      ? Math.round((new Date(parsedEnd).getTime() - new Date(parsedStart).getTime()) / 60000)
-      : 0;
-  const durationLabel = formatDuration(duration);
+  const syncedTimes = useMemo(
+    () =>
+      syncManualRowTimes(
+        { startTime: start, endTime: end, durationMinutes, timeInputMode },
+        schedulingContext.planningDay,
+      ),
+    [durationMinutes, end, schedulingContext.planningDay, start, timeInputMode],
+  );
+
+  const parsedStart = parseTimeInput(syncedTimes.startTime, startParseBaseDate);
+  const parsedEnd = parseTimeInput(syncedTimes.endTime, endParseBaseDate);
+  const durationLabel = formatDuration(syncedTimes.durationMinutes);
 
   const validation = useMemo(() => {
     if (!title.trim()) return 'Title is required.';
@@ -105,35 +140,46 @@ export function TaskFormView({
     }
     const crossesMidnight = endParseBaseDate.getTime() !== startParseBaseDate.getTime();
     if (crossesMidnight) return null;
-    return validateManualTaskTimes(
-      start,
-      end,
-      schedulingContextForDay(startParseBaseDate, new Date()),
-      { existingTasks },
-    ).error;
+    return validateManualTaskTimes(syncedTimes.startTime, syncedTimes.endTime, schedulingContext, {
+      existingTasks,
+    }).error;
   }, [
     title,
     parsedStart,
     parsedEnd,
-    start,
-    end,
-    startParseBaseDate,
+    syncedTimes.startTime,
+    syncedTimes.endTime,
     endParseBaseDate,
+    startParseBaseDate,
     existingTasks,
+    schedulingContext,
   ]);
 
   const canSave = !validation && title.trim().length > 0 && !loading;
+
+  const applyTitleMemory = (nextTitle: string) => {
+    if (!description.trim()) {
+      const rememberedDescription = findRememberedTaskDescription(existingTasks, nextTitle);
+      if (rememberedDescription) setDescription(rememberedDescription);
+    }
+    const rememberedDuration = findRememberedEstimatedDuration(existingTasks, nextTitle);
+    if (rememberedDuration != null) {
+      setDurationMinutes(rememberedDuration);
+    }
+  };
 
   const handleSave = () => {
     if (!parsedStart || !parsedEnd || validation) return;
 
     void onSave({
       title,
-      start,
-      end,
+      start: syncedTimes.startTime,
+      end: syncedTimes.endTime,
       status,
       startTime: parsedStart,
       endTime: parsedEnd,
+      description: description.trim() || null,
+      estimatedDurationMinutes: syncedTimes.durationMinutes,
     });
   };
 
@@ -148,21 +194,40 @@ export function TaskFormView({
           value={{
             mode,
             title,
+            description,
             status,
             validation,
             durationLabel,
-            timeRangeLabel: formatWheelTimeRange(start, end),
-            start: toWheelTime(start),
-            end: toWheelTime(end),
+            timeRangeLabel: formatWheelTimeRange(syncedTimes.startTime, syncedTimes.endTime),
+            start: toWheelTime(syncedTimes.startTime),
+            end: toWheelTime(syncedTimes.endTime),
+            durationMinutes: syncedTimes.durationMinutes,
+            timeInputMode,
+            syncedEndTime: parsedEnd ?? syncedTimes.endTime,
             titleInputRef,
             onCancel,
             onDelete,
-            onChangeTitle: setTitle,
+            onChangeTitle: (value) => {
+              setTitle(value);
+            },
+            onTitleBlur: () => applyTitleMemory(title),
+            onChangeDescription: setDescription,
             onClearTitle: () => setTitle(''),
-            onSelectQuickAdd: setTitle,
+            onSelectQuickAdd: (value) => {
+              setTitle(value);
+              applyTitleMemory(value);
+            },
             onChangeStatus: setStatus,
             onChangeStart: (value) => setStart(fromWheelTime(value)),
-            onChangeEnd: (value) => setEnd(fromWheelTime(value)),
+            onChangeEnd: (value) => {
+              setEnd(fromWheelTime(value));
+              setTimeInputMode('end');
+            },
+            onChangeDuration: (value) => {
+              setDurationMinutes(clampDuration(value));
+              setTimeInputMode('duration');
+            },
+            onChangeTimeInputMode: setTimeInputMode,
             onTimeInteractionStart: () => {
               titleInputRef.current?.blur();
               setIsTimePickerInteracting(true);
@@ -172,6 +237,7 @@ export function TaskFormView({
         >
           <TaskFormHeader />
           <TaskTimeFields />
+          {mode === 'edit' ? <TaskDescriptionField /> : null}
           <TaskDurationNotice />
           <TaskQuickAddSection />
           {mode === 'edit' ? <TaskStatusSection /> : null}

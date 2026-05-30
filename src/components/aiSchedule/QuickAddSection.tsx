@@ -5,7 +5,7 @@ import { colors } from '../../theme/colors';
 import { plannerQuickAdd } from '../../features/taskPlanning';
 
 export function QuickAddSection() {
-  const { draftAiScheduled, onSelectQuickAdd, onSubmit, canSubmit, generating, loading } =
+  const { draftAiScheduled, onSelectQuickAdd, onSubmit, canSubmit, isSubmitting } =
     useAIScheduleFooter();
 
   return (
@@ -36,7 +36,7 @@ export function QuickAddSection() {
           label="Confirm Schedule ->"
           onPress={onSubmit}
           disabled={!canSubmit}
-          loading={generating || loading}
+          loading={isSubmitting}
           buttonColor={canSubmit ? '#01C21B' : undefined}
           textColor={canSubmit ? colors.ink : undefined}
           labelStyle={{ fontSize: 15, fontWeight: '700', lineHeight: 15, letterSpacing: -0.15 }}

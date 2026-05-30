@@ -14,7 +14,10 @@ describe('buildSchedulePrompt', () => {
       userProfile: '- Focus best: Evening',
     };
 
-    const prompt = buildSchedulePrompt(['Deep work', 'Email'], scheduleContext);
+    const prompt = buildSchedulePrompt(
+      [{ title: 'Deep work' }, { title: 'Email' }],
+      scheduleContext,
+    );
 
     expect(prompt).toContain('ignore input order');
     expect(prompt).toContain('Focus window (place demanding/deep work here): Evening: 17:00–21:00');
@@ -22,5 +25,23 @@ describe('buildSchedulePrompt', () => {
     expect(prompt).toContain('Schedule goal: Study');
     expect(prompt).toContain('- Deep work');
     expect(prompt).toContain('- Email');
+  });
+
+  it('includes description and estimated duration in task lines', () => {
+    const prompt = buildSchedulePrompt([
+      {
+        title: 'LeetCode',
+        description: 'Two medium problems',
+        estimatedDurationMinutes: 25,
+      },
+      { title: 'Promotion plan', estimatedDurationMinutes: 240 },
+    ]);
+
+    expect(prompt).toContain(
+      'LeetCode | Details: Two medium problems | User estimated duration: 25 min',
+    );
+    expect(prompt).toContain('Promotion plan | User estimated duration: 240 min');
+    expect(prompt).toContain('Honor the full estimate when free time budget');
+    expect(prompt).toContain('Shorten when necessary');
   });
 });

@@ -207,6 +207,8 @@ export const useTaskStore = create<TaskStore>((set, get) => ({
           startTime: task.startTime,
           endTime: task.endTime,
           aiGenerated: task.aiGenerated ?? false,
+          description: task.description ?? null,
+          estimatedDurationMinutes: task.estimatedDurationMinutes ?? null,
         })),
       );
       for (const task of tasks) {

@@ -1,5 +1,7 @@
 export type TaskStatus = 'scheduled' | 'completed' | 'skipped';
 
+export type ManualTimeInputMode = 'duration' | 'end';
+
 export type Task = {
   id: string;
   title: string;
@@ -14,6 +16,7 @@ export type Task = {
   notificationId?: string | null;
   description?: string | null;
   category?: string | null;
+  estimatedDurationMinutes?: number | null;
 };
 
 export type NewTaskInput = {
@@ -24,6 +27,7 @@ export type NewTaskInput = {
   status?: TaskStatus;
   description?: string | null;
   category?: string | null;
+  estimatedDurationMinutes?: number | null;
 };
 
 export type GeneratedTaskPreview = {
@@ -33,6 +37,8 @@ export type GeneratedTaskPreview = {
   startTime: string;
   endTime: string;
   aiGenerated?: boolean;
+  description?: string | null;
+  estimatedDurationMinutes?: number | null;
 };
 
 export type TaskInputRow = {
@@ -42,4 +48,8 @@ export type TaskInputRow = {
   endTime: string;
   aiScheduled?: boolean;
   isDraft?: boolean;
+  description?: string | null;
+  durationMinutes?: number | null;
+  estimatedDurationMinutes?: number | null;
+  timeInputMode?: ManualTimeInputMode;
 };

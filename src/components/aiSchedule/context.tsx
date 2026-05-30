@@ -1,7 +1,7 @@
 import { createContext, useContext } from 'react';
 import type { ManualTaskTimeValidation } from '../../features/taskPlanning/scheduling';
 import type { PlanningDayKey } from '../../features/taskPlanning/planningDay';
-import type { TaskInputRow } from '../../types/task';
+import type { ManualTimeInputMode, TaskInputRow } from '../../types/task';
 
 export type AIScheduleContextValue = {
   localError: string | null;
@@ -20,18 +20,28 @@ export type AIScheduleContextValue = {
   selectedTaskId: string | null;
   selectedTaskStart: string;
   selectedTaskEnd: string;
+  selectedTaskDuration: number;
+  selectedTimeInputMode: ManualTimeInputMode;
+  selectedTaskDescription: string | null;
+  selectedTaskEstimatedDuration: number | null;
   selectedTimeValidation: ManualTaskTimeValidation | null;
   canSubmit: boolean;
   generating: boolean;
   loading: boolean;
+  isSubmitting: boolean;
   onToggleRowAiScheduled: (value: boolean) => void;
   onSelectTaskRow: (taskId: string) => void;
   onChangeTaskTitle: (taskId: string, title: string) => void;
+  onCommitTitleMemory: (taskId: string) => void;
   onAddTaskRow: () => void;
   onRemoveSelectedTaskRow: () => void;
   onSelectQuickAdd: (value: string) => void;
   onChangeSelectedStart: (value: string) => void;
   onChangeSelectedEnd: (value: string) => void;
+  onChangeSelectedDuration: (minutes: number) => void;
+  onChangeSelectedTimeInputMode: (mode: ManualTimeInputMode) => void;
+  onChangeDescription: (value: string) => void;
+  onChangeEstimatedDuration: (minutes: number) => void;
   onCancelTaskTimeEdit: () => void;
   onConfirmTaskTimeEdit: () => boolean;
   onTimeInteractionStart: () => void;
@@ -64,18 +74,28 @@ export function useAIScheduleTaskInput() {
   const {
     aiAvailable,
     selectedRowAiScheduled,
+    isSubmitting,
     taskRows,
     selectedTaskId,
     selectedTaskStart,
     selectedTaskEnd,
+    selectedTaskDuration,
+    selectedTimeInputMode,
+    selectedTaskDescription,
+    selectedTaskEstimatedDuration,
     selectedTimeValidation,
     onToggleRowAiScheduled,
     onSelectTaskRow,
     onChangeTaskTitle,
+    onCommitTitleMemory,
     onAddTaskRow,
     onRemoveSelectedTaskRow,
     onChangeSelectedStart,
     onChangeSelectedEnd,
+    onChangeSelectedDuration,
+    onChangeSelectedTimeInputMode,
+    onChangeDescription,
+    onChangeEstimatedDuration,
     onCancelTaskTimeEdit,
     onConfirmTaskTimeEdit,
     onTimeInteractionStart,
@@ -85,18 +105,28 @@ export function useAIScheduleTaskInput() {
   return {
     aiAvailable,
     selectedRowAiScheduled,
+    isSubmitting,
     taskRows,
     selectedTaskId,
     selectedTaskStart,
     selectedTaskEnd,
+    selectedTaskDuration,
+    selectedTimeInputMode,
+    selectedTaskDescription,
+    selectedTaskEstimatedDuration,
     selectedTimeValidation,
     onToggleRowAiScheduled,
     onSelectTaskRow,
     onChangeTaskTitle,
+    onCommitTitleMemory,
     onAddTaskRow,
     onRemoveSelectedTaskRow,
     onChangeSelectedStart,
     onChangeSelectedEnd,
+    onChangeSelectedDuration,
+    onChangeSelectedTimeInputMode,
+    onChangeDescription,
+    onChangeEstimatedDuration,
     onCancelTaskTimeEdit,
     onConfirmTaskTimeEdit,
     onTimeInteractionStart,
@@ -105,10 +135,10 @@ export function useAIScheduleTaskInput() {
 }
 
 export function useAIScheduleFooter() {
-  const { draftAiScheduled, onSelectQuickAdd, onSubmit, canSubmit, generating, loading } =
+  const { draftAiScheduled, onSelectQuickAdd, onSubmit, canSubmit, isSubmitting } =
     useAIScheduleContext();
 
-  return { draftAiScheduled, onSelectQuickAdd, onSubmit, canSubmit, generating, loading };
+  return { draftAiScheduled, onSelectQuickAdd, onSubmit, canSubmit, isSubmitting };
 }
 
 export function useAIScheduleShellState() {

@@ -69,7 +69,7 @@ describe('openai service', () => {
   });
 
   it('rejects an empty task list', async () => {
-    await expect(generateScheduleFromText('sk-live', ['   '])).rejects.toThrow(
+    await expect(generateScheduleFromText('sk-live', [{ title: '   ' }])).rejects.toThrow(
       'Add at least one task first.',
     );
     expect(fetchMock).not.toHaveBeenCalled();
@@ -88,7 +88,7 @@ describe('openai service', () => {
       }),
     );
 
-    await generateScheduleFromText('  sk-live  ', [' Study React ', 'Gym']);
+    await generateScheduleFromText('  sk-live  ', [{ title: ' Study React ' }, { title: 'Gym' }]);
 
     expect(fetchMock).toHaveBeenCalledTimes(1);
     const request = fetchMock.mock.calls[0]?.[1] as RequestInit | undefined;
@@ -112,7 +112,7 @@ describe('openai service', () => {
       }),
     );
 
-    await generateScheduleFromText('sk-live', ['Study React'], scheduleContext);
+    await generateScheduleFromText('sk-live', [{ title: 'Study React' }], scheduleContext);
 
     const request = fetchMock.mock.calls[0]?.[1] as RequestInit | undefined;
     const body = JSON.parse(String(request?.body));
@@ -197,7 +197,7 @@ describe('openai service', () => {
       }),
     );
 
-    await expect(generateScheduleFromText('sk-live', ['Study React'])).rejects.toThrow(
+    await expect(generateScheduleFromText('sk-live', [{ title: 'Study React' }])).rejects.toThrow(
       'OpenAI returned invalid JSON.',
     );
   });
@@ -211,7 +211,7 @@ describe('openai service', () => {
       }),
     );
 
-    await expect(generateScheduleFromText('sk-live', ['Study React'])).rejects.toThrow(
+    await expect(generateScheduleFromText('sk-live', [{ title: 'Study React' }])).rejects.toThrow(
       'OpenAI returned an empty schedule response.',
     );
   });
@@ -227,7 +227,7 @@ describe('openai service', () => {
       }),
     );
 
-    await expect(generateScheduleFromText('sk-live', ['Study React'])).rejects.toThrow(
+    await expect(generateScheduleFromText('sk-live', [{ title: 'Study React' }])).rejects.toThrow(
       'AI response did not include tasks.',
     );
   });

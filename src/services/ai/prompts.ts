@@ -2,15 +2,37 @@ import type { WeeklyInsightSummary } from '../../types/insight';
 import type { Task } from '../../types/task';
 import type { ScheduleGenerationContext } from '../../features/taskPlanning/profileScheduling';
 
+export type ScheduleTaskInput = {
+  title: string;
+  description?: string | null;
+  estimatedDurationMinutes?: number | null;
+};
+
 function formatTimeWindow(window: { start: string; end: string; label: string }): string {
   return `${window.label}: ${window.start}–${window.end}`;
 }
 
+function formatScheduleTaskLine(task: ScheduleTaskInput): string {
+  const parts = [task.title.trim()];
+  const description = task.description?.trim();
+  if (description) {
+    parts.push(`Details: ${description}`);
+  }
+  if (
+    typeof task.estimatedDurationMinutes === 'number' &&
+    Number.isFinite(task.estimatedDurationMinutes) &&
+    task.estimatedDurationMinutes > 0
+  ) {
+    parts.push(`User estimated duration: ${Math.round(task.estimatedDurationMinutes)} min`);
+  }
+  return `- ${parts.join(' | ')}`;
+}
+
 export function buildSchedulePrompt(
-  tasks: string[],
+  tasks: ScheduleTaskInput[],
   scheduleContext?: ScheduleGenerationContext | null,
 ): string {
-  const taskList = tasks.map((task) => `- ${task}`).join('\n');
+  const taskList = tasks.map(formatScheduleTaskLine).join('\n');
   const context = scheduleContext ?? null;
 
   const lines = [
@@ -55,6 +77,11 @@ export function buildSchedulePrompt(
     '- Place sleep/bedtime routines late evening, before bedtime when provided.',
     '- Use 24-hour HH:MM times in 5-minute steps; no overlapping tasks.',
     '- Return tasks sorted by startTime ascending.',
+    '- Use task details to infer task type, effort, and realistic duration/placement.',
+    '- When user estimated duration is provided, treat it as the target/preferred duration.',
+    '- Honor the full estimate when free time budget and constraints allow (e.g. LeetCode 25 min -> schedule 25 min).',
+    '- Shorten when necessary if the estimate cannot fit remaining availability — still schedule the task at a realistic reduced duration rather than dropping it.',
+    '- Do not exceed the user estimate unless details clearly imply the estimate was too low.',
     '',
     'Tasks (order does not matter):',
     taskList,
