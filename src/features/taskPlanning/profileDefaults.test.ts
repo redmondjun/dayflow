@@ -69,6 +69,22 @@ describe('getTaskPlanningDefaultsFromProfile', () => {
     });
   });
 
+  it('uses weekend wake time on Saturday when weekend overrides are enabled', () => {
+    const saturday = new Date(2026, 4, 23, 14, 12, 0, 0);
+
+    const defaults = getTaskPlanningDefaultsFromProfile(
+      {
+        work: '9:00 AM',
+        wake: '7:00 AM',
+        'weekend-rhythm': 'Different on weekends',
+        'weekend-wake': '9:00 AM',
+      },
+      schedulingContextForDay(saturday, saturday),
+    );
+
+    expect(defaults.preferredStart).toBe('14:15');
+  });
+
   it('uses wake time only for future planning days', () => {
     const referenceNow = new Date(2026, 4, 23, 14, 12, 0, 0);
     const tomorrow = addLocalDays(referenceNow, 1);

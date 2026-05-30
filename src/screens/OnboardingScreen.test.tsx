@@ -40,16 +40,23 @@ function answerName(name = 'Chris') {
   fireEvent.press(screen.getByText('Next'));
 }
 
+function advancePastWorkScheduleSteps() {
+  fireEvent.press(screen.getByText('Next'));
+  fireEvent.press(screen.getByText('Next'));
+  fireEvent.press(screen.getByText('Next'));
+}
+
 function completeOnboardingFlow() {
   answerName();
   fireEvent.press(screen.getByText('Next'));
   fireEvent.press(screen.getByText('Next'));
   fireEvent.press(screen.getByText('Next'));
+  advancePastWorkScheduleSteps();
   fireEvent.press(screen.getByText('Yes'));
   fireEvent.press(screen.getByText('Next'));
   fireEvent.press(screen.getByText("I don't have fixed commitments"));
   fireEvent.press(screen.getByText('Next'));
-  fireEvent.press(screen.getByText('Morning'));
+  fireEvent.press(screen.getByTestId('onboarding-option-Morning'));
   fireEvent.press(screen.getByText('Next'));
   fireEvent.press(screen.getByText('1-2 hours'));
   fireEvent.press(screen.getByText('Next'));
@@ -68,11 +75,11 @@ describe('OnboardingScreen', () => {
     saveOnboardingProfileMock.mockResolvedValue();
   });
 
-  it('walks through the full nine-step flow and saves the onboarding profile', async () => {
+  it('walks through the full onboarding flow and saves the onboarding profile', async () => {
     const { navigation } = renderOnboardingScreen();
 
     expect(screen.getByText("What's your name?")).toBeOnTheScreen();
-    expect(screen.getByText('1/9')).toBeOnTheScreen();
+    expect(screen.getByText('1/12')).toBeOnTheScreen();
     answerName();
 
     expect(screen.getByText('What time do you usually wake up?')).toBeOnTheScreen();
@@ -82,6 +89,16 @@ describe('OnboardingScreen', () => {
     fireEvent.press(screen.getByText('Next'));
 
     expect(screen.getByText('When do you usually start working?')).toBeOnTheScreen();
+    fireEvent.press(screen.getByText('Next'));
+
+    expect(screen.getByText('When do you usually finish work?')).toBeOnTheScreen();
+    fireEvent.press(screen.getByText('Next'));
+
+    expect(screen.getByText('Which days do you usually work?')).toBeOnTheScreen();
+    fireEvent.press(screen.getByText('Next'));
+
+    expect(screen.getByText('How are your weekends different?')).toBeOnTheScreen();
+    fireEvent.press(screen.getByText('Same as weekdays'));
     fireEvent.press(screen.getByText('Next'));
 
     expect(
@@ -95,7 +112,7 @@ describe('OnboardingScreen', () => {
     fireEvent.press(screen.getByText('Next'));
 
     expect(screen.getByText('When do you focus best?')).toBeOnTheScreen();
-    fireEvent.press(screen.getByText('Morning'));
+    fireEvent.press(screen.getByTestId('onboarding-option-Morning'));
     fireEvent.press(screen.getByText('Next'));
 
     expect(screen.getByText('How much free time do you have per day?')).toBeOnTheScreen();
@@ -115,6 +132,9 @@ describe('OnboardingScreen', () => {
         wake: '7:00 AM',
         sleep: '11:00 PM',
         work: '9:00 AM',
+        'work-end': '5:00 PM',
+        'work-days': 'Mon,Tue,Wed,Thu,Fri',
+        'weekend-rhythm': 'Same as weekdays',
         'commitment-presence': 'Yes',
         'commitment-time': { option: "I don't have fixed commitments" },
         focus: 'Morning',
@@ -158,11 +178,12 @@ describe('OnboardingScreen', () => {
     fireEvent.press(screen.getByText('Next'));
     fireEvent.press(screen.getByText('Next'));
     fireEvent.press(screen.getByText('Next'));
+    advancePastWorkScheduleSteps();
     fireEvent.press(screen.getByText('Yes'));
     fireEvent.press(screen.getByText('Next'));
     fireEvent.press(screen.getByText("I don't have fixed commitments"));
     fireEvent.press(screen.getByText('Next'));
-    fireEvent.press(screen.getByText('Morning'));
+    fireEvent.press(screen.getByTestId('onboarding-option-Morning'));
     fireEvent.press(screen.getByText('Next'));
     fireEvent.press(screen.getByText('1-2 hours'));
     fireEvent.press(screen.getByText('Next'));
@@ -197,11 +218,12 @@ describe('OnboardingScreen', () => {
     fireEvent.press(screen.getByText('Next'));
     fireEvent.press(screen.getByText('Next'));
     fireEvent.press(screen.getByText('Next'));
+    advancePastWorkScheduleSteps();
     fireEvent.press(screen.getByText('Yes'));
     fireEvent.press(screen.getByText('Next'));
     fireEvent.press(screen.getByText("I don't have fixed commitments"));
     fireEvent.press(screen.getByText('Next'));
-    fireEvent.press(screen.getByText('Morning'));
+    fireEvent.press(screen.getByTestId('onboarding-option-Morning'));
     fireEvent.press(screen.getByText('Next'));
     fireEvent.press(screen.getByText('1-2 hours'));
     fireEvent.press(screen.getByText('Next'));
@@ -227,6 +249,7 @@ describe('OnboardingScreen', () => {
     fireEvent.press(screen.getByText('Next'));
     fireEvent.press(screen.getByText('Next'));
     fireEvent.press(screen.getByText('Next'));
+    advancePastWorkScheduleSteps();
 
     fireEvent.press(screen.getByText('No'));
     fireEvent.press(screen.getByText('Next'));
@@ -291,6 +314,16 @@ describe('OnboardingScreen', () => {
     expect(screen.UNSAFE_getByType(Button).props.buttonColor).toBe('#01B224');
     expect(screen.UNSAFE_getByType(Button).props.textColor).toBe('#FFFFFF');
 
+    fireEvent.press(screen.getByText('Next'));
+
+    expect(screen.getByText('When do you usually finish work?')).toBeOnTheScreen();
+    expect(screen.UNSAFE_getByType(Button).props.buttonColor).toBe('#01B224');
+    fireEvent.press(screen.getByText('Next'));
+
+    expect(screen.getByText('Which days do you usually work?')).toBeOnTheScreen();
+    fireEvent.press(screen.getByText('Next'));
+
+    expect(screen.getByText('How are your weekends different?')).toBeOnTheScreen();
     fireEvent.press(screen.getByText('Next'));
 
     expect(
@@ -485,6 +518,7 @@ describe('OnboardingScreen', () => {
       fireEvent.press(screen.getByText('Next'));
       fireEvent.press(screen.getByText('Next'));
       fireEvent.press(screen.getByText('Next'));
+      advancePastWorkScheduleSteps();
       fireEvent.press(screen.getByText('Yes'));
       fireEvent.press(screen.getByText('Next'));
       fireEvent.press(screen.getByText('Custom'));
@@ -540,7 +574,7 @@ describe('OnboardingScreen', () => {
       });
 
       fireEvent.press(screen.getByText('Next'));
-      fireEvent.press(screen.getByText('Morning'));
+      fireEvent.press(screen.getByTestId('onboarding-option-Morning'));
       fireEvent.press(screen.getByText('Next'));
       fireEvent.press(screen.getByText('1-2 hours'));
       fireEvent.press(screen.getByText('Next'));
@@ -606,6 +640,7 @@ describe('OnboardingScreen', () => {
     fireEvent.press(screen.getByText('Next'));
     fireEvent.press(screen.getByText('Next'));
     fireEvent.press(screen.getByText('Next'));
+    advancePastWorkScheduleSteps();
     fireEvent.press(screen.getByText('Next'));
     fireEvent.press(screen.getByText('Next'));
     fireEvent.press(screen.getByText('Next'));
@@ -621,6 +656,9 @@ describe('OnboardingScreen', () => {
         wake: '8:00 AM',
         sleep: '11:00 PM',
         work: '7:00 AM',
+        'work-end': '5:00 PM',
+        'work-days': 'Mon,Tue,Wed,Thu,Fri',
+        'weekend-rhythm': 'Same as weekdays',
         'commitment-presence': 'No',
         focus: 'Evening',
         'free-time': '2-3 hours',

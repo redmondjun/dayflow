@@ -6,6 +6,7 @@ import {
   formatInputTime,
   roundUpToFiveMinutes,
 } from '../../utils/time';
+import { getEffectiveDayProfile, normalizeProfileWithDefaults } from './profileDayContext';
 
 export type TaskPlanningDefaults = {
   preferredStart: string;
@@ -22,10 +23,11 @@ function parseProfileTime(value: unknown, planningDay: Date): Date | null {
 }
 
 function getProfileAnchorTime(profile: OnboardingProfile | null, planningDay: Date): Date {
-  const wakeTime = parseProfileTime(profile?.wake, planningDay);
+  const effective = getEffectiveDayProfile(profile, planningDay);
+  const wakeTime = parseProfileTime(effective.wake, planningDay);
   if (wakeTime) return wakeTime;
 
-  const workTime = parseProfileTime(profile?.work, planningDay);
+  const workTime = parseProfileTime(effective.workStart, planningDay);
   if (workTime) return workTime;
 
   const fallback = parseTimeInput(FALLBACK_START, planningDay);
@@ -36,8 +38,9 @@ export function getTaskPlanningDefaultsFromProfile(
   profile: OnboardingProfile | null,
   context: SchedulingContext,
 ): TaskPlanningDefaults {
+  const normalizedProfile = normalizeProfileWithDefaults(profile);
   const { planningDay, referenceNow } = context;
-  const anchor = getProfileAnchorTime(profile, planningDay);
+  const anchor = getProfileAnchorTime(normalizedProfile, planningDay);
 
   if (isFuturePlanningDay(planningDay, referenceNow)) {
     return {

@@ -41,8 +41,13 @@ export function buildSchedulePrompt(
     'Assign each task a logical start time and realistic duration.',
     '',
     `Planning day: ${context?.planningDayLabel ?? 'Today'}`,
-    `Earliest allowed start: ${context?.earliestStart ?? '09:00'}`,
   ];
+
+  if (context?.dayTypeLabel) {
+    lines.push(`Day type: ${context.dayTypeLabel}`);
+  }
+
+  lines.push(`Earliest allowed start: ${context?.earliestStart ?? '09:00'}`);
 
   if (context?.latestEnd) {
     lines.push(`Latest meaningful activity end: ${context.latestEnd}`);

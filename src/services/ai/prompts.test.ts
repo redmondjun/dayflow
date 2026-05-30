@@ -6,6 +6,7 @@ describe('buildSchedulePrompt', () => {
   it('includes focus window, free-time budget, and ignore-order rules', () => {
     const scheduleContext: ScheduleGenerationContext = {
       planningDayLabel: 'Today, May 23',
+      dayTypeLabel: 'Saturday (weekend — no work commitments)',
       earliestStart: '07:00',
       latestEnd: '23:00',
       focusWindow: { start: '17:00', end: '21:00', label: 'Evening' },
@@ -20,6 +21,7 @@ describe('buildSchedulePrompt', () => {
     );
 
     expect(prompt).toContain('ignore input order');
+    expect(prompt).toContain('Day type: Saturday (weekend — no work commitments)');
     expect(prompt).toContain('Focus window (place demanding/deep work here): Evening: 17:00–21:00');
     expect(prompt).toContain('Free time budget: 1-2 hours (60–120 total minutes');
     expect(prompt).toContain('Schedule goal: Study');

@@ -6,14 +6,31 @@ export type OnboardingCommitmentAnswer = {
 
 export type OnboardingAnswer = string | OnboardingCommitmentAnswer;
 
+export type OnboardingOption = {
+  value: string;
+  label: string;
+};
+
 export type OnboardingStep = {
   id: string;
   question: string;
-  kind: 'text' | 'time' | 'options' | 'commitments';
+  kind: 'text' | 'time' | 'options' | 'commitments' | 'weekdays';
   helperLabel?: string;
+  helperText?: string;
   options?: readonly string[];
+  optionItems?: readonly OnboardingOption[];
   selectionStyle?: 'default' | 'centered';
 };
+
+export const FOCUS_WINDOW_OPTIONS = [
+  { value: 'Morning', label: 'Morning (6 AM – 11 AM)' },
+  { value: 'Afternoon', label: 'Afternoon (12 PM – 5 PM)' },
+  { value: 'Evening', label: 'Evening (5 PM – 9 PM)' },
+  { value: 'Late night', label: 'Late night (9 PM – 11:30 PM)' },
+] as const;
+
+export const WEEKEND_RHYTHM_SAME = 'Same as weekdays';
+export const WEEKEND_RHYTHM_DIFFERENT = 'Different on weekends';
 
 export const onboardingSteps: OnboardingStep[] = [
   {
@@ -40,6 +57,42 @@ export const onboardingSteps: OnboardingStep[] = [
     helperLabel: 'Work start',
   },
   {
+    id: 'work-end',
+    question: 'When do you usually finish work?',
+    kind: 'time',
+    helperLabel: 'Work end',
+  },
+  {
+    id: 'work-days',
+    question: 'Which days do you usually work?',
+    kind: 'weekdays',
+    helperText: "Tasks on other days won't be blocked by work hours.",
+  },
+  {
+    id: 'weekend-rhythm',
+    question: 'How are your weekends different?',
+    kind: 'options',
+    options: [WEEKEND_RHYTHM_SAME, WEEKEND_RHYTHM_DIFFERENT],
+  },
+  {
+    id: 'weekend-wake',
+    question: 'What time do you usually wake up on weekends?',
+    kind: 'time',
+    helperLabel: 'Weekend wake-up',
+  },
+  {
+    id: 'weekend-focus',
+    question: 'When do you focus best on weekends?',
+    kind: 'options',
+    optionItems: FOCUS_WINDOW_OPTIONS,
+  },
+  {
+    id: 'weekend-free-time',
+    question: 'How much free time do you have on weekends?',
+    kind: 'options',
+    options: ['Less than 1 hour', '1-2 hours', '2-3 hours', '3-4 hours', '4+ hours'],
+  },
+  {
     id: 'commitment-presence',
     question: 'Do you have fixed commitments like school or work?',
     kind: 'options',
@@ -61,7 +114,7 @@ export const onboardingSteps: OnboardingStep[] = [
     id: 'focus',
     question: 'When do you focus best?',
     kind: 'options',
-    options: ['Morning', 'Afternoon', 'Evening', 'Late night'],
+    optionItems: FOCUS_WINDOW_OPTIONS,
   },
   {
     id: 'free-time',
@@ -82,13 +135,23 @@ export const defaultOnboardingAnswers: Record<string, OnboardingAnswer> = {
   wake: '7:00 AM',
   sleep: '11:00 PM',
   work: '9:00 AM',
+  'work-end': '5:00 PM',
+  'work-days': 'Mon,Tue,Wed,Thu,Fri',
+  'weekend-rhythm': WEEKEND_RHYTHM_SAME,
+  'weekend-wake': '8:00 AM',
+  'weekend-focus': 'Morning',
+  'weekend-free-time': '2-3 hours',
 };
+
+const weekendStepIds = new Set(['weekend-wake', 'weekend-focus', 'weekend-free-time']);
 
 export function getVisibleOnboardingSteps(answers: Record<string, OnboardingAnswer>) {
   const hasFixedCommitments = answers['commitment-presence'] === 'Yes';
   const hasAnsweredNoFixedCommitments = answers['commitment-presence'] === 'No';
+  const usesDifferentWeekends = answers['weekend-rhythm'] === WEEKEND_RHYTHM_DIFFERENT;
 
   return onboardingSteps.filter((step) => {
+    if (weekendStepIds.has(step.id)) return usesDifferentWeekends;
     if (step.id === 'commitment-time') return hasFixedCommitments || !hasAnsweredNoFixedCommitments;
     return true;
   });
