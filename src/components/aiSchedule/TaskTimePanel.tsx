@@ -88,7 +88,8 @@ export function TaskTimePanel({ onConfirmAdd }: Props) {
           {selectedTimeValidation?.error ? (
             <Text
               testID="ai-schedule-time-error"
-              className="mt-3 text-[12px] leading-[18px] tracking-[-0.12px] text-[#B42318]"
+              className="mt-3 text-[12px] leading-[18px] tracking-[-0.12px]"
+              style={{ color: colors.danger }}
             >
               {selectedTimeValidation.error}
             </Text>

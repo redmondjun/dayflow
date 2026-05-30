@@ -5,7 +5,6 @@ import EyeClosedIcon from '../assets/icons/eye-closed.svg';
 import EyeOpenIcon from '../assets/icons/eye-open.svg';
 import TrashIcon from '../assets/icons/trash.svg';
 import type { AiProvider } from '../hooks/useSettingsState';
-import { StickyBottomBar } from '../components/StickyBottomBar';
 import { colors } from '../theme/colors';
 import { maskApiKey } from '../utils/maskApiKey';
 
@@ -25,12 +24,10 @@ export type SettingsViewProps = {
   onResetOnboarding: () => void | Promise<void>;
   removeCurrentProviderKey: () => void | Promise<void>;
   resetDemoTime: () => void;
-  saveAllSettings: () => void | Promise<void>;
   saveCurrentProviderKey: () => void | Promise<void>;
   saveDemoTime: () => boolean;
   savedCurrentApiKey: string | null;
   savingCurrentKey: boolean;
-  savingSettings: boolean;
   selectedProvider: AiProvider;
   setAiFeaturesEnabled: (value: boolean) => void;
   setAiSuggestionEnabled: (value: boolean) => void;
@@ -381,7 +378,6 @@ export function SettingsView(props: SettingsViewProps) {
     saveCurrentProviderKey,
     savedCurrentApiKey,
     savingCurrentKey,
-    savingSettings,
     selectedProvider,
     setAiFeaturesEnabled,
     setAiSuggestionEnabled,
@@ -399,7 +395,7 @@ export function SettingsView(props: SettingsViewProps) {
 
   return (
     <View className="flex-1 bg-paper">
-      <ScrollView contentContainerClassName="px-6 pb-28 pt-16">
+      <ScrollView contentContainerClassName="px-6 pb-10 pt-16">
         {onCancel ? (
           <Pressable onPress={onCancel} className="mb-7 h-11 w-11 items-start justify-center">
             <Text className="text-[28px] leading-none text-ink">‹</Text>
@@ -455,21 +451,6 @@ export function SettingsView(props: SettingsViewProps) {
 
         {showDeveloperTools ? <DeveloperToolsSection {...props} /> : null}
       </ScrollView>
-
-      <StickyBottomBar bordered>
-        <Pressable
-          onPress={props.saveAllSettings}
-          disabled={savingSettings}
-          testID="settings-save-all-button"
-          className={`items-center rounded-full px-4 py-3.5 ${
-            savingSettings ? 'bg-warm3' : 'bg-accent'
-          }`}
-        >
-          <Text className={`text-[13px] font-bold ${savingSettings ? 'text-warm2' : 'text-white'}`}>
-            {savingSettings ? 'Saving...' : 'Save'}
-          </Text>
-        </Pressable>
-      </StickyBottomBar>
 
       <Snackbar visible={Boolean(message)} onDismiss={() => setMessage(null)} duration={3000}>
         {message}

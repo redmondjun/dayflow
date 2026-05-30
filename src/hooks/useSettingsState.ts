@@ -11,19 +11,11 @@ export function useSettingsState() {
   const aiFeatures = useAiFeatureSettings(setMessage);
   const devTools = useDemoDevTools(setMessage);
 
-  const saveAllSettings = async () => {
-    await aiFeatures.saveAllSettings(
-      apiKeys.saveCurrentProviderKey,
-      apiKeys.currentApiKey.trim().length > 0,
-    );
-  };
-
   return {
     ...apiKeys,
     ...aiFeatures,
     ...devTools,
     message,
-    saveAllSettings,
     setMessage,
   };
 }

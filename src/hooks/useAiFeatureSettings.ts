@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import {
   getAiFeaturesEnabled,
   getAiSuggestionEnabled,
@@ -7,45 +7,46 @@ import {
 } from '../services/apiKey';
 
 export function useAiFeatureSettings(setMessage: (message: string | null) => void) {
-  const [aiFeaturesEnabled, setAiFeaturesEnabled] = useState(true);
-  const [aiSuggestionEnabled, setAiSuggestionEnabled] = useState(true);
-  const [savingSettings, setSavingSettings] = useState(false);
+  const [aiFeaturesEnabled, setAiFeaturesEnabledState] = useState(true);
+  const [aiSuggestionEnabled, setAiSuggestionEnabledState] = useState(true);
 
   useEffect(() => {
     Promise.all([getAiFeaturesEnabled(), getAiSuggestionEnabled()])
       .then(([aiEnabled, aiSuggestion]) => {
-        setAiFeaturesEnabled(aiEnabled);
-        setAiSuggestionEnabled(aiSuggestion);
+        setAiFeaturesEnabledState(aiEnabled);
+        setAiSuggestionEnabledState(aiSuggestion);
       })
       .catch(() => setMessage('Could not load saved settings.'));
   }, [setMessage]);
 
-  const saveAllSettings = async (saveCurrentKey?: () => Promise<void>, hasCurrentKey?: boolean) => {
-    setSavingSettings(true);
-    setMessage(null);
-    try {
-      await Promise.all([
-        saveAiFeaturesEnabled(aiFeaturesEnabled),
-        saveAiSuggestionEnabled(aiSuggestionEnabled),
-      ]);
-      if (hasCurrentKey && saveCurrentKey) {
-        await saveCurrentKey();
-      } else {
-        setMessage('Settings saved.');
+  const setAiFeaturesEnabled = useCallback(
+    async (value: boolean) => {
+      setAiFeaturesEnabledState(value);
+      try {
+        await saveAiFeaturesEnabled(value);
+      } catch {
+        setMessage('Could not save settings.');
       }
-    } catch {
-      setMessage('Could not save settings.');
-    } finally {
-      setSavingSettings(false);
-    }
-  };
+    },
+    [setMessage],
+  );
+
+  const setAiSuggestionEnabled = useCallback(
+    async (value: boolean) => {
+      setAiSuggestionEnabledState(value);
+      try {
+        await saveAiSuggestionEnabled(value);
+      } catch {
+        setMessage('Could not save settings.');
+      }
+    },
+    [setMessage],
+  );
 
   return {
     aiFeaturesEnabled,
     aiSuggestionEnabled,
-    savingSettings,
     setAiFeaturesEnabled,
     setAiSuggestionEnabled,
-    saveAllSettings,
   };
 }

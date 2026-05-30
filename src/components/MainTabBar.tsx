@@ -30,13 +30,14 @@ type Props = {
 
 export function MainTabBar({ activeTab, onSelectTab }: Props) {
   const activeIndex = tabs.findIndex((tab) => tab.id === activeTab);
+  const indicatorOffset = ((activeIndex + 0.5) * 100) / tabs.length;
 
   return (
     <View className="border-t border-warm3 bg-paper">
       <View className="relative">
         <View
           className="absolute top-0 h-[2.5px] w-10 rounded-full bg-accent"
-          style={{ left: `${activeIndex * 33.333 + 16.667}%`, marginLeft: -20 }}
+          style={{ left: `${indicatorOffset}%`, marginLeft: -20 }}
         />
         <View className="flex-row px-2 pb-7 pt-3">
           {tabs.map((tab) => {

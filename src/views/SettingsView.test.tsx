@@ -44,12 +44,10 @@ const mockSettingsProps = {
   onResetOnboarding: jest.fn<() => Promise<void>>(),
   removeCurrentProviderKey: jest.fn<() => void>(),
   resetDemoTime: jest.fn<() => void>(),
-  saveAllSettings: jest.fn<() => void>(),
   saveCurrentProviderKey: jest.fn<() => void>(),
   saveDemoTime: jest.fn<() => boolean>(() => true),
   savedCurrentApiKey: null,
   savingCurrentKey: false,
-  savingSettings: false,
   selectedProvider: 'openai' as const,
   setAiFeaturesEnabled: jest.fn<(value: boolean) => void>(),
   setAiSuggestionEnabled: jest.fn<(value: boolean) => void>(),
@@ -90,7 +88,7 @@ describe('SettingsView', () => {
     expect(screen.getByText('AI Features')).toBeOnTheScreen();
     expect(screen.getByText('AI Suggestion')).toBeOnTheScreen();
     expect(screen.getByText('Weekly insight suggestions on')).toBeOnTheScreen();
-    expect(screen.getAllByText('Save')).toHaveLength(2);
+    expect(screen.getAllByText('Save')).toHaveLength(1);
   });
 
   it('shows empty-state copy when no keys are saved', () => {
@@ -123,13 +121,6 @@ describe('SettingsView', () => {
 
     fireEvent(screen.getByTestId('settings-ai-suggestion-switch'), 'valueChange', false);
     expect(mockSettingsProps.setAiSuggestionEnabled).toHaveBeenCalledWith(false);
-  });
-
-  it('calls save all settings from the bottom button', () => {
-    renderSettingsView();
-
-    fireEvent.press(screen.getByTestId('settings-save-all-button'));
-    expect(mockSettingsProps.saveAllSettings).toHaveBeenCalled();
   });
 
   it('shows developer demo controls only in dev mode', () => {
