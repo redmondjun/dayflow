@@ -1,0 +1,254 @@
+import { useMemo, useState } from 'react';
+import {
+  createDraftTaskInputRow,
+  getRoundedStartTime,
+  hasTaskRowTitle,
+  normalizeTaskInputRow,
+} from '../features/taskPlanning';
+import {
+  validateManualTaskTimes,
+  type ManualTaskTimeValidation,
+} from '../features/taskPlanning/scheduling';
+import type { TaskPlanningDefaults } from '../features/taskPlanning/profileDefaults';
+import type { SchedulingContext } from '../features/taskPlanning/planningDay';
+import type { Task, TaskInputRow } from '../types/task';
+import { addMinutes, formatInputTime, parseTimeInput } from '../utils/time';
+
+type UseTaskInputRowsArgs = {
+  initialRows: TaskInputRow[];
+  initialSelectedTaskId: string | null;
+  defaultDraftAiScheduled?: boolean;
+  getExistingTasks?: () => Task[];
+  planningDefaults?: TaskPlanningDefaults;
+  schedulingContext: SchedulingContext;
+};
+
+function normalizeRows(rows: TaskInputRow[]) {
+  return rows.map(normalizeTaskInputRow);
+}
+
+function buildDraftRowOptions(
+  rows: TaskInputRow[],
+  aiScheduled: boolean,
+  getExistingTasks?: () => Task[],
+  planningDefaults?: TaskPlanningDefaults,
+  schedulingContext?: SchedulingContext,
+) {
+  return {
+    aiScheduled,
+    existingTasks: getExistingTasks?.() ?? [],
+    plannerRows: rows.filter((row) => !row.isDraft && hasTaskRowTitle(row)),
+    preferredStart: planningDefaults?.preferredStart,
+    durationMinutes: planningDefaults?.durationMinutes,
+    context: schedulingContext,
+  };
+}
+
+export function useTaskInputRows({
+  initialRows,
+  initialSelectedTaskId,
+  defaultDraftAiScheduled = false,
+  getExistingTasks,
+  planningDefaults,
+  schedulingContext,
+}: UseTaskInputRowsArgs) {
+  const [taskRows, setTaskRowsState] = useState(() => normalizeRows(initialRows));
+  const [selectedTaskId, setSelectedTaskId] = useState<string | null>(initialSelectedTaskId);
+  const { planningDay, referenceNow } = schedulingContext;
+
+  const setTaskRows = (value: TaskInputRow[] | ((rows: TaskInputRow[]) => TaskInputRow[])) => {
+    setTaskRowsState((rows) => {
+      const next = typeof value === 'function' ? value(rows) : value;
+      return normalizeRows(next);
+    });
+  };
+
+  const draftTask = taskRows.find((task) => task.isDraft) ?? null;
+  const expandedTask = taskRows.find((task) => task.id === selectedTaskId) ?? null;
+  const committedRows = useMemo(() => taskRows.filter((task) => !task.isDraft), [taskRows]);
+  const titledRows = useMemo(() => taskRows.filter(hasTaskRowTitle), [taskRows]);
+  const selectedTaskStart =
+    expandedTask?.startTime ??
+    planningDefaults?.preferredStart ??
+    getRoundedStartTime(referenceNow);
+  const selectedTaskEnd =
+    expandedTask?.endTime ??
+    formatInputTime(
+      addMinutes(
+        parseTimeInput(selectedTaskStart, planningDay) ?? planningDay.toISOString(),
+        planningDefaults?.durationMinutes ?? 60,
+      ),
+    );
+  const selectedTimeValidation: ManualTaskTimeValidation | null = useMemo(() => {
+    if (!expandedTask || expandedTask.aiScheduled) return null;
+    return validateManualTaskTimes(
+      expandedTask.startTime,
+      expandedTask.endTime,
+      schedulingContext,
+      {
+        existingTasks: getExistingTasks?.() ?? [],
+        plannerRows: committedRows,
+        excludeRowId: expandedTask.id,
+      },
+    );
+  }, [committedRows, expandedTask, getExistingTasks, schedulingContext]);
+
+  const updateTaskRow = (taskId: string, patch: Partial<TaskInputRow>) => {
+    setTaskRows((rows) =>
+      rows.map((row) => (row.id === taskId ? normalizeTaskInputRow({ ...row, ...patch }) : row)),
+    );
+  };
+
+  const closeDraftRow = () => {
+    setTaskRows((rows) =>
+      rows.flatMap((row) => {
+        if (!row.isDraft) return [row];
+        if (!hasTaskRowTitle(row)) return [];
+        return [{ ...row, isDraft: false }];
+      }),
+    );
+    setSelectedTaskId(null);
+  };
+
+  const selectTaskRow = (taskId: string) => {
+    const clickedTask = taskRows.find((task) => task.id === taskId);
+    if (!clickedTask) return;
+
+    if (selectedTaskId === taskId) {
+      if (clickedTask.isDraft) {
+        closeDraftRow();
+        return;
+      }
+      setSelectedTaskId(null);
+      return;
+    }
+
+    setSelectedTaskId(taskId);
+  };
+
+  const cancelTaskTimeEdit = () => {
+    if (!expandedTask) {
+      setSelectedTaskId(null);
+      return;
+    }
+
+    if (expandedTask.isDraft && !hasTaskRowTitle(expandedTask)) {
+      setTaskRows((rows) => rows.filter((row) => row.id !== expandedTask.id));
+    }
+    setSelectedTaskId(null);
+  };
+
+  const confirmTaskTimeEdit = () => {
+    if (!expandedTask) return false;
+
+    if (!expandedTask.aiScheduled && selectedTimeValidation?.error) {
+      return false;
+    }
+
+    if (!hasTaskRowTitle(expandedTask)) {
+      return true;
+    }
+
+    if (!expandedTask.isDraft) {
+      setSelectedTaskId(null);
+      return false;
+    }
+
+    setTaskRows((rows) => {
+      const committed = rows.map((row) =>
+        row.id === expandedTask.id ? { ...row, isDraft: false } : row,
+      );
+      const withoutDraft = committed.filter((row) => !row.isDraft);
+      const nextDraft = createDraftTaskInputRow(
+        withoutDraft.at(-1),
+        '',
+        buildDraftRowOptions(
+          withoutDraft,
+          defaultDraftAiScheduled,
+          getExistingTasks,
+          planningDefaults,
+          schedulingContext,
+        ),
+      );
+      setSelectedTaskId(nextDraft.id);
+      return [...withoutDraft, nextDraft];
+    });
+    return false;
+  };
+
+  const addTaskRow = (title = '') => {
+    if (draftTask) {
+      setSelectedTaskId(draftTask.id);
+      return;
+    }
+
+    setTaskRows((rows) => {
+      const next = createDraftTaskInputRow(
+        rows.at(-1),
+        title,
+        buildDraftRowOptions(
+          rows,
+          defaultDraftAiScheduled,
+          getExistingTasks,
+          planningDefaults,
+          schedulingContext,
+        ),
+      );
+      setSelectedTaskId(next.id);
+      return [...rows, next];
+    });
+  };
+
+  const removeSelectedTaskRow = () => {
+    setTaskRows((rows) => {
+      if (rows.length === 1) {
+        setSelectedTaskId(null);
+        return [];
+      }
+
+      setSelectedTaskId(null);
+      return rows.filter((row) => row.id !== selectedTaskId);
+    });
+  };
+
+  const selectQuickAdd = (value: string) => {
+    if (expandedTask && !hasTaskRowTitle(expandedTask)) {
+      updateTaskRow(expandedTask.id, { title: value });
+      return;
+    }
+    addTaskRow(value);
+  };
+
+  return {
+    taskRows,
+    setTaskRows,
+    setSelectedTaskId,
+    selectedTaskId,
+    draftTask,
+    expandedTask,
+    committedRows,
+    titledRows,
+    selectedTaskStart,
+    selectedTaskEnd,
+    selectedTimeValidation,
+    selectTaskRow,
+    changeTaskTitle: (taskId: string, title: string) =>
+      updateTaskRow(taskId, { title: title ?? '' }),
+    addTaskRow,
+    removeSelectedTaskRow,
+    selectQuickAdd,
+    cancelTaskTimeEdit,
+    confirmTaskTimeEdit,
+    updateTaskRow,
+    changeSelectedStart: (value: string) => {
+      if (expandedTask && !expandedTask.aiScheduled) {
+        updateTaskRow(expandedTask.id, { startTime: value });
+      }
+    },
+    changeSelectedEnd: (value: string) => {
+      if (expandedTask && !expandedTask.aiScheduled) {
+        updateTaskRow(expandedTask.id, { endTime: value });
+      }
+    },
+  };
+}

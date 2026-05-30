@@ -1,135 +1,201 @@
-import { ScrollView, Text, View } from 'react-native';
-import { Button, Snackbar, TextInput } from 'react-native-paper';
-import { ScreenTopBar } from '../components/ScreenTopBar';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { ScrollView, TextInput as RNTextInput, View } from 'react-native';
+import { Button, Snackbar } from 'react-native-paper';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import {
+  TaskDurationNotice,
+  TaskFormHeader,
+  TaskQuickAddSection,
+  TaskFormSectionsProvider,
+  TaskStatusSection,
+  TaskTimeFields,
+} from '../components/TaskFormSections';
+import { StickyBottomBar } from '../components/StickyBottomBar';
+import { getRoundedStartTime } from '../features/taskPlanning';
+import { validateManualTaskTimes } from '../features/taskPlanning/scheduling';
+import { schedulingContextForDay } from '../features/taskPlanning/planningDay';
 import { colors } from '../theme/colors';
-import type { TaskStatus } from '../types/task';
+import type { Task, TaskStatus } from '../types/task';
+import {
+  addMinutes,
+  formatDuration,
+  formatInputTime,
+  formatWheelTimeRange,
+  fromWheelTime,
+  parseTimeInput,
+  toWheelTime,
+} from '../utils/time';
 
-type Props = {
-  mode: 'create' | 'edit';
+export type TaskFormSubmit = {
   title: string;
   start: string;
   end: string;
   status: TaskStatus;
-  durationLabel: string;
-  validation: string | null;
+  startTime: string;
+  endTime: string;
+};
+
+type Props = {
+  mode: 'create' | 'edit';
+  initialTask?: Pick<Task, 'title' | 'startTime' | 'endTime' | 'status'>;
+  existingTasks?: Task[];
   loading: boolean;
   error: string | null;
-  onDismissError: () => void;
-  onChangeTitle: (value: string) => void;
-  onChangeStart: (value: string) => void;
-  onChangeEnd: (value: string) => void;
-  onChangeStatus: (value: TaskStatus) => void;
+  onDismissError?: () => void;
   onCancel: () => void;
-  onSave: () => void;
+  onSave: (values: TaskFormSubmit) => void | Promise<void>;
   onDelete?: () => void;
 };
 
+function getDefaultTimes() {
+  const startIso = parseTimeInput(getRoundedStartTime()) ?? new Date().toISOString();
+  return {
+    start: new Date(startIso),
+    end: new Date(addMinutes(startIso, 45)),
+  };
+}
+
 export function TaskFormView({
   mode,
-  title,
-  start,
-  end,
-  status,
-  durationLabel,
-  validation,
+  initialTask,
+  existingTasks = [],
   loading,
   error,
-  onDismissError,
-  onChangeTitle,
-  onChangeStart,
-  onChangeEnd,
-  onChangeStatus,
+  onDismissError = () => {},
   onCancel,
   onSave,
   onDelete,
 }: Props) {
+  const { title: initialTitle, startTime, endTime, status: initialStatus } = initialTask || {};
+  const defaults = getDefaultTimes();
+  const [title, setTitle] = useState(initialTitle ?? '');
+  const [start, setStart] = useState(
+    startTime ? formatInputTime(startTime) : formatInputTime(defaults.start),
+  );
+  const [end, setEnd] = useState(
+    endTime ? formatInputTime(endTime) : formatInputTime(defaults.end),
+  );
+  const [status, setStatus] = useState<TaskStatus>(initialStatus ?? 'scheduled');
+  const [isTimePickerInteracting, setIsTimePickerInteracting] = useState(false);
+  const titleInputRef = useRef<RNTextInput>(null);
+  const startParseBaseDate = startTime ? new Date(startTime) : defaults.start;
+  const endParseBaseDate = endTime ? new Date(endTime) : defaults.end;
+
+  useEffect(() => {
+    const nextDefaults = getDefaultTimes();
+    setTitle(initialTitle ?? '');
+    setStart(startTime ? formatInputTime(startTime) : formatInputTime(nextDefaults.start));
+    setEnd(endTime ? formatInputTime(endTime) : formatInputTime(nextDefaults.end));
+    setStatus(initialStatus ?? 'scheduled');
+  }, [initialTitle, startTime, endTime, initialStatus]);
+
+  const parsedStart = parseTimeInput(start, startParseBaseDate);
+  const parsedEnd = parseTimeInput(end, endParseBaseDate);
+  const duration =
+    parsedStart && parsedEnd
+      ? Math.round((new Date(parsedEnd).getTime() - new Date(parsedStart).getTime()) / 60000)
+      : 0;
+  const durationLabel = formatDuration(duration);
+
+  const validation = useMemo(() => {
+    if (!title.trim()) return 'Title is required.';
+    if (!parsedStart || !parsedEnd) return 'Use 24-hour time like 09:30.';
+    if (new Date(parsedEnd).getTime() <= new Date(parsedStart).getTime()) {
+      return 'End time must be after start time.';
+    }
+    const crossesMidnight = endParseBaseDate.getTime() !== startParseBaseDate.getTime();
+    if (crossesMidnight) return null;
+    return validateManualTaskTimes(
+      start,
+      end,
+      schedulingContextForDay(startParseBaseDate, new Date()),
+      { existingTasks },
+    ).error;
+  }, [
+    title,
+    parsedStart,
+    parsedEnd,
+    start,
+    end,
+    startParseBaseDate,
+    endParseBaseDate,
+    existingTasks,
+  ]);
+
+  const canSave = !validation && title.trim().length > 0 && !loading;
+
+  const handleSave = () => {
+    if (!parsedStart || !parsedEnd || validation) return;
+
+    void onSave({
+      title,
+      start,
+      end,
+      status,
+      startTime: parsedStart,
+      endTime: parsedEnd,
+    });
+  };
+
   return (
-    <View className="flex-1 bg-paper">
-      <ScrollView contentContainerClassName="pb-12 pt-14">
-        <ScreenTopBar
-          title={mode === 'edit' ? 'Edit Task' : 'New Task'}
-          canSave={!validation && !loading}
-          onCancel={onCancel}
-          onSave={onSave}
-        />
-
-        <View className="px-6 pb-7 pt-6">
-          <Text className="mb-3 text-xs font-semibold uppercase tracking-[2px] text-warm">
-            Task
-          </Text>
-          <TextInput
-            mode="flat"
-            value={title}
-            onChangeText={onChangeTitle}
-            placeholder="Enter task name"
-            underlineColor={colors.warm3}
-            activeUnderlineColor={colors.ink}
-            style={{ backgroundColor: colors.paper, fontSize: 28, fontWeight: '700' }}
-          />
-        </View>
-
-        <View className="px-6">
-          <Text className="mb-3 text-xs font-semibold uppercase tracking-[2px] text-warm">
-            Schedule
-          </Text>
-          <View className="gap-3">
-            <TextInput
-              mode="outlined"
-              label="Start time"
-              value={start}
-              onChangeText={onChangeStart}
-              placeholder="09:00"
-              keyboardType="numbers-and-punctuation"
-            />
-            <TextInput
-              mode="outlined"
-              label="End time"
-              value={end}
-              onChangeText={onChangeEnd}
-              placeholder="10:00"
-              keyboardType="numbers-and-punctuation"
-            />
-          </View>
-          <Text className="mt-3 text-sm font-medium text-warm">Duration: {durationLabel}</Text>
-          {validation ? <Text className="mt-3 text-sm text-danger">{validation}</Text> : null}
-        </View>
-
-        {mode === 'edit' ? (
-          <View className="px-6 pt-7">
-            <Text className="mb-3 text-xs font-semibold uppercase tracking-[2px] text-warm">
-              State
-            </Text>
-            <View className="flex-row rounded-full bg-warm4 p-1">
-              {(['scheduled', 'skipped', 'completed'] as const).map((option) => (
-                <Button
-                  key={option}
-                  mode={status === option ? 'contained' : 'text'}
-                  onPress={() => onChangeStatus(option)}
-                  buttonColor={status === option ? colors.paper : 'transparent'}
-                  textColor={status === option ? colors.ink : colors.warm}
-                  style={{ flex: 1, borderRadius: 999 }}
-                >
-                  {option === 'scheduled' ? 'Active' : option}
-                </Button>
-              ))}
-            </View>
-            {onDelete ? (
-              <Button
-                mode="text"
-                textColor={colors.danger}
-                onPress={onDelete}
-                style={{ marginTop: 24 }}
-              >
-                Delete task
-              </Button>
-            ) : null}
-          </View>
-        ) : null}
+    <SafeAreaView className="flex-1 bg-paper" edges={['top', 'bottom']}>
+      <ScrollView
+        contentContainerClassName="pb-40 pt-4"
+        keyboardShouldPersistTaps="handled"
+        scrollEnabled={!isTimePickerInteracting}
+      >
+        <TaskFormSectionsProvider
+          value={{
+            mode,
+            title,
+            status,
+            validation,
+            durationLabel,
+            timeRangeLabel: formatWheelTimeRange(start, end),
+            start: toWheelTime(start),
+            end: toWheelTime(end),
+            titleInputRef,
+            onCancel,
+            onDelete,
+            onChangeTitle: setTitle,
+            onClearTitle: () => setTitle(''),
+            onSelectQuickAdd: setTitle,
+            onChangeStatus: setStatus,
+            onChangeStart: (value) => setStart(fromWheelTime(value)),
+            onChangeEnd: (value) => setEnd(fromWheelTime(value)),
+            onTimeInteractionStart: () => {
+              titleInputRef.current?.blur();
+              setIsTimePickerInteracting(true);
+            },
+            onTimeInteractionEnd: () => setIsTimePickerInteracting(false),
+          }}
+        >
+          <TaskFormHeader />
+          <TaskTimeFields />
+          <TaskDurationNotice />
+          <TaskQuickAddSection />
+          {mode === 'edit' ? <TaskStatusSection /> : null}
+        </TaskFormSectionsProvider>
       </ScrollView>
+
+      <StickyBottomBar className="px-4 pb-6 pt-3">
+        <Button
+          mode="contained"
+          buttonColor={colors.accent}
+          textColor={colors.white}
+          disabled={!canSave}
+          loading={loading}
+          onPress={handleSave}
+          style={{ borderRadius: 999 }}
+          contentStyle={{ height: 54 }}
+        >
+          Confirm schedule
+        </Button>
+      </StickyBottomBar>
 
       <Snackbar visible={Boolean(error)} onDismiss={onDismissError} duration={4000}>
         {error}
       </Snackbar>
-    </View>
+    </SafeAreaView>
   );
 }

@@ -29,8 +29,6 @@ project-root/
     utils/
   docs/
     POST_MVP_ROADMAP.md
-  design/
-    *.jsx / *.html reference screens
 ```
 
 ## Setup
@@ -67,14 +65,6 @@ Recommended MVP testing:
 - verify scheduled local notifications on a simulator or real device
 
 ## Preview Tooling
-
-Design reference preview in browser:
-
-```bash
-npm run preview:design
-```
-
-Open `http://localhost:4310`.
 
 Actual app screen preview:
 

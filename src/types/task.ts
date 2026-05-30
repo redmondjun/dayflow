@@ -21,6 +21,7 @@ export type NewTaskInput = {
   startTime: string;
   endTime: string;
   aiGenerated?: boolean;
+  status?: TaskStatus;
   description?: string | null;
   category?: string | null;
 };
@@ -31,4 +32,14 @@ export type GeneratedTaskPreview = {
   durationMinutes: number;
   startTime: string;
   endTime: string;
+  aiGenerated?: boolean;
+};
+
+export type TaskInputRow = {
+  id: string;
+  title: string;
+  startTime: string;
+  endTime: string;
+  aiScheduled?: boolean;
+  isDraft?: boolean;
 };

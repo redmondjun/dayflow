@@ -5,7 +5,7 @@ const eslintConfigPrettier = require('eslint-config-prettier');
 module.exports = defineConfig([
   expoConfig,
   {
-    ignores: ['design/**', 'dist/**', 'coverage/**', 'node_modules/**'],
+    ignores: ['dist/**', 'coverage/**', 'node_modules/**'],
   },
   {
     rules: {

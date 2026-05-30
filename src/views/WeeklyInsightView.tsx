@@ -1,0 +1,41 @@
+import { Pressable, ScrollView, Text } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import type { WeeklyInsightSummary } from '../types/insight';
+import {
+  WeeklyInsightFooter,
+  WeeklyInsightHeader,
+  WeeklyInsightHeadline,
+  WeeklyInsightPatterns,
+  WeeklyInsightStats,
+  WeeklyInsightSuggestions,
+} from './WeeklyInsightSections';
+
+type Props = {
+  summary: WeeklyInsightSummary;
+  onOptimizeTomorrow: () => void;
+  onBack?: () => void;
+};
+
+export function WeeklyInsightView({ summary, onOptimizeTomorrow, onBack }: Props) {
+  return (
+    <SafeAreaView className="flex-1 bg-paper" edges={['top']}>
+      <ScrollView contentContainerClassName={`pb-8 ${onBack ? 'pt-4' : 'pt-3'}`}>
+        {onBack ? (
+          <Pressable
+            onPress={onBack}
+            testID="weekly-insight-back"
+            className="mb-7 h-11 w-11 items-start justify-center px-6"
+          >
+            <Text className="text-[28px] leading-none text-ink">‹</Text>
+          </Pressable>
+        ) : null}
+        <WeeklyInsightHeader summary={summary} />
+        <WeeklyInsightHeadline summary={summary} />
+        <WeeklyInsightStats summary={summary} />
+        <WeeklyInsightPatterns summary={summary} />
+        <WeeklyInsightSuggestions summary={summary} />
+        <WeeklyInsightFooter summary={summary} onOptimizeTomorrow={onOptimizeTomorrow} />
+      </ScrollView>
+    </SafeAreaView>
+  );
+}

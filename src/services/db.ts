@@ -1,5 +1,6 @@
 import * as SQLite from 'expo-sqlite';
 import type { NewTaskInput, Task, TaskStatus } from '../types/task';
+import { createId } from '../utils/id';
 
 const DB_NAME = 'dayflow.db';
 
@@ -20,10 +21,6 @@ type TaskRow = {
   description: string | null;
   category: string | null;
 };
-
-function createId(): string {
-  return `${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
-}
 
 function rowToTask(row: TaskRow): Task {
   return {
@@ -80,14 +77,14 @@ export async function loadTasks(): Promise<Task[]> {
   return rows.map(rowToTask);
 }
 
-export async function createTask(input: NewTaskInput): Promise<Task> {
+function buildTaskFromInput(input: NewTaskInput): Task {
   const now = new Date().toISOString();
-  const task: Task = {
+  return {
     id: createId(),
     title: input.title.trim(),
     startTime: input.startTime,
     endTime: input.endTime,
-    status: 'scheduled',
+    status: input.status ?? 'scheduled',
     aiGenerated: input.aiGenerated ?? false,
     createdAt: now,
     updatedAt: now,
@@ -97,8 +94,9 @@ export async function createTask(input: NewTaskInput): Promise<Task> {
     description: input.description ?? null,
     category: input.category ?? null,
   };
+}
 
-  const db = await getDb();
+async function insertTask(db: SQLite.SQLiteDatabase, task: Task): Promise<void> {
   await db.runAsync(
     `INSERT INTO tasks (
       id, title, start_time, end_time, status, ai_generated, created_at, updated_at,
@@ -118,7 +116,12 @@ export async function createTask(input: NewTaskInput): Promise<Task> {
     task.description ?? null,
     task.category ?? null,
   );
+}
 
+export async function createTask(input: NewTaskInput): Promise<Task> {
+  const task = buildTaskFromInput(input);
+  const db = await getDb();
+  await insertTask(db, task);
   return task;
 }
 
@@ -128,42 +131,8 @@ export async function bulkCreateTasks(inputs: NewTaskInput[]): Promise<Task[]> {
 
   await db.withTransactionAsync(async () => {
     for (const input of inputs) {
-      const now = new Date().toISOString();
-      const task: Task = {
-        id: createId(),
-        title: input.title.trim(),
-        startTime: input.startTime,
-        endTime: input.endTime,
-        status: 'scheduled',
-        aiGenerated: input.aiGenerated ?? false,
-        createdAt: now,
-        updatedAt: now,
-        actualStartTime: null,
-        actualEndTime: null,
-        notificationId: null,
-        description: input.description ?? null,
-        category: input.category ?? null,
-      };
-
-      await db.runAsync(
-        `INSERT INTO tasks (
-          id, title, start_time, end_time, status, ai_generated, created_at, updated_at,
-          actual_start_time, actual_end_time, notification_id, description, category
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-        task.id,
-        task.title,
-        task.startTime,
-        task.endTime,
-        task.status,
-        task.aiGenerated ? 1 : 0,
-        task.createdAt,
-        task.updatedAt,
-        task.actualStartTime ?? null,
-        task.actualEndTime ?? null,
-        task.notificationId ?? null,
-        task.description ?? null,
-        task.category ?? null,
-      );
+      const task = buildTaskFromInput(input);
+      await insertTask(db, task);
       created.push(task);
     }
   });
@@ -255,6 +224,30 @@ export async function updateTaskNotificationId(
 export async function deleteTask(taskId: string): Promise<void> {
   const db = await getDb();
   await db.runAsync('DELETE FROM tasks WHERE id = ?', taskId);
+}
+
+export async function deleteTasksForDay(day: Date): Promise<Task[]> {
+  const startOfDay = new Date(day);
+  startOfDay.setHours(0, 0, 0, 0);
+  const endOfDay = new Date(day);
+  endOfDay.setHours(23, 59, 59, 999);
+
+  const db = await getDb();
+  const rows = await db.getAllAsync<TaskRow>(
+    'SELECT * FROM tasks WHERE start_time >= ? AND start_time <= ? ORDER BY start_time ASC',
+    [startOfDay.toISOString(), endOfDay.toISOString()],
+  );
+  const toDelete = rows.map(rowToTask);
+
+  if (toDelete.length === 0) return [];
+
+  await db.withTransactionAsync(async () => {
+    for (const task of toDelete) {
+      await db.runAsync('DELETE FROM tasks WHERE id = ?', task.id);
+    }
+  });
+
+  return toDelete;
 }
 
 export async function getTask(taskId: string): Promise<Task | null> {

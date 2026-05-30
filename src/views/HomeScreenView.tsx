@@ -1,105 +1,119 @@
-import { RefreshControl, ScrollView, Text, View } from 'react-native';
+import { Pressable, RefreshControl, ScrollView, Text, View } from 'react-native';
 import { Button, Snackbar } from 'react-native-paper';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { DaySelector } from '../components/aiSchedule/DaySelector';
 import { CurrentTaskCard } from '../components/CurrentTaskCard';
+import { StickyBottomBar } from '../components/StickyBottomBar';
 import { TaskTimelineRow } from '../components/TaskTimelineRow';
+import { useHomeScreenState, type HomeScreenViewProps } from '../hooks/useHomeScreenState';
 import { colors } from '../theme/colors';
-import type { Task } from '../types/task';
+import { DayCompleteView } from './DayCompleteView';
 
-type Props = {
-  weekday: string;
-  dayMonth: string;
-  tasks: Task[];
-  currentTask?: Task;
-  nextTask?: Task;
-  loading: boolean;
-  error: string | null;
-  onDismissError: () => void;
-  onRefresh: () => void;
-  onPressTask: (taskId: string) => void;
-  onCompleteCurrent?: () => void;
-  onSkipCurrent?: () => void;
-  onCreateTask: () => void;
-  onOpenAiSchedule: () => void;
-  onOpenSettings: () => void;
-};
+export function HomeScreenView(props: HomeScreenViewProps) {
+  const {
+    activeDayKey,
+    clearError,
+    current,
+    date,
+    dayCompleteCandidate,
+    effectiveNow,
+    error,
+    next,
+    onCurrentComplete,
+    onCurrentSkip,
+    onDismissDayComplete,
+    onHeaderPress,
+    onPrimaryAction,
+    onSelectDayKey,
+    onTaskPress,
+    pullToRefresh,
+    showError,
+    showingDayComplete,
+    tasks,
+    tomorrowKey,
+    tomorrowTaskCount,
+    viewingToday,
+  } = useHomeScreenState(props);
 
-export function HomeScreenView({
-  weekday,
-  dayMonth,
-  tasks,
-  currentTask,
-  nextTask,
-  loading,
-  error,
-  onDismissError,
-  onRefresh,
-  onPressTask,
-  onCompleteCurrent,
-  onSkipCurrent,
-  onCreateTask,
-  onOpenAiSchedule,
-  onOpenSettings,
-}: Props) {
-  const completed = tasks.filter((task) => task.status === 'completed').length;
-  const total = tasks.length || 1;
+  if (showingDayComplete && dayCompleteCandidate) {
+    return (
+      <DayCompleteView
+        tasks={dayCompleteCandidate.tasks}
+        completedDay={dayCompleteCandidate.day}
+        onDismiss={onDismissDayComplete}
+      />
+    );
+  }
+
+  const sectionLabel = viewingToday ? 'Today' : 'Tomorrow';
+  const stickyLabel = viewingToday
+    ? tasks.length > 0
+      ? 'Add task'
+      : 'Create Task'
+    : tasks.length > 0
+      ? 'Add task'
+      : 'Plan tomorrow';
 
   return (
-    <View className="flex-1 bg-paper">
+    <SafeAreaView className="flex-1 bg-paper" edges={['top']}>
       <ScrollView
-        contentContainerClassName="pb-32 pt-16"
+        contentContainerClassName="pb-28 pt-3"
         refreshControl={
-          <RefreshControl refreshing={loading} onRefresh={onRefresh} tintColor={colors.ink} />
+          pullToRefresh ? (
+            <RefreshControl
+              refreshing={pullToRefresh.loading}
+              onRefresh={pullToRefresh.onRefresh}
+              tintColor={colors.ink}
+            />
+          ) : undefined
         }
       >
-        <View className="px-6 pb-7">
-          <View className="flex-row items-start justify-between gap-4">
-            <View>
-              <Text className="text-xs font-medium uppercase tracking-[2px] text-warm">
-                {weekday}
-              </Text>
-              <Text className="mt-1.5 text-4xl font-bold tracking-tight text-ink">{dayMonth}</Text>
-            </View>
-            <View className="items-end gap-2">
-              <Text className="text-lg font-medium text-warm">
-                {completed}
-                <Text className="text-warm2">/{tasks.length}</Text>
-              </Text>
-              <Button
-                mode="outlined"
-                onPress={onOpenSettings}
-                textColor={colors.ink}
-                style={{ borderRadius: 999, borderColor: colors.warm3 }}
-                compact
-              >
-                Settings
-              </Button>
-            </View>
+        <View className="flex-row items-start justify-between gap-4 px-4 pb-4">
+          <View>
+            <Text className="text-[11px] font-normal uppercase text-warm">{date.weekday}</Text>
+            <Text className="mt-1.5 text-4xl font-bold tracking-[-1.4px] text-ink">
+              {date.dayMonth}
+            </Text>
           </View>
-          <View className="mt-5 h-0.5 overflow-hidden rounded-full bg-warm3">
-            <View
-              style={{ width: `${(completed / total) * 100}%` }}
-              className="h-full rounded-full bg-ink"
-            />
-          </View>
+          {onHeaderPress ? (
+            <Button mode="text" compact onPress={onHeaderPress} textColor={colors.warm}>
+              Settings
+            </Button>
+          ) : null}
         </View>
 
-        <CurrentTaskCard
-          task={currentTask}
-          nextTask={nextTask}
-          onComplete={onCompleteCurrent}
-          onSkip={onSkipCurrent}
+        <DaySelector
+          selectedDayKey={activeDayKey}
+          onSelectDayKey={onSelectDayKey}
+          referenceNow={effectiveNow}
         />
 
-        <View className="mt-6 flex-row items-baseline justify-between px-6 pb-1.5">
-          <Text className="text-xs font-semibold uppercase tracking-[2px] text-warm">Today</Text>
+        {viewingToday ? (
+          <CurrentTaskCard
+            task={current}
+            nextTask={next}
+            onComplete={onCurrentComplete}
+            onSkip={onCurrentSkip}
+            now={effectiveNow}
+          />
+        ) : null}
+
+        <View className="mt-7 flex-row items-baseline justify-between px-4 pb-1.5">
+          <Text className="text-[11px] font-normal uppercase tracking-[1.5px] text-ink">
+            {sectionLabel}
+          </Text>
           <Text className="text-xs font-medium text-warm2">{tasks.length} tasks</Text>
         </View>
 
         {tasks.length === 0 ? (
           <View className="px-6 py-8">
-            <Text className="text-base font-medium text-ink">No tasks yet.</Text>
+            <Text className="text-base font-medium text-ink">
+              {viewingToday ? 'No tasks yet.' : 'Nothing planned yet.'}
+            </Text>
             <Text className="mt-2 text-sm leading-6 text-warm">
-              Create a task manually or generate a schedule from a rough plan.
+              {viewingToday
+                ? 'Create your first task to start planning the day.'
+                : 'Add tasks to build tomorrow’s schedule.'}
             </Text>
           </View>
         ) : (
@@ -107,13 +121,25 @@ export function HomeScreenView({
             <TaskTimelineRow
               key={task.id}
               task={task}
-              isCurrent={task.id === currentTask?.id}
+              isCurrent={viewingToday && task.id === current?.id}
               isFirst={index === 0}
               isLast={index === tasks.length - 1}
-              onPress={() => onPressTask(task.id)}
+              onPress={onTaskPress ? () => onTaskPress(task.id) : undefined}
             />
           ))
         )}
+
+        {viewingToday && tomorrowTaskCount > 0 ? (
+          <Pressable
+            className="mx-6 mt-2 py-3"
+            onPress={() => onSelectDayKey(tomorrowKey)}
+            testID="home-tomorrow-link"
+          >
+            <Text className="text-sm font-medium text-warm">
+              Tomorrow · {tomorrowTaskCount} {tomorrowTaskCount === 1 ? 'task' : 'tasks'} →
+            </Text>
+          </Pressable>
+        ) : null}
 
         <View className="flex-row items-center gap-2 px-6 py-8">
           <View className="h-px flex-1 bg-warm3" />
@@ -124,30 +150,23 @@ export function HomeScreenView({
         </View>
       </ScrollView>
 
-      <View className="absolute bottom-0 left-0 right-0 gap-2 bg-paper px-5 pb-7 pt-3">
+      <StickyBottomBar className="gap-2 px-5 pb-7 pt-3">
         <Button
           mode="contained"
           buttonColor={colors.ink}
           textColor={colors.white}
-          onPress={onCreateTask}
+          onPress={onPrimaryAction}
           style={{ borderRadius: 999 }}
         >
-          Create Task
+          {stickyLabel}
         </Button>
-        <Button
-          mode="contained"
-          buttonColor={colors.accent}
-          textColor={colors.ink}
-          onPress={onOpenAiSchedule}
-          style={{ borderRadius: 999 }}
-        >
-          Generate Schedule with AI
-        </Button>
-      </View>
+      </StickyBottomBar>
 
-      <Snackbar visible={Boolean(error)} onDismiss={onDismissError} duration={4000}>
-        {error}
-      </Snackbar>
-    </View>
+      {showError ? (
+        <Snackbar visible={Boolean(error)} onDismiss={clearError} duration={4000}>
+          {error}
+        </Snackbar>
+      ) : null}
+    </SafeAreaView>
   );
 }

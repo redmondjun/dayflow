@@ -1,4 +1,4 @@
-import { ScrollView, Text, View } from 'react-native';
+import { Pressable, ScrollView, Text, View } from 'react-native';
 import { Button } from 'react-native-paper';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { RootStackParamList } from '../navigation/types';
@@ -12,6 +12,13 @@ export function PreviewCatalogScreen({ navigation }: Props) {
     <View className="flex-1 bg-paper">
       <ScrollView contentContainerClassName="pb-8 pt-16">
         <View className="px-6">
+          <Pressable
+            onPress={() => navigation.goBack()}
+            testID="preview-catalog-back"
+            className="mb-7 h-11 w-11 items-start justify-center"
+          >
+            <Text className="text-[28px] leading-none text-ink">‹</Text>
+          </Pressable>
           <Text className="text-xs font-semibold uppercase tracking-[2px] text-warm">
             Developer
           </Text>

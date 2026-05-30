@@ -4,6 +4,7 @@ import {
   bulkCreateTasks,
   createTask,
   deleteTask as deleteTaskFromDb,
+  deleteTasksForDay as deleteTasksForDayFromDb,
   initDb,
   loadTasks,
   updateTask as updateTaskInDb,
@@ -16,7 +17,16 @@ import {
   rescheduleFutureNotifications,
   scheduleTaskNotification,
 } from '../services/notifications';
-import { getCurrentTask, getTodayTasks, getUpcomingTasks, sortByStartTime } from '../utils/time';
+import type { PlanningDayKey } from '../features/taskPlanning/planningDay';
+import { resolvePlanningDay } from '../features/taskPlanning/planningDay';
+import {
+  getCurrentTask,
+  getTasksForDay,
+  getTodayTasks,
+  getUpcomingTasks,
+  sortByStartTime,
+  sortGeneratedTasksByStartTime,
+} from '../utils/time';
 
 type TaskStore = {
   tasks: Task[];
@@ -27,11 +37,13 @@ type TaskStore = {
   initialize: () => Promise<void>;
   reloadTasks: () => Promise<void>;
   addTask: (input: NewTaskInput) => Promise<void>;
+  addTasks: (inputs: NewTaskInput[]) => Promise<void>;
   updateTask: (
     taskId: string,
     input: Partial<NewTaskInput> & { status?: TaskStatus },
   ) => Promise<void>;
   deleteTask: (taskId: string) => Promise<void>;
+  deleteTasksForDay: (day: Date) => Promise<number>;
   markCompleted: (taskId: string) => Promise<void>;
   markSkipped: (taskId: string) => Promise<void>;
   setPreviewTasks: (tasks: GeneratedTaskPreview[]) => void;
@@ -39,9 +51,10 @@ type TaskStore = {
   clearPreviewTasks: () => void;
   confirmPreviewTasks: () => Promise<void>;
   clearError: () => void;
-  todayTasks: () => Task[];
-  currentTask: () => Task | undefined;
-  upcomingTasks: () => Task[];
+  todayTasks: (now?: Date) => Task[];
+  tasksForDay: (dayKey: PlanningDayKey, now?: Date) => Task[];
+  currentTask: (now?: Date) => Task | undefined;
+  upcomingTasks: (now?: Date) => Task[];
 };
 
 async function refresh(set: (state: Partial<TaskStore>) => void): Promise<Task[]> {
@@ -64,6 +77,13 @@ async function runStoreAction(
       loading: false,
       error: error instanceof Error ? error.message : 'Something went wrong.',
     });
+  }
+}
+
+async function cancelAndClearNotification(taskId: string, notificationId?: string | null) {
+  await cancelTaskNotification(notificationId);
+  if (notificationId) {
+    await updateTaskNotificationId(taskId, null);
   }
 }
 
@@ -111,13 +131,19 @@ export const useTaskStore = create<TaskStore>((set, get) => ({
     });
   },
 
+  addTasks: async (inputs) => {
+    await runStoreAction(set, async () => {
+      const tasks = await bulkCreateTasks(inputs);
+      for (const task of tasks) {
+        await scheduleTaskNotification(task);
+      }
+    });
+  },
+
   updateTask: async (taskId, input) => {
     await runStoreAction(set, async () => {
       const existing = get().tasks.find((task) => task.id === taskId);
-      if (existing?.notificationId) {
-        await cancelTaskNotification(existing.notificationId);
-        await updateTaskNotificationId(existing.id, null);
-      }
+      await cancelAndClearNotification(taskId, existing?.notificationId);
 
       const updated = await updateTaskInDb(taskId, { ...input, notificationId: null });
       await scheduleTaskNotification(updated);
@@ -132,21 +158,31 @@ export const useTaskStore = create<TaskStore>((set, get) => ({
     });
   },
 
+  deleteTasksForDay: async (day) => {
+    let deletedCount = 0;
+    await runStoreAction(set, async () => {
+      const deleted = await deleteTasksForDayFromDb(day);
+      deletedCount = deleted.length;
+      for (const task of deleted) {
+        await cancelTaskNotification(task.notificationId);
+      }
+    });
+    return deletedCount;
+  },
+
   markCompleted: async (taskId) => {
     await runStoreAction(set, async () => {
       const existing = get().tasks.find((task) => task.id === taskId);
-      await cancelTaskNotification(existing?.notificationId);
-      const updated = await updateTaskStatus(taskId, 'completed');
-      if (updated.notificationId) await updateTaskNotificationId(taskId, null);
+      await cancelAndClearNotification(taskId, existing?.notificationId);
+      await updateTaskStatus(taskId, 'completed');
     });
   },
 
   markSkipped: async (taskId) => {
     await runStoreAction(set, async () => {
       const existing = get().tasks.find((task) => task.id === taskId);
-      await cancelTaskNotification(existing?.notificationId);
-      const updated = await updateTaskStatus(taskId, 'skipped');
-      if (updated.notificationId) await updateTaskNotificationId(taskId, null);
+      await cancelAndClearNotification(taskId, existing?.notificationId);
+      await updateTaskStatus(taskId, 'skipped');
     });
   },
 
@@ -164,13 +200,13 @@ export const useTaskStore = create<TaskStore>((set, get) => ({
 
   confirmPreviewTasks: async () => {
     await runStoreAction(set, async () => {
-      const previewTasks = get().previewTasks;
+      const previewTasks = sortGeneratedTasksByStartTime(get().previewTasks);
       const tasks = await bulkCreateTasks(
         previewTasks.map((task) => ({
           title: task.title,
           startTime: task.startTime,
           endTime: task.endTime,
-          aiGenerated: true,
+          aiGenerated: task.aiGenerated ?? false,
         })),
       );
       for (const task of tasks) {
@@ -182,7 +218,9 @@ export const useTaskStore = create<TaskStore>((set, get) => ({
 
   clearError: () => set({ error: null }),
 
-  todayTasks: () => getTodayTasks(get().tasks),
-  currentTask: () => getCurrentTask(get().todayTasks()),
-  upcomingTasks: () => getUpcomingTasks(get().todayTasks()),
+  todayTasks: (now) => getTodayTasks(get().tasks, now),
+  tasksForDay: (dayKey, now = new Date()) =>
+    getTasksForDay(get().tasks, resolvePlanningDay(dayKey, now)),
+  currentTask: (now) => getCurrentTask(get().todayTasks(now), now),
+  upcomingTasks: (now) => getUpcomingTasks(get().todayTasks(now), now),
 }));
