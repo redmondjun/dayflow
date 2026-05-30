@@ -5,6 +5,11 @@ import {
   type OnboardingCommitmentAnswer,
   type OnboardingStep,
 } from '../features/onboarding';
+import {
+  WEEKDAY_OPTIONS,
+  parseWorkDays,
+  serializeWorkDays,
+} from '../features/taskPlanning/profileDayContext';
 import { TimeWheelPicker } from './TimeWheelPicker';
 
 const customCommitmentOption = 'Custom';
@@ -21,6 +26,9 @@ export function canAdvanceOnboardingStep(
 ) {
   if (step.kind === 'text') {
     return typeof selectedValue === 'string' && Boolean(selectedValue.trim());
+  }
+  if (step.kind === 'weekdays') {
+    return parseWorkDays(typeof selectedValue === 'string' ? selectedValue : undefined).length > 0;
   }
   if (step.kind !== 'commitments') return Boolean(selectedValue);
   if (!isCommitmentAnswer(selectedValue)) return false;
@@ -49,14 +57,17 @@ function OnboardingOptionCard({
   selected,
   centered = false,
   onPress,
+  testID,
 }: {
   option: string;
   selected: boolean;
   centered?: boolean;
   onPress: () => void;
+  testID?: string;
 }) {
   return (
     <Pressable
+      testID={testID}
       onPress={onPress}
       className={`flex-row items-center justify-between px-5 ${
         centered
@@ -155,6 +166,50 @@ export function OnboardingStepContent({
     );
   }
 
+  if (step.kind === 'weekdays') {
+    const selectedDays = parseWorkDays(
+      typeof selectedValue === 'string' ? selectedValue : undefined,
+    );
+
+    return (
+      <View className="px-6 pt-8">
+        {step.helperText ? (
+          <Text className="mb-4 text-[13px] leading-[20px] tracking-[-0.13px] text-warm">
+            {step.helperText}
+          </Text>
+        ) : null}
+        <View className="flex-row flex-wrap gap-2">
+          {WEEKDAY_OPTIONS.map((day) => {
+            const selected = selectedDays.includes(day);
+            return (
+              <Pressable
+                key={day}
+                testID={`onboarding-work-day-${day}`}
+                onPress={() => {
+                  const nextDays = selected
+                    ? selectedDays.filter((value) => value !== day)
+                    : [...selectedDays, day];
+                  selectValue(serializeWorkDays(nextDays));
+                }}
+                className={`rounded-full px-4 py-2 ${
+                  selected ? 'bg-ink' : 'border border-warm3 bg-paper'
+                }`}
+              >
+                <Text
+                  className={`text-[13px] tracking-[-0.13px] ${
+                    selected ? 'font-medium text-white' : 'text-warm2'
+                  }`}
+                >
+                  {day}
+                </Text>
+              </Pressable>
+            );
+          })}
+        </View>
+      </View>
+    );
+  }
+
   if (step.kind === 'commitments') {
     return (
       <View className="gap-3 px-6 pt-8">
@@ -220,15 +275,18 @@ export function OnboardingStepContent({
 
   return (
     <View className="gap-3 px-6 pt-8">
-      {step.options?.map((option) => (
-        <OnboardingOptionCard
-          key={option}
-          option={option}
-          selected={option === selectedValue}
-          centered={step.selectionStyle === 'centered'}
-          onPress={() => selectValue(option)}
-        />
-      ))}
+      {(step.optionItems ?? step.options?.map((option) => ({ value: option, label: option })))?.map(
+        ({ value, label }) => (
+          <OnboardingOptionCard
+            key={value}
+            testID={`onboarding-option-${value}`}
+            option={label}
+            selected={value === selectedValue}
+            centered={step.selectionStyle === 'centered'}
+            onPress={() => selectValue(value)}
+          />
+        ),
+      )}
     </View>
   );
 }

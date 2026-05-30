@@ -1,5 +1,6 @@
 import * as SecureStore from 'expo-secure-store';
 import type { OnboardingAnswer, OnboardingCommitmentAnswer } from '../features/onboarding';
+import { parseWorkDays } from '../features/taskPlanning/profileDayContext';
 
 const ONBOARDING_PROFILE_KEY = 'dayflow.onboardingProfile';
 
@@ -33,11 +34,19 @@ export async function hasCompletedOnboarding(): Promise<boolean> {
 export function formatOnboardingProfileForPrompt(profile: OnboardingProfile | null): string | null {
   if (!profile) return null;
 
+  const workDays = parseWorkDays(profile['work-days']);
+
   const lines = [
     formatStringAnswer('Name', profile.name),
     formatStringAnswer('Wake-up time', profile.wake),
     formatStringAnswer('Bedtime', profile.sleep),
     formatStringAnswer('Work start time', profile.work),
+    formatStringAnswer('Work end time', profile['work-end']),
+    workDays.length > 0 ? `Work days: ${workDays.join(', ')}` : null,
+    formatStringAnswer('Weekend schedule', profile['weekend-rhythm']),
+    formatStringAnswer('Weekend wake-up time', profile['weekend-wake']),
+    formatStringAnswer('Weekend focus best', profile['weekend-focus']),
+    formatStringAnswer('Weekend free time', profile['weekend-free-time']),
     formatStringAnswer('Has fixed commitments', profile['commitment-presence']),
     formatCommitmentAnswer(profile['commitment-time']),
     formatStringAnswer('Focus best', profile.focus),

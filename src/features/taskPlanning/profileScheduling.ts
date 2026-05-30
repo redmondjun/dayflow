@@ -4,6 +4,12 @@ import { fromWheelTime, parseTimeInput, formatInputTime } from '../../utils/time
 import type { SchedulingContext } from './planningDay';
 import { formatPlanningDayLabel, isFuturePlanningDay } from './planningDay';
 import { getTaskPlanningDefaultsFromProfile } from './profileDefaults';
+import {
+  getEffectiveDayProfile,
+  getPlanningDayKind,
+  isWorkDay,
+  normalizeProfileWithDefaults,
+} from './profileDayContext';
 
 export type ScheduleTimeWindow = {
   start: string;
@@ -19,6 +25,7 @@ export type FreeTimeBudget = {
 
 export type ScheduleGenerationContext = {
   planningDayLabel: string;
+  dayTypeLabel?: string;
   earliestStart: string;
   latestEnd?: string;
   focusWindow?: ScheduleTimeWindow;
@@ -59,35 +66,70 @@ function isCommitmentAnswer(value: unknown): value is OnboardingCommitmentAnswer
   return typeof value === 'object' && value !== null && 'option' in value;
 }
 
-function getFocusWindow(profile: OnboardingProfile | null): ScheduleTimeWindow | undefined {
-  const focus = profile?.focus;
+function getFocusWindowForValue(focus: unknown): ScheduleTimeWindow | undefined {
   if (typeof focus !== 'string' || !focus.trim()) return undefined;
   return FOCUS_WINDOWS[focus.trim()];
 }
 
-function getCommitmentWindows(
-  profile: OnboardingProfile | null,
+function getWorkWindow(
+  profile: OnboardingProfile,
   planningDay: Date,
-): ScheduleTimeWindow[] | undefined {
-  if (profile?.['commitment-presence'] === 'No') return undefined;
+): ScheduleTimeWindow | undefined {
+  const start = parseProfileClock(profile.work, planningDay);
+  const end = parseProfileClock(profile['work-end'], planningDay);
+  if (!start || !end) return undefined;
+  return { start, end, label: 'Work' };
+}
 
-  const commitment = profile?.['commitment-time'];
-  if (!isCommitmentAnswer(commitment) || !commitment.option.trim()) return undefined;
-  if (commitment.option === "I don't have fixed commitments") return undefined;
+function getExtraCommitmentWindows(
+  profile: OnboardingProfile,
+  planningDay: Date,
+): ScheduleTimeWindow[] {
+  if (profile['commitment-presence'] === 'No') return [];
+
+  const commitment = profile['commitment-time'];
+  if (!isCommitmentAnswer(commitment) || !commitment.option.trim()) return [];
+  if (commitment.option === "I don't have fixed commitments") return [];
 
   if (commitment.option === 'Custom') {
     const start = parseProfileClock(commitment.startTime, planningDay);
     const end = parseProfileClock(commitment.endTime, planningDay);
-    if (!start || !end) return undefined;
+    if (!start || !end) return [];
     return [{ start, end, label: 'Fixed commitments' }];
   }
 
   const preset = COMMITMENT_PRESETS[commitment.option.trim()];
-  return preset ? [preset] : undefined;
+  return preset ? [preset] : [];
 }
 
-function getFreeTimeBudget(profile: OnboardingProfile | null): FreeTimeBudget | undefined {
-  const freeTime = profile?.['free-time'];
+function getCommitmentWindows(
+  profile: OnboardingProfile,
+  planningDay: Date,
+): ScheduleTimeWindow[] | undefined {
+  if (!isWorkDay(profile, planningDay)) return undefined;
+
+  const windows: ScheduleTimeWindow[] = [];
+  const workWindow = getWorkWindow(profile, planningDay);
+  if (workWindow) windows.push(workWindow);
+  windows.push(...getExtraCommitmentWindows(profile, planningDay));
+
+  return windows.length > 0 ? windows : undefined;
+}
+
+function getFocusWindow(
+  profile: OnboardingProfile,
+  planningDay: Date,
+): ScheduleTimeWindow | undefined {
+  const effective = getEffectiveDayProfile(profile, planningDay);
+  return getFocusWindowForValue(effective.focus);
+}
+
+function getFreeTimeBudget(
+  profile: OnboardingProfile,
+  planningDay: Date,
+): FreeTimeBudget | undefined {
+  const effective = getEffectiveDayProfile(profile, planningDay);
+  const freeTime = effective.freeTime;
   if (typeof freeTime !== 'string' || !freeTime.trim()) return undefined;
   return FREE_TIME_BUDGETS[freeTime.trim()];
 }
@@ -111,14 +153,18 @@ export function getProfileSchedulingContext(
   context: SchedulingContext,
   userProfile?: string | null,
 ): ScheduleGenerationContext {
+  const normalizedProfile = normalizeProfileWithDefaults(profile);
   const { planningDay, referenceNow } = context;
-  const planningDefaults = getTaskPlanningDefaultsFromProfile(profile, context);
-  const latestEnd = parseProfileClock(profile?.sleep, planningDay) ?? undefined;
-  const focusWindow = getFocusWindow(profile);
+  const planningDefaults = getTaskPlanningDefaultsFromProfile(normalizedProfile, context);
+  const latestEnd = parseProfileClock(normalizedProfile?.sleep, planningDay) ?? undefined;
+  const focusWindow = normalizedProfile
+    ? getFocusWindow(normalizedProfile, planningDay)
+    : undefined;
   const clampedFocusWindow =
     focusWindow && latestEnd && clockToMinutes(focusWindow.end) > clockToMinutes(latestEnd)
       ? { ...focusWindow, end: latestEnd }
       : focusWindow;
+  const dayKind = getPlanningDayKind(planningDay, normalizedProfile);
 
   const planningDayLabel = isFuturePlanningDay(planningDay, referenceNow)
     ? `Tomorrow, ${formatPlanningDayLabel(planningDay)}`
@@ -126,12 +172,17 @@ export function getProfileSchedulingContext(
 
   return {
     planningDayLabel,
+    dayTypeLabel: dayKind.dayTypeLabel,
     earliestStart: planningDefaults.preferredStart,
     latestEnd,
     focusWindow: clampedFocusWindow,
-    commitmentWindows: getCommitmentWindows(profile, planningDay),
-    freeTimeBudget: getFreeTimeBudget(profile),
-    scheduleGoal: getScheduleGoal(profile),
+    commitmentWindows: normalizedProfile
+      ? getCommitmentWindows(normalizedProfile, planningDay)
+      : undefined,
+    freeTimeBudget: normalizedProfile
+      ? getFreeTimeBudget(normalizedProfile, planningDay)
+      : undefined,
+    scheduleGoal: getScheduleGoal(normalizedProfile),
     userProfile,
   };
 }
