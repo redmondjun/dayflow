@@ -185,6 +185,8 @@ export function buildHybridPreview(
       startTime: start,
       endTime: end,
       aiGenerated: false,
+      description: row.description?.trim() || null,
+      estimatedDurationMinutes: row.durationMinutes ?? row.estimatedDurationMinutes ?? null,
     });
   }
 
@@ -223,6 +225,8 @@ export function buildHybridPreview(
       startTime,
       endTime,
       aiGenerated: true,
+      description: row?.description?.trim() || null,
+      estimatedDurationMinutes: row?.estimatedDurationMinutes ?? null,
     });
   }
 
@@ -253,7 +257,13 @@ export function makeSequentialPreview(
   });
 }
 
+export const MIN_TASK_DURATION_MINUTES = 10;
+export const MAX_TASK_DURATION_MINUTES = 360;
+
 export function clampDuration(value: number): number {
   if (!Number.isFinite(value)) return 30;
-  return Math.min(240, Math.max(10, Math.round(value)));
+  return Math.min(
+    MAX_TASK_DURATION_MINUTES,
+    Math.max(MIN_TASK_DURATION_MINUTES, Math.round(value)),
+  );
 }

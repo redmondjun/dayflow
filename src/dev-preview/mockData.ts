@@ -33,6 +33,7 @@ export function buildMockTask(
     notificationId: null,
     description: null,
     category: null,
+    estimatedDurationMinutes: null,
   };
 }
 

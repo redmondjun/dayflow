@@ -20,6 +20,7 @@ type TaskRow = {
   notification_id: string | null;
   description: string | null;
   category: string | null;
+  estimated_duration_minutes: number | null;
 };
 
 function rowToTask(row: TaskRow): Task {
@@ -37,6 +38,7 @@ function rowToTask(row: TaskRow): Task {
     notificationId: row.notification_id,
     description: row.description,
     category: row.category,
+    estimatedDurationMinutes: row.estimated_duration_minutes,
   };
 }
 
@@ -69,6 +71,12 @@ export async function initDb(): Promise<void> {
     CREATE INDEX IF NOT EXISTS idx_tasks_start_time ON tasks(start_time);
     CREATE INDEX IF NOT EXISTS idx_tasks_status ON tasks(status);
   `);
+
+  try {
+    await db.execAsync('ALTER TABLE tasks ADD COLUMN estimated_duration_minutes INTEGER');
+  } catch {
+    // Column already exists.
+  }
 }
 
 export async function loadTasks(): Promise<Task[]> {
@@ -93,6 +101,7 @@ function buildTaskFromInput(input: NewTaskInput): Task {
     notificationId: null,
     description: input.description ?? null,
     category: input.category ?? null,
+    estimatedDurationMinutes: input.estimatedDurationMinutes ?? null,
   };
 }
 
@@ -100,8 +109,9 @@ async function insertTask(db: SQLite.SQLiteDatabase, task: Task): Promise<void> 
   await db.runAsync(
     `INSERT INTO tasks (
       id, title, start_time, end_time, status, ai_generated, created_at, updated_at,
-      actual_start_time, actual_end_time, notification_id, description, category
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      actual_start_time, actual_end_time, notification_id, description, category,
+      estimated_duration_minutes
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     task.id,
     task.title,
     task.startTime,
@@ -115,6 +125,7 @@ async function insertTask(db: SQLite.SQLiteDatabase, task: Task): Promise<void> 
     task.notificationId ?? null,
     task.description ?? null,
     task.category ?? null,
+    task.estimatedDurationMinutes ?? null,
   );
 }
 
@@ -158,6 +169,10 @@ export async function updateTask(
       input.notificationId !== undefined ? input.notificationId : existing.notificationId,
     description: input.description !== undefined ? input.description : existing.description,
     category: input.category !== undefined ? input.category : existing.category,
+    estimatedDurationMinutes:
+      input.estimatedDurationMinutes !== undefined
+        ? input.estimatedDurationMinutes
+        : existing.estimatedDurationMinutes,
     updatedAt: new Date().toISOString(),
   };
 
@@ -165,7 +180,7 @@ export async function updateTask(
   await db.runAsync(
     `UPDATE tasks
      SET title = ?, start_time = ?, end_time = ?, status = ?, ai_generated = ?, updated_at = ?,
-         notification_id = ?, description = ?, category = ?
+         notification_id = ?, description = ?, category = ?, estimated_duration_minutes = ?
      WHERE id = ?`,
     updated.title,
     updated.startTime,
@@ -176,6 +191,7 @@ export async function updateTask(
     updated.notificationId ?? null,
     updated.description ?? null,
     updated.category ?? null,
+    updated.estimatedDurationMinutes ?? null,
     updated.id,
   );
 

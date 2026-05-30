@@ -1,4 +1,5 @@
 import { makeGeneratedPreviewTasks } from '../dev-preview/mockData';
+import { syncManualRowTimes } from './taskPlanning/manualTime';
 import type { GeneratedTaskPreview, NewTaskInput, Task, TaskInputRow } from '../types/task';
 import { addMinutes, formatInputTime, parseTimeInput, sortByStartTime } from '../utils/time';
 import { createId } from '../utils/id';
@@ -50,6 +51,10 @@ export function serializeTaskRowsForPreview(rows: TaskInputRow[]): string {
       startTime: row.startTime,
       endTime: row.endTime,
       aiScheduled: Boolean(row.aiScheduled),
+      description: row.description?.trim() ?? null,
+      durationMinutes: row.durationMinutes ?? null,
+      estimatedDurationMinutes: row.estimatedDurationMinutes ?? null,
+      timeInputMode: row.timeInputMode ?? 'duration',
     })),
   );
 }
@@ -68,6 +73,10 @@ export function createTaskInputRow({
   durationMinutes = 60,
   aiScheduled = false,
   isDraft = false,
+  description = null,
+  estimatedDurationMinutes = null,
+  timeInputMode = 'duration',
+  planningDay,
 }: {
   title?: string;
   startTime?: string;
@@ -75,20 +84,50 @@ export function createTaskInputRow({
   durationMinutes?: number;
   aiScheduled?: boolean;
   isDraft?: boolean;
+  description?: string | null;
+  estimatedDurationMinutes?: number | null;
+  timeInputMode?: 'duration' | 'end';
+  planningDay?: Date;
 } = {}): TaskInputRow {
+  if (aiScheduled) {
+    return {
+      id: createId(),
+      title,
+      startTime: '',
+      endTime: '',
+      aiScheduled: true,
+      isDraft,
+      description,
+      estimatedDurationMinutes,
+    };
+  }
+
+  const day = planningDay ?? new Date();
+  const synced = syncManualRowTimes(
+    {
+      startTime,
+      endTime:
+        endTime ??
+        formatInputTime(
+          addMinutes(parseTimeInput(startTime, day) ?? new Date().toISOString(), durationMinutes),
+        ),
+      durationMinutes,
+      timeInputMode,
+    },
+    day,
+  );
+
   return {
     id: createId(),
     title,
-    startTime: aiScheduled ? '' : startTime,
-    endTime:
-      aiScheduled || !startTime
-        ? ''
-        : (endTime ??
-          formatInputTime(
-            addMinutes(parseTimeInput(startTime) ?? new Date().toISOString(), durationMinutes),
-          )),
-    aiScheduled,
+    startTime: synced.startTime,
+    endTime: synced.endTime,
+    durationMinutes: synced.durationMinutes,
+    aiScheduled: false,
     isDraft,
+    description,
+    estimatedDurationMinutes,
+    timeInputMode,
   };
 }
 
@@ -119,6 +158,8 @@ export function createDraftTaskInputRow(
       endTime: '',
       aiScheduled: true,
       isDraft: true,
+      description: null,
+      estimatedDurationMinutes: null,
     };
   }
 
@@ -137,8 +178,11 @@ export function createDraftTaskInputRow(
     title,
     startTime: slot.startTime,
     endTime: slot.endTime,
+    durationMinutes: options?.durationMinutes ?? 60,
     aiScheduled: false,
     isDraft: true,
+    timeInputMode: 'duration',
+    planningDay: context.planningDay,
   });
 }
 

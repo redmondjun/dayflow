@@ -1,4 +1,5 @@
 import { sortTaskInputs } from '../taskPlanning';
+import { syncManualRowTimes } from './manualTime';
 import { validateManualTaskTimes } from './scheduling';
 import type { SchedulingContext } from './planningDay';
 import type { NewTaskInput, Task, TaskInputRow } from '../../types/task';
@@ -16,9 +17,10 @@ export function validateManualTaskRows(
   const inputs: NewTaskInput[] = [];
 
   for (const task of rows) {
-    const start = parseTimeInput(task.startTime, context.planningDay);
-    const end = parseTimeInput(task.endTime, context.planningDay);
-    const validation = validateManualTaskTimes(task.startTime, task.endTime, context, {
+    const synced = task.aiScheduled ? task : syncManualRowTimes(task, context.planningDay);
+    const start = parseTimeInput(synced.startTime, context.planningDay);
+    const end = parseTimeInput(synced.endTime, context.planningDay);
+    const validation = validateManualTaskTimes(synced.startTime, synced.endTime, context, {
       existingTasks,
       plannerRows: rows,
       excludeRowId: task.id,
@@ -35,6 +37,8 @@ export function validateManualTaskRows(
       endTime: end,
       aiGenerated: false,
       status: validation.willMarkCompleted ? 'completed' : 'scheduled',
+      description: task.description?.trim() || null,
+      estimatedDurationMinutes: synced.durationMinutes ?? task.durationMinutes ?? null,
     });
   }
 

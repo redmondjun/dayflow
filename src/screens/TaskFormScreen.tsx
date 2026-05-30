@@ -32,6 +32,8 @@ function toInitialTask(task: Task | null | undefined) {
     startTime: task.startTime,
     endTime: task.endTime,
     status: task.status,
+    description: task.description,
+    estimatedDurationMinutes: task.estimatedDurationMinutes,
   };
 }
 
@@ -65,15 +67,29 @@ export function TaskFormScreen(props: Props) {
     );
   }
 
-  const save = async ({ title, startTime, endTime, status }: TaskFormSubmit) => {
+  const save = async ({
+    title,
+    startTime,
+    endTime,
+    status,
+    description,
+    estimatedDurationMinutes,
+  }: TaskFormSubmit) => {
     if (isPreview) {
       onComplete();
       return;
     }
     if (editingId) {
-      await updateTask(editingId, { title, startTime, endTime, status });
+      await updateTask(editingId, {
+        title,
+        startTime,
+        endTime,
+        status,
+        description,
+        estimatedDurationMinutes,
+      });
     } else {
-      await addTask({ title, startTime, endTime });
+      await addTask({ title, startTime, endTime, description, estimatedDurationMinutes });
     }
     if (!useTaskStore.getState().error) onComplete();
   };

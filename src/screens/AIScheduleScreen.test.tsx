@@ -76,7 +76,7 @@ describe('AIScheduleScreen preview', () => {
     };
   }
 
-  function mockStore(tasksForDayFn: () => Task[] = () => []) {
+  function mockStore(tasksForDayFn: () => Task[] = () => [], loading = false) {
     jest.mocked(useTaskStore).mockReturnValue({
       previewTasks: [],
       setPreviewTasks: jest.fn(),
@@ -86,7 +86,7 @@ describe('AIScheduleScreen preview', () => {
       addTasks: jest.fn(),
       error: null,
       clearError: jest.fn(),
-      loading: false,
+      loading,
       todayTasks: tasksForDayFn,
       tasksForDay: () => tasksForDayFn(),
     } as never);
@@ -165,7 +165,7 @@ describe('AIScheduleScreen preview', () => {
       expect(screen.getByTestId('ai-schedule-draft-input')).toBeOnTheScreen();
     });
     expect(screen.getByText('Start')).toBeOnTheScreen();
-    expect(screen.getByText('End')).toBeOnTheScreen();
+    expect(screen.getByTestId('ai-schedule-duration-input')).toBeOnTheScreen();
     expect(screen.getByTestId('ai-schedule-time-cancel')).toBeOnTheScreen();
     expect(screen.getByTestId('ai-schedule-time-add')).toBeOnTheScreen();
     await waitFor(() => {
@@ -193,6 +193,26 @@ describe('AIScheduleScreen preview', () => {
     expect(screen.getByTestId('ai-schedule-submit')).toBeDisabled();
   });
 
+  it('disables add task and edit task while confirm schedule is loading', async () => {
+    mockStore(() => [], true);
+
+    render(
+      <PaperProvider>
+        <AIScheduleScreen
+          onCancel={jest.fn()}
+          onOpenSettings={jest.fn()}
+          autoOpenDraft={false}
+          scenarioId="default"
+        />
+      </PaperProvider>,
+    );
+
+    expect(screen.getByTestId('ai-schedule-add-row')).toBeDisabled();
+
+    fireEvent.press(screen.getByText('Lunch Break'));
+    expect(screen.queryByTestId('ai-schedule-time-add')).not.toBeOnTheScreen();
+  });
+
   it('keeps the dropdown closed until the add-row button is pressed when auto-open is disabled', async () => {
     mockStore();
 
@@ -203,14 +223,14 @@ describe('AIScheduleScreen preview', () => {
     );
 
     expect(screen.queryByText('Start')).not.toBeOnTheScreen();
-    expect(screen.queryByText('End')).not.toBeOnTheScreen();
+    expect(screen.queryByTestId('ai-schedule-duration-input')).not.toBeOnTheScreen();
 
     const focusSpy = jest.spyOn(TextInput.prototype, 'focus');
 
     fireEvent.press(screen.getByTestId('ai-schedule-add-row'));
 
     expect(screen.getByText('Start')).toBeOnTheScreen();
-    expect(screen.getByText('End')).toBeOnTheScreen();
+    expect(screen.getByTestId('ai-schedule-duration-input')).toBeOnTheScreen();
     expect(screen.getByTestId('ai-schedule-draft-input')).toBeOnTheScreen();
     await waitFor(() => {
       expect(focusSpy).toHaveBeenCalled();

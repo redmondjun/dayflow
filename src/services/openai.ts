@@ -6,6 +6,7 @@ import {
   openAiScheduleSchema,
   openAiWeeklyInsightSchema,
   type ScheduleGenerationContext,
+  type ScheduleTaskInput,
 } from './ai/prompts';
 import {
   validateGeneratedTasks,
@@ -15,6 +16,7 @@ import {
 } from './ai/validators';
 
 export type { AiGeneratedTask, AiWeeklyInsight };
+export type { ScheduleTaskInput };
 
 const OPENAI_RESPONSES_URL = 'https://api.openai.com/v1/responses';
 const DEFAULT_MODEL = 'gpt-5-nano';
@@ -24,12 +26,18 @@ const SCHEDULE_SYSTEM_PROMPT =
 
 export async function generateScheduleFromText(
   apiKey: string,
-  taskTitles: string[],
+  tasks: ScheduleTaskInput[],
   scheduleContext?: ScheduleGenerationContext | null,
 ): Promise<AiGeneratedTask[]> {
-  const tasks = taskTitles.map((title) => title.trim()).filter(Boolean);
+  const normalizedTasks = tasks
+    .map((task) => ({
+      title: task.title.trim(),
+      description: task.description?.trim() || null,
+      estimatedDurationMinutes: task.estimatedDurationMinutes ?? null,
+    }))
+    .filter((task) => task.title.length > 0);
   if (!apiKey.trim()) throw new Error('Add your OpenAI API key in Settings first.');
-  if (tasks.length === 0) throw new Error('Add at least one task first.');
+  if (normalizedTasks.length === 0) throw new Error('Add at least one task first.');
 
   const response = await postOpenAIResponse(apiKey, {
     model: DEFAULT_MODEL,
@@ -40,7 +48,7 @@ export async function generateScheduleFromText(
       },
       {
         role: 'user',
-        content: buildSchedulePrompt(tasks, scheduleContext),
+        content: buildSchedulePrompt(normalizedTasks, scheduleContext),
       },
     ],
     text: {

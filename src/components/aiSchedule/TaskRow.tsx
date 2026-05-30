@@ -7,29 +7,37 @@ import { formatWheelTimeRange } from '../../utils/time';
 type Props = {
   task: TaskInputRow;
   selected: boolean;
+  disabled?: boolean;
   titleInputRef?: React.RefObject<TextInput | null>;
   onPress: () => void;
   onChangeTitle: (value: string) => void;
+  onTitleBlur?: () => void;
   onRemove?: () => void;
 };
 
 export function TaskRow({
   task,
   selected,
+  disabled = false,
   titleInputRef,
   onPress,
   onChangeTitle,
+  onTitleBlur,
   onRemove,
 }: Props) {
   if (selected) {
     return (
-      <View className="flex-row items-center gap-3 bg-warm4 px-[18px] py-4">
+      <View
+        className={`flex-row items-center gap-3 bg-warm4 px-[18px] py-4 ${disabled ? 'opacity-45' : ''}`}
+      >
         <View className="h-[4px] w-[4px] rounded-full bg-ink2" />
         <TextInput
           ref={titleInputRef}
           testID={`ai-schedule-task-input-${task.id}`}
           value={task.title ?? ''}
           onChangeText={onChangeTitle}
+          onBlur={onTitleBlur}
+          editable={!disabled}
           placeholder="Add a task"
           placeholderTextColor={colors.warm}
           className="flex-1 text-[13px] tracking-[-0.13px] text-ink"
@@ -46,7 +54,12 @@ export function TaskRow({
   }
 
   return (
-    <Pressable onPress={onPress} className="flex-row items-center gap-3 px-[18px] py-4">
+    <Pressable
+      disabled={disabled}
+      onPress={onPress}
+      accessibilityState={{ disabled }}
+      className={`flex-row items-center gap-3 px-[18px] py-4 ${disabled ? 'opacity-45' : ''}`}
+    >
       <View className="h-[4px] w-[4px] rounded-full bg-ink2" />
       <Text
         className={`flex-1 text-[13px] tracking-[-0.13px] ${task.title ? 'text-ink' : 'text-warm'}`}

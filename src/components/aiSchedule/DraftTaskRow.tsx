@@ -7,28 +7,34 @@ import type { TaskInputRow } from '../../types/task';
 type Props = {
   task: TaskInputRow | null;
   selected: boolean;
+  disabled?: boolean;
   inputRef: React.RefObject<TextInput | null>;
   onPress: () => void;
   onFocusInput: () => void;
   onChangeTitle: (value: string) => void;
-  onRemove: () => void;
+  onTitleBlur?: () => void;
+  onRemove?: () => void;
 };
 
 export function DraftTaskRow({
   task,
   selected,
+  disabled = false,
   inputRef,
   onPress,
   onFocusInput,
   onChangeTitle,
+  onTitleBlur,
   onRemove,
 }: Props) {
   if (!task) {
     return (
       <Pressable
         testID="ai-schedule-add-row"
+        disabled={disabled}
         onPress={onPress}
-        className="flex-row items-center px-[18px] py-[14px]"
+        accessibilityState={{ disabled }}
+        className={`flex-row items-center px-[18px] py-[14px] ${disabled ? 'opacity-45' : ''}`}
       >
         <View className="mr-2.5 h-4 w-4 items-center justify-center rounded-full bg-ink">
           <Text className="text-[10px] font-bold text-white">+</Text>
@@ -40,7 +46,9 @@ export function DraftTaskRow({
 
   return (
     <View
-      className={`flex-row items-center gap-3 px-[18px] py-[14px] ${selected ? 'bg-warm4' : ''}`}
+      className={`flex-row items-center gap-3 px-[18px] py-[14px] ${selected ? 'bg-warm4' : ''} ${
+        disabled ? 'opacity-45' : ''
+      }`}
     >
       <View className="h-4 w-4 items-center justify-center rounded-full bg-ink">
         <Text className="text-[10px] font-bold text-white">+</Text>
@@ -49,13 +57,15 @@ export function DraftTaskRow({
         ref={inputRef}
         testID="ai-schedule-draft-input"
         value={task.title ?? ''}
-        onFocus={onFocusInput}
+        onFocus={disabled ? undefined : onFocusInput}
         onChangeText={onChangeTitle}
+        onBlur={onTitleBlur}
+        editable={!disabled}
         placeholder="Add a task"
         placeholderTextColor={colors.warm}
         className="flex-1 text-[13px] tracking-[-0.13px] text-ink"
       />
-      {hasTaskRowTitle(task) ? (
+      {hasTaskRowTitle(task) && onRemove ? (
         <TaskRowRemoveButton testID="ai-schedule-remove-row" onPress={onRemove} size="lg" />
       ) : null}
     </View>

@@ -3,12 +3,12 @@ import { Animated, Pressable, ScrollView, View } from 'react-native';
 import { composeWheelTimeValue, parseWheelTimeValue } from '../utils/time';
 
 const wheelItemHeight = 34;
-const wheelHeight = 182;
+export const wheelHeight = 182;
 const hourOptions = Array.from({ length: 12 }, (_, index) => String(index + 1));
 const minuteOptions = Array.from({ length: 12 }, (_, index) => String(index * 5).padStart(2, '0'));
 const meridiemOptions = ['AM', 'PM'];
 
-function WheelColumn({
+export function WheelColumn({
   options,
   selectedValue,
   onChange,

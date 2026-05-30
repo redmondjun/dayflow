@@ -13,8 +13,10 @@ export function TaskInputCard() {
   const {
     taskRows,
     selectedTaskId,
+    isSubmitting,
     onSelectTaskRow,
     onChangeTaskTitle,
+    onCommitTitleMemory,
     onAddTaskRow,
     onRemoveSelectedTaskRow,
     onConfirmTaskTimeEdit,
@@ -49,10 +51,12 @@ export function TaskInputCard() {
             <TaskRow
               task={task}
               selected={isSelected}
+              disabled={isSubmitting}
               titleInputRef={isSelected ? titleInputRef : undefined}
               onPress={() => onSelectTaskRow(task.id)}
               onChangeTitle={(value) => onChangeTaskTitle(task.id, value)}
-              onRemove={isSelected ? onRemoveSelectedTaskRow : undefined}
+              onTitleBlur={() => onCommitTitleMemory(task.id)}
+              onRemove={isSelected && !isSubmitting ? onRemoveSelectedTaskRow : undefined}
             />
             {isSelected ? renderTimePanel() : null}
             {(index < committedRows.length - 1 || showAddTaskRow) && !isSelected ? (
@@ -68,6 +72,7 @@ export function TaskInputCard() {
           <DraftTaskRow
             task={draftTask}
             selected={Boolean(draftTask && selectedTaskId === draftTask.id)}
+            disabled={isSubmitting}
             inputRef={titleInputRef}
             onPress={draftTask ? () => onSelectTaskRow(draftTask.id) : onAddTaskRow}
             onFocusInput={() => {
@@ -78,7 +83,10 @@ export function TaskInputCard() {
             onChangeTitle={(value) => {
               if (draftTask) onChangeTaskTitle(draftTask.id, value);
             }}
-            onRemove={onRemoveSelectedTaskRow}
+            onTitleBlur={() => {
+              if (draftTask) onCommitTitleMemory(draftTask.id);
+            }}
+            onRemove={isSubmitting ? undefined : onRemoveSelectedTaskRow}
           />
           {draftTask && selectedTaskId === draftTask.id ? renderTimePanel() : null}
         </>

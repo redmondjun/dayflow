@@ -128,11 +128,15 @@ describe('gemini service', () => {
       }),
     );
 
-    const tasks = await generateGeminiScheduleFromText('gemini-live', [' Study React ', 'Gym'], {
-      planningDayLabel: 'Today, May 23',
-      earliestStart: '07:00',
-      userProfile: '- Wake-up time: 7:00 AM',
-    });
+    const tasks = await generateGeminiScheduleFromText(
+      'gemini-live',
+      [{ title: ' Study React ' }, { title: 'Gym' }],
+      {
+        planningDayLabel: 'Today, May 23',
+        earliestStart: '07:00',
+        userProfile: '- Wake-up time: 7:00 AM',
+      },
+    );
 
     expect(tasks).toEqual([{ title: 'Study React', durationMinutes: 45, startTime: '09:00' }]);
     const [, request] = fetchMock.mock.calls[0] ?? [];

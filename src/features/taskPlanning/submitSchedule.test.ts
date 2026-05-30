@@ -20,17 +20,32 @@ describe('validateManualTaskRows', () => {
   const context = schedulingContextForDay(referenceNow, referenceNow);
 
   it('returns parsed inputs for valid rows', () => {
-    const result = validateManualTaskRows([makeRow()], { existingTasks: [], context });
+    const result = validateManualTaskRows(
+      [makeRow({ description: 'Focus session', durationMinutes: 60 })],
+      { existingTasks: [], context },
+    );
     expect(result.error).toBeNull();
     expect(result.inputs).toHaveLength(1);
     expect(result.inputs[0]?.title).toBe('Focus block');
+    expect(result.inputs[0]?.description).toBe('Focus session');
+    expect(result.inputs[0]?.estimatedDurationMinutes).toBe(60);
   });
 
   it('returns an error when end time is before start time', () => {
-    const result = validateManualTaskRows([makeRow({ startTime: '11:00', endTime: '10:00' })], {
-      existingTasks: [],
-      context,
-    });
+    const result = validateManualTaskRows(
+      [
+        makeRow({
+          startTime: '11:00',
+          endTime: '10:00',
+          timeInputMode: 'end',
+          durationMinutes: 60,
+        }),
+      ],
+      {
+        existingTasks: [],
+        context,
+      },
+    );
     expect(result.error).toBe('End time must be later than start time.');
     expect(result.inputs).toEqual([]);
   });
