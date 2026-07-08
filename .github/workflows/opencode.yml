@@ -32,7 +32,6 @@ jobs:
               '--pro':      'nvidia-build/deepseek-ai/deepseek-v4-pro',
               '--flash':    'nvidia-build/deepseek-ai/deepseek-v4-flash',
               '--nano':     'nvidia-build/nvidia/nemotron-3-nano-30b-a3b',
-              '--nano30b':  'nvidia-build/nvidia/nemotron-3-nano-30b-a3b',
               '--glm':      'nvidia-build/z-ai/glm-5.2',
               '--llama49b': 'nvidia-build/meta/llama-3.3-nemotron-super-49b-v1.5',
               '--mistral':  'nvidia-build/nvidia/mistral-nemotron',
