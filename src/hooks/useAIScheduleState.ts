@@ -305,6 +305,7 @@ export function useAIScheduleState({
       return;
     }
 
+    let activeProvider: string | null = null;
     const providerKeys: Record<string, string | null> = {
       openai: apiKey,
       google: null,
@@ -316,6 +317,7 @@ export function useAIScheduleState({
       providerKeys.google = activeKey?.provider === 'google' ? activeKey.key : null;
       providerKeys.nvidia = activeKey?.provider === 'nvidia' ? activeKey.key : null;
       setApiKey(activeKey?.key ?? null);
+      activeProvider = activeKey?.provider ?? null;
     }
 
     const latestApiKey = providerKeys.openai ?? providerKeys.google ?? providerKeys.nvidia;
@@ -359,10 +361,8 @@ export function useAIScheduleState({
             generateNvidiaScheduleFromText(providerKeys.nvidia!, scheduleTasks, scheduleContext),
         };
 
-        const activeProvider = (Object.entries(providerKeys).find(([, key]) => key) ?? [
-          'nvidia',
-        ])[0];
-        aiSchedule = await scheduleGenerators[activeProvider]();
+        const provider = activeProvider ?? 'openai';
+        aiSchedule = await scheduleGenerators[provider]();
       }
 
       previewStore.writeTasks(

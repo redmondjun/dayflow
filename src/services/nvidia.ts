@@ -174,9 +174,10 @@ function getNvidiaResponseText(data: unknown): string | null {
     return null;
   }
 
-  const content = typeof message.content === 'string' ? message.content : null;
+  const msg = message as Record<string, unknown>;
+  const content = typeof msg.content === 'string' ? msg.content : null;
   const reasoning =
-    typeof message.reasoning_content === 'string' ? message.reasoning_content : null;
+    typeof msg.reasoning_content === 'string' ? msg.reasoning_content : null;
 
   if (content && (content.startsWith('{') || content.startsWith('['))) {
     return content;
