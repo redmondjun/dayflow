@@ -5,6 +5,8 @@ import {
   buildWeeklyInsightPrompt,
   openAiScheduleSchema,
   openAiWeeklyInsightSchema,
+  SCHEDULE_SYSTEM_PROMPT,
+  WEEKLY_INSIGHT_SYSTEM_PROMPT,
   type ScheduleGenerationContext,
   type ScheduleTaskInput,
 } from './ai/prompts';
@@ -20,9 +22,6 @@ export type { ScheduleTaskInput };
 
 const OPENAI_RESPONSES_URL = 'https://api.openai.com/v1/responses';
 const DEFAULT_MODEL = 'gpt-5-nano';
-
-const SCHEDULE_SYSTEM_PROMPT =
-  'You are a scheduling assistant. Build a realistic daily schedule with logical start times and durations for each task. Use the user profile windows and constraints. Return structured data only.';
 
 export async function generateScheduleFromText(
   apiKey: string,
@@ -42,10 +41,7 @@ export async function generateScheduleFromText(
   const response = await postOpenAIResponse(apiKey, {
     model: DEFAULT_MODEL,
     input: [
-      {
-        role: 'system',
-        content: SCHEDULE_SYSTEM_PROMPT,
-      },
+      { role: 'system', content: SCHEDULE_SYSTEM_PROMPT },
       {
         role: 'user',
         content: buildSchedulePrompt(normalizedTasks, scheduleContext),
@@ -91,8 +87,7 @@ export async function generateWeeklyInsight(
     input: [
       {
         role: 'system',
-        content:
-          'You are a productivity coach. Analyze weekly task history and return concise patterns and actionable suggestions. Return structured data only.',
+        content: WEEKLY_INSIGHT_SYSTEM_PROMPT,
       },
       {
         role: 'user',
