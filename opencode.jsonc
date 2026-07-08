@@ -17,7 +17,7 @@
       },
       "models": {
         "z-ai/glm-5.2": {
-          "name": "GLM 5.2 (NVIDIA) — Agentic workflows, coding, long-horizon reasoning",
+          "name": "GLM 5.2 (NVIDIA) — Strong for long-context analysis, multi-step agentic workflows.",
           "reasoning": true,
           "tool_call": true,
           "temperature": true,
@@ -27,7 +27,7 @@
           }
         },
         "deepseek-ai/deepseek-v4-pro": {
-          "name": "DeepSeek V4 Pro (NVIDIA) — 1M ctx MoE, coding + tool calls",
+          "name": "DeepSeek V4 Pro (NVIDIA) — Strong coding, fast responses. Good for quick fixes and daily dev work.",
           "reasoning": true,
           "tool_call": true,
           "temperature": true,
@@ -37,7 +37,7 @@
           }
         },
         "deepseek-ai/deepseek-v4-flash": {
-          "name": "DeepSeek V4 Flash (NVIDIA) — 1M ctx, fast + lightweight coding",
+          "name": "DeepSeek V4 Flash (NVIDIA) — Fastest. Use for simple tasks: triage issues, explain code, quick fixes.",
           "reasoning": true,
           "tool_call": true,
           "temperature": true,
@@ -47,7 +47,7 @@
           }
         },
         "minimaxai/minimax-m2.7": {
-          "name": "MiniMax M2.7 (NVIDIA) — 230B coding, reasoning, office tasks",
+          "name": "MiniMax M2.7 (NVIDIA) — Decent coding for routine tasks, cheaper alternative.",
           "reasoning": true,
           "tool_call": true,
           "temperature": true,
@@ -57,7 +57,7 @@
           }
         },
         "minimaxai/minimax-m3": {
-          "name": "MiniMax M3 (NVIDIA) — Multimodal VLM, reasoning + tool-calling",
+          "name": "MiniMax M3 (NVIDIA) — Can understand images/video. Use for UI/design PR reviews.",
           "reasoning": true,
           "tool_call": true,
           "temperature": true,
@@ -68,7 +68,7 @@
           }
         },
         "nvidia/nemotron-3-ultra-550b-a55b": {
-          "name": "Nemotron 3 Ultra (NVIDIA) — Top: agentic reasoning, coding, planning, 1M ctx",
+          "name": "Nemotron 3 Ultra (NVIDIA) — Best for complex PRs, architecture, hard bugs. Slowest but smartest.",
           "reasoning": true,
           "tool_call": true,
           "temperature": true,
@@ -78,7 +78,7 @@
           }
         },
         "nvidia/nemotron-3-super-120b-a12b": {
-          "name": "Nemotron 3 Super (NVIDIA) — Best P/P: agentic reasoning, coding, planning, 1M ctx",
+          "name": "Nemotron 3 Super (NVIDIA) — Best all-rounder: fixes, features, reviews. Sweet spot of quality vs speed.",
           "reasoning": true,
           "tool_call": true,
           "temperature": true,
@@ -88,7 +88,7 @@
           }
         },
         "meta/llama-3.3-nemotron-super-49b-v1.5": {
-          "name": "Llama Nemotron 49B (NVIDIA) — Efficient reasoning, tool calling, chat",
+          "name": "Llama Nemotron 49B (NVIDIA) — Solid for general chat, instruction following, tool calling.",
           "reasoning": true,
           "tool_call": true,
           "temperature": true,
@@ -98,7 +98,7 @@
           }
         },
         "nvidia/mistral-nemotron": {
-          "name": "Mistral Nemotron (NVIDIA) — Agentic workflows, coding, function calling",
+          "name": "Mistral Nemotron (NVIDIA) — Reliable agentic coding, good function calling.",
           "reasoning": true,
           "tool_call": true,
           "temperature": true,
@@ -108,7 +108,7 @@
           }
         },
         "google/gemma-4-31b-it": {
-          "name": "Gemma 4 31B (NVIDIA) — Frontier reasoning, coding, budget-friendly",
+          "name": "Gemma 4 31B (NVIDIA) — Budget pick: decent reasoning for simple questions.",
           "reasoning": true,
           "tool_call": true,
           "temperature": true,
@@ -118,7 +118,7 @@
           }
         },
         "nvidia/nemotron-3-nano-30b-a3b": {
-          "name": "Nemotron 3 Nano (NVIDIA) — Efficient MoE, 1M ctx, lightweight coding",
+          "name": "Nemotron 3 Nano (NVIDIA) — Fastest + cheapest. Use for triage, tiny fixes, quick reviews.",
           "reasoning": true,
           "tool_call": true,
           "temperature": true,
