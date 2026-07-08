@@ -5,6 +5,7 @@ import {
   subscribeAiSettingsChanges,
 } from '../services/apiKey';
 import { generateGeminiWeeklyInsight } from '../services/gemini';
+import { generateNvidiaWeeklyInsight } from '../services/nvidia';
 import {
   formatOnboardingProfileForPrompt,
   getOnboardingProfile,
@@ -66,15 +67,12 @@ export function useWeeklyAiInsight({
         if (!mountedRef.current) return;
 
         const formattedProfile = formatOnboardingProfileForPrompt(profile);
-        const insight: AiWeeklyInsight =
-          activeKey.provider === 'openai'
-            ? await generateWeeklyInsight(activeKey.key, tasks, baseSummary, formattedProfile)
-            : await generateGeminiWeeklyInsight(
-                activeKey.key,
-                tasks,
-                baseSummary,
-                formattedProfile,
-              );
+        const insightGenerators: Record<string, (key: string) => Promise<AiWeeklyInsight>> = {
+          openai: (key) => generateWeeklyInsight(key, tasks, baseSummary, formattedProfile),
+          google: (key) => generateGeminiWeeklyInsight(key, tasks, baseSummary, formattedProfile),
+          nvidia: (key) => generateNvidiaWeeklyInsight(key, tasks, baseSummary, formattedProfile),
+        };
+        const insight: AiWeeklyInsight = await insightGenerators[activeKey.provider](activeKey.key);
         if (mountedRef.current) {
           setPatterns(insight.patterns);
           setSuggestions(insight.suggestions);
