@@ -4,6 +4,7 @@ import { fireEvent, render, screen } from '@testing-library/react-native';
 import { Text } from 'react-native';
 import { PaperProvider } from 'react-native-paper';
 import type { SettingsViewProps } from '../views/SettingsView';
+import type { AiProvider } from '../hooks/useSettingsState';
 import { SettingsView } from '../views/SettingsView';
 
 function mockEyeClosed() {
@@ -48,14 +49,14 @@ const mockSettingsProps = {
   saveDemoTime: jest.fn<() => boolean>(() => true),
   savedCurrentApiKey: null,
   savingCurrentKey: false,
-  selectedProvider: 'openai' as const,
+  selectedProvider: 'openai' as AiProvider,
   setAiFeaturesEnabled: jest.fn<(value: boolean) => void>(),
   setAiSuggestionEnabled: jest.fn<(value: boolean) => void>(),
   setCurrentApiKey: jest.fn<(value: string) => void>(),
   setDemoDate: jest.fn<(value: string) => void>(),
   setDemoTime: jest.fn<(value: string) => void>(),
   setMessage: jest.fn<(value: string | null) => void>(),
-  setSelectedProvider: jest.fn<(provider: 'openai' | 'google') => void>(),
+  setSelectedProvider: jest.fn<(provider: AiProvider) => void>(),
   showDeveloperTools: false,
   toggleWeeklyPreview: jest.fn<(value: boolean) => void>(),
   weeklyPreviewEnabled: false,
@@ -85,6 +86,7 @@ describe('SettingsView', () => {
     expect(screen.getByText('Setting')).toBeOnTheScreen();
     expect(screen.getByText('Google')).toBeOnTheScreen();
     expect(screen.getByText('OpenAI')).toBeOnTheScreen();
+    expect(screen.getByText('NVIDIA')).toBeOnTheScreen();
     expect(screen.getByText('AI Features')).toBeOnTheScreen();
     expect(screen.getByText('AI Suggestion')).toBeOnTheScreen();
     expect(screen.getByText('Weekly insight suggestions on')).toBeOnTheScreen();
