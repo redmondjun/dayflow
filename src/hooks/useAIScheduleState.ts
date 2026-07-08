@@ -28,7 +28,7 @@ import { useMountedRef } from './useMountedRef';
 import { getActiveAiApiKey, getAiFeaturesEnabled } from '../services/apiKey';
 import { getEffectiveNow, useDevDemoState } from '../services/devDemo';
 import { generateGeminiScheduleFromText } from '../services/gemini';
-import { generateNvidiaScheduleFromText, NVIDIA_MODEL } from '../services/nvidia';
+import { generateNvidiaScheduleFromText } from '../services/nvidia';
 import {
   formatOnboardingProfileForPrompt,
   getOnboardingProfile,
