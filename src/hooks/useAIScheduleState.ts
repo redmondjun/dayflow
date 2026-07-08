@@ -359,11 +359,9 @@ export function useAIScheduleState({
             generateNvidiaScheduleFromText(providerKeys.nvidia!, scheduleTasks, scheduleContext),
         };
 
-        const activeProvider = providerKeys.openai
-          ? 'openai'
-          : providerKeys.google
-            ? 'google'
-            : 'nvidia';
+        const activeProvider = (Object.entries(providerKeys).find(([, key]) => key) ?? [
+          'nvidia',
+        ])[0];
         aiSchedule = await scheduleGenerators[activeProvider]();
       }
 
