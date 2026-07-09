@@ -11,7 +11,11 @@ jobs:
       (contains(github.event.comment.body, '/oc') ||
        contains(github.event.comment.body, '/opencode') ||
        contains(github.event.comment.body, '/gemini')) &&
-      github.event.comment.author_association != 'NONE'
+      (github.event.sender.type == 'User' &&
+       (github.event.sender.site_admin == true ||
+        github.event.author_association == 'MEMBER' ||
+        github.event.author_association == 'COLLABORATOR' ||
+        github.event.author_association == 'OWNER'))
     runs-on: ubuntu-latest
     permissions:
       id-token: write
@@ -69,7 +73,7 @@ jobs:
 
       - name: Run OpenCode (NVIDIA)
         if: steps.model.outputs.provider_key == 'NVIDIA_API_KEY'
-        uses: anomalyco/opencode/github@v1
+        uses: anomalyco/opencode/github@0abbcddac233e313bcb67608a527929910df861c
         env:
           NVIDIA_API_KEY: ${{ secrets.NVIDIA_API_KEY }}
         with:
@@ -77,7 +81,7 @@ jobs:
 
       - name: Run OpenCode (Gemini)
         if: steps.model.outputs.provider_key == 'GEMINI_API_KEY'
-        uses: anomalyco/opencode/github@v1
+        uses: anomalyco/opencode/github@0abbcddac233e313bcb67608a527929910df861c
         env:
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
         with:
