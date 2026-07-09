@@ -5,6 +5,8 @@ import {
   buildWeeklyInsightPrompt,
   geminiScheduleSchema,
   geminiWeeklyInsightSchema,
+  SCHEDULE_SYSTEM_PROMPT,
+  WEEKLY_INSIGHT_SYSTEM_PROMPT,
   type ScheduleGenerationContext,
   type ScheduleTaskInput,
 } from './ai/prompts';
@@ -19,9 +21,6 @@ export type { AiGeneratedTask, AiWeeklyInsight };
 
 const GEMINI_MODEL = 'gemini-2.5-flash';
 const GEMINI_GENERATE_CONTENT_URL = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent`;
-
-const SCHEDULE_SYSTEM_PROMPT =
-  'You are a scheduling assistant. Build a realistic daily schedule with logical start times and durations for each task. Use the user profile windows and constraints. Return JSON only.';
 
 export async function generateGeminiScheduleFromText(
   apiKey: string,
@@ -87,7 +86,7 @@ export async function generateGeminiWeeklyInsight(
     systemInstruction: {
       parts: [
         {
-          text: 'You are a productivity coach. Analyze weekly task history and return concise patterns and actionable suggestions. Return JSON only.',
+          text: WEEKLY_INSIGHT_SYSTEM_PROMPT,
         },
       ],
     },

@@ -28,12 +28,13 @@ import { useMountedRef } from './useMountedRef';
 import { getActiveAiApiKey, getAiFeaturesEnabled } from '../services/apiKey';
 import { getEffectiveNow, useDevDemoState } from '../services/devDemo';
 import { generateGeminiScheduleFromText } from '../services/gemini';
+import { generateNvidiaScheduleFromText } from '../services/nvidia';
 import {
   formatOnboardingProfileForPrompt,
   getOnboardingProfile,
 } from '../services/onboardingProfile';
 import { getProfileSchedulingContext } from '../features/taskPlanning/profileScheduling';
-import { generateScheduleFromText } from '../services/openai';
+import { generateScheduleFromText, type AiGeneratedTask } from '../services/openai';
 import { useTaskStore } from '../store/taskStore';
 import type { GeneratedTaskPreview, TaskInputRow } from '../types/task';
 import { buildHybridPreview } from '../utils/scheduling';
@@ -304,16 +305,22 @@ export function useAIScheduleState({
       return;
     }
 
-    let latestOpenAiApiKey = apiKey;
-    let latestGeminiApiKey: string | null = null;
+    let activeProvider: string | null = null;
+    const providerKeys: Record<string, string | null> = {
+      openai: apiKey,
+      google: null,
+      nvidia: null,
+    };
     if (!isPreview) {
       const activeKey = await getActiveAiApiKey();
-      latestOpenAiApiKey = activeKey?.provider === 'openai' ? activeKey.key : null;
-      latestGeminiApiKey = activeKey?.provider === 'google' ? activeKey.key : null;
+      providerKeys.openai = activeKey?.provider === 'openai' ? activeKey.key : null;
+      providerKeys.google = activeKey?.provider === 'google' ? activeKey.key : null;
+      providerKeys.nvidia = activeKey?.provider === 'nvidia' ? activeKey.key : null;
       setApiKey(activeKey?.key ?? null);
+      activeProvider = activeKey?.provider ?? null;
     }
 
-    const latestApiKey = latestOpenAiApiKey ?? latestGeminiApiKey;
+    const latestApiKey = providerKeys.openai ?? providerKeys.google ?? providerKeys.nvidia;
     if (aiRows.length > 0 && !latestApiKey) {
       setLocalError(missingApiKeyMessage);
       return;
@@ -345,13 +352,17 @@ export function useAIScheduleState({
           description: row.description?.trim() || null,
           estimatedDurationMinutes: row.estimatedDurationMinutes ?? null,
         }));
-        aiSchedule = latestOpenAiApiKey
-          ? await generateScheduleFromText(latestOpenAiApiKey, scheduleTasks, scheduleContext)
-          : await generateGeminiScheduleFromText(
-              latestGeminiApiKey ?? '',
-              scheduleTasks,
-              scheduleContext,
-            );
+        const scheduleGenerators: Record<string, () => Promise<AiGeneratedTask[]>> = {
+          openai: () =>
+            generateScheduleFromText(providerKeys.openai!, scheduleTasks, scheduleContext),
+          google: () =>
+            generateGeminiScheduleFromText(providerKeys.google!, scheduleTasks, scheduleContext),
+          nvidia: () =>
+            generateNvidiaScheduleFromText(providerKeys.nvidia!, scheduleTasks, scheduleContext),
+        };
+
+        const provider = activeProvider ?? 'openai';
+        aiSchedule = await scheduleGenerators[provider]();
       }
 
       previewStore.writeTasks(

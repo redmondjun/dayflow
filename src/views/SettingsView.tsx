@@ -56,36 +56,41 @@ function AiProviderTabBar({
   selectedProvider: AiProvider;
   onSelect: (provider: AiProvider) => void;
 }) {
+  const providers: { key: AiProvider; label: string }[] = [
+    { key: 'google', label: 'Google' },
+    { key: 'openai', label: 'OpenAI' },
+    { key: 'nvidia', label: 'NVIDIA' },
+  ];
+
   return (
     <View className="mb-3 flex-row overflow-hidden rounded-full border border-warm3">
-      <Pressable
-        onPress={() => onSelect('google')}
-        className={`flex-1 items-center px-2.5 py-2.5 ${
-          selectedProvider === 'google' ? 'bg-warm4' : 'bg-paper'
-        } rounded-l-full border-r border-warm3`}
-      >
-        <Text
-          className={`text-[15px] font-semibold ${
-            selectedProvider === 'google' ? 'text-ink' : 'text-warm'
-          }`}
-        >
-          Google
-        </Text>
-      </Pressable>
-      <Pressable
-        onPress={() => onSelect('openai')}
-        className={`flex-1 items-center px-2.5 py-2.5 ${
-          selectedProvider === 'openai' ? 'bg-warm4' : 'bg-paper'
-        } rounded-r-full`}
-      >
-        <Text
-          className={`text-[15px] font-semibold ${
-            selectedProvider === 'openai' ? 'text-ink' : 'text-warm'
-          }`}
-        >
-          OpenAI
-        </Text>
-      </Pressable>
+      {providers.map(({ key, label }, index) => {
+        const isFirst = index === 0;
+        const isLast = index === providers.length - 1;
+        const isSelected = selectedProvider === key;
+
+        return (
+          <Pressable
+            key={key}
+            onPress={() => onSelect(key)}
+            className={`flex-1 items-center px-2.5 py-2.5 ${
+              isSelected ? 'bg-warm4' : 'bg-paper'
+            } ${isFirst ? 'rounded-l-full' : ''} ${isLast ? 'rounded-r-full' : ''} ${!isLast ? 'border-r border-warm3' : ''}`}
+          >
+            <Text className={`text-[13px] font-semibold ${isSelected ? 'text-ink' : 'text-warm'}`}>
+              {label}
+            </Text>
+          </Pressable>
+        );
+      })}
+    </View>
+  );
+}
+
+function NvidiaModelLabel() {
+  return (
+    <View className="mt-3 rounded-[10px] border border-warm3 bg-warm4 px-3 py-2.5">
+      <Text className="text-[13px] text-ink">Llama 3.1 70B</Text>
     </View>
   );
 }
@@ -131,6 +136,7 @@ function ApiKeyEditor({
   onChangeKey,
   onRemoveKey,
   onSaveKey,
+  extraSlot,
 }: {
   currentApiKey: string;
   providerPlaceholder: string;
@@ -141,6 +147,7 @@ function ApiKeyEditor({
   onChangeKey: (value: string) => void;
   onRemoveKey: () => void | Promise<void>;
   onSaveKey: () => void | Promise<void>;
+  extraSlot?: React.ReactNode;
 }) {
   const [showInput, setShowInput] = useState(false);
   const canSaveKey = currentApiKey.trim().length > 0;
@@ -185,6 +192,8 @@ function ApiKeyEditor({
             </Text>
           </Pressable>
         </View>
+
+        {extraSlot || null}
 
         <Text className="mt-3 text-xs tracking-[-0.12px] text-warm">{providerHelpText}</Text>
       </View>
@@ -387,11 +396,19 @@ export function SettingsView(props: SettingsViewProps) {
     showDeveloperTools,
   } = props;
 
-  const providerPlaceholder = selectedProvider === 'openai' ? 'sk-proj-...' : 'AIza...';
-  const providerHelpText =
-    selectedProvider === 'openai'
-      ? 'GPT usage is billed by your OpenAI account.'
-      : 'Gemini usage is billed by your Google account.';
+  const PROVIDER_PLACEHOLDERS: Record<AiProvider, string> = {
+    openai: 'sk-proj-...',
+    google: 'AIza...',
+    nvidia: 'nvapi-...',
+  };
+  const PROVIDER_HELP_TEXT: Record<AiProvider, string> = {
+    openai: 'GPT usage is billed by your OpenAI account.',
+    google: 'Gemini usage is billed by your Google account.',
+    nvidia: 'NVIDIA Build offers free API access within rate limits.',
+  };
+
+  const providerPlaceholder = PROVIDER_PLACEHOLDERS[selectedProvider];
+  const providerHelpText = PROVIDER_HELP_TEXT[selectedProvider];
 
   return (
     <View className="flex-1 bg-paper">
@@ -422,6 +439,7 @@ export function SettingsView(props: SettingsViewProps) {
           onChangeKey={setCurrentApiKey}
           onRemoveKey={removeCurrentProviderKey}
           onSaveKey={saveCurrentProviderKey}
+          extraSlot={selectedProvider === 'nvidia' && <NvidiaModelLabel />}
         />
 
         <View className="h-2.5" />

@@ -2,6 +2,8 @@ import * as SecureStore from 'expo-secure-store';
 
 const OPENAI_API_KEY = 'dayflow.openaiApiKey';
 const GEMINI_API_KEY = 'dayflow.geminiApiKey';
+const NVIDIA_API_KEY = 'dayflow.nvidiaApiKey';
+const AI_PROVIDER = 'dayflow.aiProvider';
 const AI_FEATURES_ENABLED = 'dayflow.aiFeaturesEnabled';
 const AI_SUGGESTION_ENABLED = 'dayflow.aiSuggestionEnabled';
 
@@ -85,14 +87,60 @@ export async function saveAiSuggestionEnabled(value: boolean): Promise<void> {
   notifyAiSettingsChanged();
 }
 
-export type ActiveAiProvider = 'openai' | 'google';
+export type ActiveAiProvider = 'openai' | 'google' | 'nvidia';
+
+export async function getPreferredAiProvider(): Promise<ActiveAiProvider | null> {
+  const value = await getStoredValue(AI_PROVIDER);
+  if (value === 'openai' || value === 'google' || value === 'nvidia') return value;
+  return null;
+}
+
+export async function savePreferredAiProvider(provider: ActiveAiProvider): Promise<void> {
+  await SecureStore.setItemAsync(AI_PROVIDER, provider);
+}
 
 export async function getActiveAiApiKey(): Promise<{
   provider: ActiveAiProvider;
   key: string;
 } | null> {
-  const [openAiKey, geminiKey] = await Promise.all([getOpenAIApiKey(), getGeminiApiKey()]);
-  if (openAiKey) return { provider: 'openai', key: openAiKey };
-  if (geminiKey) return { provider: 'google', key: geminiKey };
+  const [preferredProvider, openAiKey, geminiKey, nvidiaKey] = await Promise.all([
+    getPreferredAiProvider(),
+    getOpenAIApiKey(),
+    getGeminiApiKey(),
+    getNvidiaApiKey(),
+  ]);
+
+  if (preferredProvider === 'nvidia' && nvidiaKey) {
+    return { provider: 'nvidia', key: nvidiaKey };
+  }
+  if (preferredProvider === 'openai' && openAiKey) {
+    return { provider: 'openai', key: openAiKey };
+  }
+  if (preferredProvider === 'google' && geminiKey) {
+    return { provider: 'google', key: geminiKey };
+  }
+
+  const fallbackProviders: { provider: ActiveAiProvider; key: string | null }[] = [
+    { provider: 'openai', key: openAiKey },
+    { provider: 'google', key: geminiKey },
+    { provider: 'nvidia', key: nvidiaKey },
+  ];
+  for (const entry of fallbackProviders) {
+    if (entry.key) return { provider: entry.provider, key: entry.key };
+  }
   return null;
+}
+
+export async function getNvidiaApiKey(): Promise<string | null> {
+  return getStoredValue(NVIDIA_API_KEY);
+}
+
+export async function saveNvidiaApiKey(value: string): Promise<void> {
+  await saveStoredValue(NVIDIA_API_KEY, value);
+  notifyAiSettingsChanged();
+}
+
+export async function deleteNvidiaApiKey(): Promise<void> {
+  await deleteStoredValue(NVIDIA_API_KEY);
+  notifyAiSettingsChanged();
 }

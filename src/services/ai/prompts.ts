@@ -239,3 +239,9 @@ export const geminiWeeklyInsightSchema = {
 };
 
 export type { ScheduleGenerationContext };
+
+export const SCHEDULE_SYSTEM_PROMPT =
+  'You are a scheduling assistant. Build a realistic daily schedule with logical start times and durations for each task. Use the user profile windows and constraints. Return JSON only.';
+
+export const WEEKLY_INSIGHT_SYSTEM_PROMPT =
+  'You are a productivity coach. Analyze weekly task history and return concise patterns and actionable suggestions. Return JSON only.';

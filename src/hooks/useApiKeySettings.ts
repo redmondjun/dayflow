@@ -1,15 +1,20 @@
 import { useEffect, useState } from 'react';
 import {
   deleteGeminiApiKey,
+  deleteNvidiaApiKey,
   deleteOpenAIApiKey,
   getGeminiApiKey,
+  getNvidiaApiKey,
   getOpenAIApiKey,
+  getPreferredAiProvider,
   saveGeminiApiKey,
+  saveNvidiaApiKey,
   saveOpenAIApiKey,
+  savePreferredAiProvider,
 } from '../services/apiKey';
 import { validateOpenAIApiKey } from '../services/openai';
 
-export type AiProvider = 'google' | 'openai';
+export type AiProvider = 'google' | 'openai' | 'nvidia';
 
 type SaveKeyParams = {
   value: string;
@@ -38,21 +43,41 @@ export function useApiKeySettings(setMessage: (message: string | null) => void) 
   const [savedOpenAiApiKey, setSavedOpenAiApiKey] = useState<string | null>(null);
   const [geminiApiKey, setGeminiApiKey] = useState('');
   const [savedGeminiApiKey, setSavedGeminiApiKey] = useState<string | null>(null);
+  const [nvidiaApiKey, setNvidiaApiKey] = useState('');
+  const [savedNvidiaApiKey, setSavedNvidiaApiKey] = useState<string | null>(null);
   const [validatingOpenAi, setValidatingOpenAi] = useState(false);
   const [savingGemini, setSavingGemini] = useState(false);
+  const [savingNvidia, setSavingNvidia] = useState(false);
 
-  const currentApiKey = selectedProvider === 'openai' ? openAiApiKey : geminiApiKey;
-  const savedCurrentApiKey = selectedProvider === 'openai' ? savedOpenAiApiKey : savedGeminiApiKey;
-  const savingCurrentKey = selectedProvider === 'openai' ? validatingOpenAi : savingGemini;
+  const providerApiKeys = { openai: openAiApiKey, google: geminiApiKey, nvidia: nvidiaApiKey };
+  const providerSavedKeys = {
+    openai: savedOpenAiApiKey,
+    google: savedGeminiApiKey,
+    nvidia: savedNvidiaApiKey,
+  };
+  const providerLoading = { openai: validatingOpenAi, google: savingGemini, nvidia: savingNvidia };
+
+  const currentApiKey = providerApiKeys[selectedProvider];
+  const savedCurrentApiKey = providerSavedKeys[selectedProvider];
+  const savingCurrentKey = providerLoading[selectedProvider];
 
   useEffect(() => {
-    Promise.all([getOpenAIApiKey(), getGeminiApiKey()])
-      .then(([openAiKey, geminiKey]) => {
+    Promise.all([getOpenAIApiKey(), getGeminiApiKey(), getNvidiaApiKey(), getPreferredAiProvider()])
+      .then(([openAiKey, geminiKey, nvidiaKey, preferredProvider]) => {
         setSavedOpenAiApiKey(openAiKey);
         setOpenAiApiKey(openAiKey ?? '');
         setSavedGeminiApiKey(geminiKey);
         setGeminiApiKey(geminiKey ?? '');
-        if (geminiKey && !openAiKey) setSelectedProvider('google');
+        setSavedNvidiaApiKey(nvidiaKey);
+        setNvidiaApiKey(nvidiaKey ?? '');
+
+        if (preferredProvider) {
+          setSelectedProvider(preferredProvider);
+        } else if (geminiKey && !openAiKey && !nvidiaKey) {
+          setSelectedProvider('google');
+        } else if (nvidiaKey && !openAiKey && !geminiKey) {
+          setSelectedProvider('nvidia');
+        }
       })
       .catch(() => setMessage('Could not load saved settings.'));
   }, [setMessage]);
@@ -144,13 +169,25 @@ export function useApiKeySettings(setMessage: (message: string | null) => void) 
     });
   };
 
-  const saveCurrentProviderKey = async () => {
-    if (selectedProvider === 'openai') {
-      await saveOpenAi();
-      return;
-    }
-    await saveGemini();
+  const saveNvidia = async () => {
+    await saveKey({
+      value: nvidiaApiKey,
+      setLoading: setSavingNvidia,
+      saveKey: saveNvidiaApiKey,
+      setSavedKey: setSavedNvidiaApiKey,
+      setValue: setNvidiaApiKey,
+      successMessage: 'NVIDIA API key saved.',
+      removeMessage: 'NVIDIA API key removed.',
+      errorMessage: 'Could not save NVIDIA API key.',
+    });
   };
+
+  const providerSavers = {
+    openai: saveOpenAi,
+    google: saveGemini,
+    nvidia: saveNvidia,
+  };
+  const saveCurrentProviderKey = () => providerSavers[selectedProvider]();
 
   const removeOpenAi = async () => {
     await removeKey({
@@ -174,20 +211,32 @@ export function useApiKeySettings(setMessage: (message: string | null) => void) 
     });
   };
 
-  const removeCurrentProviderKey = async () => {
-    if (selectedProvider === 'openai') {
-      await removeOpenAi();
-      return;
-    }
-    await removeGemini();
+  const removeNvidia = async () => {
+    await removeKey({
+      setLoading: setSavingNvidia,
+      deleteKey: deleteNvidiaApiKey,
+      setSavedKey: setSavedNvidiaApiKey,
+      setValue: setNvidiaApiKey,
+      successMessage: 'NVIDIA API key removed.',
+      errorMessage: 'Could not remove NVIDIA API key.',
+    });
   };
 
+  const providerRemovers = {
+    openai: removeOpenAi,
+    google: removeGemini,
+    nvidia: removeNvidia,
+  };
+  const removeCurrentProviderKey = () => providerRemovers[selectedProvider]();
+
   const setCurrentApiKey = (value: string) => {
-    if (selectedProvider === 'openai') {
-      setOpenAiApiKey(value);
-      return;
-    }
-    setGeminiApiKey(value);
+    const setters = { openai: setOpenAiApiKey, google: setGeminiApiKey, nvidia: setNvidiaApiKey };
+    setters[selectedProvider](value);
+  };
+
+  const handleSetSelectedProvider = (provider: AiProvider) => {
+    setSelectedProvider(provider);
+    savePreferredAiProvider(provider);
   };
 
   return {
@@ -196,10 +245,11 @@ export function useApiKeySettings(setMessage: (message: string | null) => void) 
     saveCurrentProviderKey,
     saveOpenAi,
     saveGemini,
+    saveNvidia,
     savedCurrentApiKey,
     savingCurrentKey,
     selectedProvider,
     setCurrentApiKey,
-    setSelectedProvider,
+    setSelectedProvider: handleSetSelectedProvider,
   };
 }
