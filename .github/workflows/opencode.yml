@@ -28,9 +28,9 @@ jobs:
           script: |
             const body = context.payload.comment.body;
 
-            // Gemini trigger overrides everything
+            // Gemini trigger uses Flash (higher rate limits)
             if (body.includes('/gemini')) {
-              core.setOutput('model', 'google/gemini-3-pro-preview');
+              core.setOutput('model', 'google/gemini-3-flash-preview');
               core.setOutput('provider_key', 'GEMINI_API_KEY');
               return;
             }
