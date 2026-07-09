@@ -1,0 +1,42 @@
+name: opencode auto-review
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
+
+jobs:
+  review:
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write
+      contents: read
+      pull-requests: write
+      issues: write
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+
+      - name: Pick review model
+        id: model
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const action = context.payload.action;
+            const models = {
+              opened:       'nvidia/nvidia/nemotron-3-ultra-550b-a55b',
+              synchronize:  'nvidia/nvidia/nemotron-3-super-120b-a12b',
+              reopened:     'nvidia/nvidia/nemotron-3-super-120b-a12b',
+            };
+            core.setOutput('model', models[action] || models.synchronize);
+
+      - uses: anomalyco/opencode/github@0abbcddac233e313bcb67608a527929910df861c
+        env:
+          NVIDIA_API_KEY: ${{ secrets.NVIDIA_API_KEY }}
+        with:
+          model: ${{ steps.model.outputs.model }}
+          prompt: |
+            Review this pull request thoroughly:
+            - Check for code quality issues, bugs, and security concerns
+            - Verify patterns match the rest of the codebase
+            - Suggest specific, actionable improvements
+            - If you find serious issues, flag them prominently

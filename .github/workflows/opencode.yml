@@ -1,0 +1,88 @@
+name: opencode
+on:
+  issue_comment:
+    types: [created]
+  pull_request_review_comment:
+    types: [created]
+
+jobs:
+  opencode:
+    if: |
+      (contains(github.event.comment.body, '/oc') ||
+       contains(github.event.comment.body, '/opencode') ||
+       contains(github.event.comment.body, '/gemini')) &&
+      (github.event.sender.type == 'User' &&
+       (github.event.sender.site_admin == true ||
+        github.event.author_association == 'MEMBER' ||
+        github.event.author_association == 'COLLABORATOR' ||
+        github.event.author_association == 'OWNER'))
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 1
+          persist-credentials: false
+
+      - name: Pick model from comment
+        id: model
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const body = context.payload.comment.body;
+
+            // Gemini trigger uses Flash (higher rate limits)
+            if (body.includes('/gemini')) {
+              core.setOutput('model', 'google/gemini-3-flash-preview');
+              core.setOutput('provider_key', 'GEMINI_API_KEY');
+              return;
+            }
+
+            const models = {
+              '--ultra':    'nvidia/nvidia/nemotron-3-ultra-550b-a55b',
+              '--super':    'nvidia/nvidia/nemotron-3-super-120b-a12b',
+              '--pro':      'nvidia/deepseek-ai/deepseek-v4-pro',
+              '--flash':    'nvidia/deepseek-ai/deepseek-v4-flash',
+              '--nano':     'nvidia/nvidia/nemotron-3-nano-30b-a3b',
+              '--glm':      'nvidia/z-ai/glm-5.2',
+              '--llama':    'nvidia/meta/llama-3.3-nemotron-super-49b-v1.5',
+              '--mistral':  'nvidia/nvidia/mistral-nemotron',
+              '--gemma':    'nvidia/google/gemma-4-31b-it',
+              '--minimax-m3':'nvidia/minimaxai/minimax-m3',
+              '--minimax-m2':'nvidia/minimaxai/minimax-m2.7',
+              '--gemini-pro': 'google/gemini-3-pro-preview',
+              '--gemini-flash': 'google/gemini-3-flash-preview',
+            };
+
+            let selected = 'nvidia/nvidia/nemotron-3-super-120b-a12b';
+            let providerKey = 'NVIDIA_API_KEY';
+
+            for (const [flag, model] of Object.entries(models)) {
+              if (body.includes(flag)) {
+                selected = model;
+                if (model.startsWith('google/')) providerKey = 'GEMINI_API_KEY';
+                else providerKey = 'NVIDIA_API_KEY';
+                break;
+              }
+            }
+
+            core.setOutput('model', selected);
+            core.setOutput('provider_key', providerKey);
+
+      - name: Run OpenCode (NVIDIA)
+        if: steps.model.outputs.provider_key == 'NVIDIA_API_KEY'
+        uses: anomalyco/opencode/github@0abbcddac233e313bcb67608a527929910df861c
+        env:
+          NVIDIA_API_KEY: ${{ secrets.NVIDIA_API_KEY }}
+        with:
+          model: ${{ steps.model.outputs.model }}
+
+      - name: Run OpenCode (Gemini)
+        if: steps.model.outputs.provider_key == 'GEMINI_API_KEY'
+        uses: anomalyco/opencode/github@0abbcddac233e313bcb67608a527929910df861c
+        env:
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+        with:
+          model: ${{ steps.model.outputs.model }}
